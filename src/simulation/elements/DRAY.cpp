@@ -32,6 +32,7 @@ void Element::Element_DRAY()
 	Description = ByteString("D射线发射器,会将沿电流方向对前方的所有粒子").FromUtf8();
 
 	Properties = TYPE_SOLID;
+	CarriesTypeIn = 1U << FIELD_CTYPE;
 
 	LowPressure = IPL;
 	LowPressureTransition = NT;

@@ -34,6 +34,7 @@ void Element::Element_PCLN()
 	Description = ByteString("可控复制体,激活时变得和复制体一样").FromUtf8();
 
 	Properties = TYPE_SOLID | PROP_NOCTYPEDRAW;
+	CarriesTypeIn = 1U << FIELD_CTYPE;
 
 	LowPressure = IPL;
 	LowPressureTransition = NT;

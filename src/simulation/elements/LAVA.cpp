@@ -36,6 +36,7 @@ void Element::Element_LAVA()
 	Description = ByteString("岩浆,冷却后变成固体,所有熔融物都是一个样子,区别在于其Ctype").FromUtf8();
 
 	Properties = TYPE_LIQUID|PROP_LIFE_DEC;
+	CarriesTypeIn = 1U << FIELD_CTYPE;
 
 	LowPressure = IPL;
 	LowPressureTransition = NT;

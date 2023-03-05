@@ -33,6 +33,7 @@ void Element::Element_LDTC()
 	Description = ByteString("线性探测器,从8个方向检测粒子,并在相反方向激发导体").FromUtf8();
 
 	Properties = TYPE_SOLID | PROP_NOCTYPEDRAW;
+	CarriesTypeIn = 1U << FIELD_CTYPE;
 
 	LowPressure = IPL;
 	LowPressureTransition = NT;

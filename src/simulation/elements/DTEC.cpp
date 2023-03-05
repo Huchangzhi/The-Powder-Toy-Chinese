@@ -32,6 +32,7 @@ void Element::Element_DTEC()
 	Description = ByteString("探测器,有相同的物质与之接触时产生电脉冲").FromUtf8();
 
 	Properties = TYPE_SOLID;
+	CarriesTypeIn = 1U << FIELD_CTYPE;
 
 	LowPressure = IPL;
 	LowPressureTransition = NT;

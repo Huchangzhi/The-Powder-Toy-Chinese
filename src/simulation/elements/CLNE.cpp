@@ -32,6 +32,7 @@ void Element::Element_CLNE()
 	Description = ByteString("复制体,复制碰到它的任何物体").FromUtf8();
 
 	Properties = TYPE_SOLID | PROP_NOCTYPEDRAW;
+	CarriesTypeIn = 1U << FIELD_CTYPE;
 
 	LowPressure = IPL;
 	LowPressureTransition = NT;
