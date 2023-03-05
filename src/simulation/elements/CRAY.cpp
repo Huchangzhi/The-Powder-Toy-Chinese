@@ -34,6 +34,7 @@ void Element::Element_CRAY()
 	Description = ByteString("物质射线发射器,发射一个由其Ctype设置的粒子束,其范围由Tmp设置").FromUtf8();
 
 	Properties = TYPE_SOLID;
+	CarriesTypeIn = 1U << FIELD_CTYPE;
 
 	LowPressure = IPL;
 	LowPressureTransition = NT;
