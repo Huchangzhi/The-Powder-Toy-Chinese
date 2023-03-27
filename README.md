@@ -55,6 +55,7 @@ Powder Toy 是一款免费的物理沙盒游戏，它模拟气压和速度、热
 * [mbedtls](https://www.trustedfirmware.org/projects/mbed-tls/)
 * [SDL](https://libsdl.org/)
 * [zlib](https://www.zlib.net/)
+* [zpix](https://github.com/SolidZORO/zpix-pixel-font)
 
 指导
 ===========================================================================
