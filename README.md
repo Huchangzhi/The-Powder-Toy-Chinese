@@ -7,6 +7,7 @@ The Powder Toy - January 2023
 
 
 要使用保存等在线功能，您需要 [注册一个帐户](https://powdertoy.co.uk/Register.html)
+
 您也可以访问 [官方 TPT 论坛](https://powdertoy.co.uk/Discussions/Categories/Index.html)
 
 你有没有想过炸毁什么东西？或者，也许您一直梦想着经营一座原子能发电厂？您是否有开发自己的 CPU 的意愿？Powder Toy 让您可以做到所有这些，甚至更多！
@@ -128,3 +129,10 @@ Powder Toy 是一款免费的物理沙盒游戏，它模拟气压和速度、热
 | `redirect`            | 将输出重定向到 stdout.txt / stderr.txt      |                                             |
 | `cafile:CAFILE`       | 设置证书路径                      | `cafile:/etc/ssl/certs/ca-certificates.crt` |
 | `capath:CAPATH`       | 设置证书目录路径                   | `capath:/etc/ssl/certs`                     |
+
+参考资料
+===========================================================================
+* [Lemon-2333/The-Powder-Toy-Chinese](https://github.com/Lemon-2333/The-Powder-Toy-Chinese)
+* [Dragonrster/The-Powder-Toy-Chinese-Instruction](https://github.com/Dragonrster/The-Powder-Toy-Chinese-Instruction)
+* [ByteString::FromUtf8方法代碼示例](https://vimsky.com/zh-tw/examples/detail/cpp-ex---ByteString-FromUtf8-method.html)
+* [How to display Unicode in TPT?](https://powdertoy.co.uk/Discussions/Thread/View.html?Thread=26330)
