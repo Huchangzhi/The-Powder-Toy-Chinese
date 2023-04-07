@@ -1,355 +1,171 @@
-#include "Graphics.h"
-#include "common/platform/Platform.h"
-#include "FontReader.h"
-#include "resampler/resampler.h"
-#include "SimulationConfig.h"
+#include <algorithm>
 #include <cmath>
-#include <iostream>
 #include <cstdlib>
 #include <cstring>
-#include <bzlib.h>
+#include <iostream>
+#include <memory>
 #include <png.h>
+#include "common/platform/Platform.h"
+#include "FontReader.h"
+#include "Format.h"
+#include "Graphics.h"
+#include "resampler/resampler.h"
+#include "SimulationConfig.h"
+#include "RasterDrawMethodsImpl.h"
 
-VideoBuffer::VideoBuffer(int width, int height):
-	Width(width),
-	Height(height)
-{
-	Buffer = new pixel[width*height];
-	std::fill(Buffer, Buffer+(width*height), 0);
-};
+VideoBuffer::VideoBuffer(Vec2<int> size):
+	video(size)
+{}
 
-VideoBuffer::VideoBuffer(const VideoBuffer & old):
-	Width(old.Width),
-	Height(old.Height)
+VideoBuffer::VideoBuffer(pixel const *data, Vec2<int> size):
+	VideoBuffer(size)
 {
-	Buffer = new pixel[old.Width*old.Height];
-	std::copy(old.Buffer, old.Buffer+(old.Width*old.Height), Buffer);
-};
-
-VideoBuffer::VideoBuffer(VideoBuffer * old):
-	Width(old->Width),
-	Height(old->Height)
-{
-	Buffer = new pixel[old->Width*old->Height];
-	std::copy(old->Buffer, old->Buffer+(old->Width*old->Height), Buffer);
-};
-
-VideoBuffer::VideoBuffer(pixel * buffer, int width, int height, int pitch):
-	Width(width),
-	Height(height)
-{
-	Buffer = new pixel[width*height];
-	CopyData(buffer, width, height, pitch ? pitch : width);
+	std::copy_n(data, size.X * size.Y, video.data());
 }
 
-void VideoBuffer::CopyData(pixel * buffer, int width, int height, int pitch)
+VideoBuffer::VideoBuffer(pixel const *data, Vec2<int> size, size_t rowStride):
+	VideoBuffer(size)
 {
-	for (auto y = 0; y < height; ++y)
+	for(int y = 0; y < size.Y; y++)
+		std::copy_n(data + rowStride * y, size.X, video.RowIterator(Vec2(0, y)));
+}
+
+void VideoBuffer::Crop(Rect<int> rect)
+{
+	rect &= Size().OriginRect();
+	if (rect == Size().OriginRect())
+		return;
+
+	PlaneAdapter<std::vector<pixel> &> newVideo(rect.Size(), video.Base);
+	for (auto y = 0; y < newVideo.Size().Y; y++)
+		std::copy_n(
+			video.RowIterator(rect.TopLeft + Vec2(0, y)),
+			newVideo.Size().X,
+			newVideo.RowIterator(Vec2(0, y))
+		);
+	newVideo.Base.resize(newVideo.Size().X * newVideo.Size().Y);
+	newVideo.Base.shrink_to_fit();
+	video.SetSize(newVideo.Size());
+}
+
+void VideoBuffer::Resize(Vec2<int> size, bool resample)
+{
+	if (size == Size())
+		return;
+
+	if (resample)
 	{
-		std::copy(buffer + y * pitch, buffer + y * pitch + width, Buffer + y * width);
-	}
-}
+		std::array<std::unique_ptr<Resampler>, PIXELCHANNELS> resamplers;
+		Resampler::Contrib_List *clist_x = NULL, *clist_y = NULL;
+		for (auto &ptr : resamplers)
+		{
+			ptr = std::make_unique<Resampler>(
+				Size().X, Size().Y, // source size
+				size.X, size.Y, // destination size
+				Resampler::BOUNDARY_CLAMP,
+				0.0f, 255.0f, // upper and lower bounds for channel values
+				"lanczos12",
+				clist_x, clist_y,
+				0.75f, 0.75f // X and Y filter scales, values < 1.0 cause aliasing, but create sharper looking mips.
+			);
+			clist_x = ptr->get_clist_x();
+			clist_y = ptr->get_clist_y();
+		}
 
-void VideoBuffer::Crop(int width, int height, int x, int y)
-{
-	CopyData(Buffer + y * Width + x, width, height, Width);
-	Width = width;
-	Height = height;
+		std::array<std::unique_ptr<float []>, PIXELCHANNELS> samples;
+		for (auto &ptr : samples)
+			ptr = std::make_unique<float []>(Size().X);
+
+		PlaneAdapter<std::vector<pixel>> newVideo(size);
+
+		pixel const *inIter = video.data();
+		std::array<pixel *, PIXELCHANNELS> outIter;
+		for (pixel *&it : outIter)
+			it = newVideo.data();
+
+		for (int sourceY = 0; sourceY < Size().Y; sourceY++)
+		{
+			for (int sourceX = 0; sourceX < Size().X; sourceX++)
+			{
+				pixel px = *inIter++;
+				for (int c = 0; c < PIXELCHANNELS; c++)
+					samples[c][sourceX] = uint8_t(px >> (8 * c));
+			}
+
+			for (int c = 0; c < PIXELCHANNELS; c++)
+			{
+				if (!resamplers[c]->put_line(samples[c].get()))
+				{
+					fprintf(stderr, "Out of memory when resampling\n");
+					Crop(size.OriginRect()); // Better than leaving the image at original size I guess
+					return;
+				}
+
+				while (float const *output = resamplers[c]->get_line())
+					for (int destX = 0; destX < size.X; destX++)
+						*outIter[c]++ |= pixel(uint8_t(output[destX])) << (8 * c);
+			}
+		}
+
+		video = std::move(newVideo);
+	}
+	else
+	{
+		PlaneAdapter<std::vector<pixel>> newVideo(size);
+		for (auto pos : size.OriginRect())
+		{
+			auto oldPos = Vec2(pos.X * Size().X / size.X, pos.Y * Size().Y / size.Y);
+			newVideo[pos] = video[oldPos];
+		}
+		video = std::move(newVideo);
+	}
 }
 
 void VideoBuffer::Resize(float factor, bool resample)
 {
-	int newWidth = int(Width * factor);
-	int newHeight = int(Height * factor);
-	Resize(newWidth, newHeight, resample);
+	Resize(Vec2<int>(Size() * factor), resample);
 }
 
-void VideoBuffer::Resize(int width, int height, bool resample, bool fixedRatio)
+void VideoBuffer::ResizeToFit(Vec2<int> bound, bool resample)
 {
-	int newWidth = width;
-	int newHeight = height;
-	pixel * newBuffer;
-	if(newHeight == -1 && newWidth == -1)
-		return;
-	if(newHeight == -1 || newWidth == -1)
+	Vec2<int> size = Size();
+	if (size.X > bound.X || size.Y > bound.Y)
 	{
-		if(newHeight == -1)
-			newHeight = int(float(Height) * newWidth / Width);
-		if(newWidth == -1)
-			newWidth = int(float(Width) * newHeight / Height);
-	}
-	else if(fixedRatio)
-	{
-		//Force proportions
-		if(newWidth*Height > newHeight*Width) // same as nW/W > nH/H
-			newWidth = (int)(Width * (newHeight/(float)Height));
+		if (bound.X * size.Y < bound.Y * size.X)
+			size = size * bound.X / size.X;
 		else
-			newHeight = (int)(Height * (newWidth/(float)Width));
+			size = size * bound.Y / size.Y;
 	}
-	if(resample)
-		newBuffer = Graphics::resample_img(Buffer, Width, Height, newWidth, newHeight);
+	Resize(size, resample);
+}
+
+std::unique_ptr<VideoBuffer> VideoBuffer::FromPNG(std::vector<char> const &data)
+{
+	auto video = format::PixelsFromPNG(data, 0x000000_rgb);
+	if (video)
+	{
+		auto buf = std::make_unique<VideoBuffer>(Vec2<int>::Zero);
+		buf->video = std::move(*video);
+		return buf;
+	}
 	else
-		newBuffer = Graphics::resample_img_nn(Buffer, Width, Height, newWidth, newHeight);
-
-	if(newBuffer)
-	{
-		delete[] Buffer;
-		Buffer = newBuffer;
-		Width = newWidth;
-		Height = newHeight;
-	}
+		return nullptr;
 }
 
-int VideoBuffer::SetCharacter(int x, int y, String::value_type c, int r, int g, int b, int a)
+std::unique_ptr<std::vector<char>> VideoBuffer::ToPNG() const
 {
-	FontReader reader(c);
-	for (int j = -2; j < FONT_H - 2; j++)
-		for (int i = 0; i < reader.GetWidth(); i++)
-			SetPixel(x + i, y + j, r, g, b, reader.NextPixel() * a / 3);
-	return x + reader.GetWidth();
+	return format::PixelsToPNG(video);
 }
 
-int VideoBuffer::BlendCharacter(int x, int y, String::value_type c, int r, int g, int b, int a)
+std::vector<char> VideoBuffer::ToPPM() const
 {
-	FontReader reader(c);
-	for (int j = -2; j < FONT_H - 2; j++)
-		for (int i = 0; i < reader.GetWidth(); i++)
-			BlendPixel(x + i, y + j, r, g, b, reader.NextPixel() * a / 3);
-	return x + reader.GetWidth();
+	return format::PixelsToPPM(video);
 }
 
-int VideoBuffer::AddCharacter(int x, int y, String::value_type c, int r, int g, int b, int a)
-{
-	FontReader reader(c);
-	for (int j = -2; j < FONT_H - 2; j++)
-		for (int i = 0; i < reader.GetWidth(); i++)
-			AddPixel(x + i, y + j, r, g, b, reader.NextPixel() * a / 3);
-	return x + reader.GetWidth();
-}
+template class RasterDrawMethods<VideoBuffer>;
 
-VideoBuffer::~VideoBuffer()
-{
-	delete[] Buffer;
-}
-
-pixel *Graphics::resample_img_nn(pixel * src, int sw, int sh, int rw, int rh)
-{
-	int y, x;
-	pixel *q = NULL;
-	q = new pixel[rw*rh];
-	for (y=0; y<rh; y++)
-		for (x=0; x<rw; x++){
-			q[rw*y+x] = src[sw*(y*sh/rh)+(x*sw/rw)];
-		}
-	return q;
-}
-
-pixel *Graphics::resample_img(pixel *src, int sw, int sh, int rw, int rh)
-{
-#ifdef HIGH_QUALITY_RESAMPLE
-
-	unsigned char * source = (unsigned char*)src;
-	int sourceWidth = sw, sourceHeight = sh;
-	int resultWidth = rw, resultHeight = rh;
-	int sourcePitch = sourceWidth*PIXELSIZE, resultPitch = resultWidth*PIXELSIZE;
-	// Filter scale - values < 1.0 cause aliasing, but create sharper looking mips.
-	const float filter_scale = 0.75f;
-	const char* pFilter = "lanczos12";
-
-
-	Resampler * resamplers[PIXELCHANNELS];
-	float * samples[PIXELCHANNELS];
-
-	//Resampler for each colour channel
-	if (sourceWidth <= 0 || sourceHeight <= 0 || resultWidth <= 0 || resultHeight <= 0)
-		return NULL;
-	resamplers[0] = new Resampler(sourceWidth, sourceHeight, resultWidth, resultHeight, Resampler::BOUNDARY_CLAMP, 0.0f, 1.0f, pFilter, NULL, NULL, filter_scale, filter_scale);
-	samples[0] = new float[sourceWidth];
-	for (int i = 1; i < PIXELCHANNELS; i++)
-	{
-		resamplers[i] = new Resampler(sourceWidth, sourceHeight, resultWidth, resultHeight, Resampler::BOUNDARY_CLAMP, 0.0f, 1.0f, pFilter, resamplers[0]->get_clist_x(), resamplers[0]->get_clist_y(), filter_scale, filter_scale);
-		samples[i] = new float[sourceWidth];
-	}
-
-	unsigned char * resultImage = new unsigned char[resultHeight * resultPitch];
-	std::fill(resultImage, resultImage + (resultHeight*resultPitch), 0);
-
-	//Resample time
-	int resultY = 0;
-	for (int sourceY = 0; sourceY < sourceHeight; sourceY++)
-	{
-		unsigned char * sourcePixel = &source[sourceY * sourcePitch];
-
-		//Move pixel components into channel samples
-		for (int c = 0; c < PIXELCHANNELS; c++)
-		{
-			for (int x = 0; x < sourceWidth; x++)
-			{
-				samples[c][x] = sourcePixel[(x*PIXELSIZE)+c] * (1.0f/255.0f);
-			}
-		}
-
-		//Put channel sample data into resampler
-		for (int c = 0; c < PIXELCHANNELS; c++)
-		{
-			if (!resamplers[c]->put_line(&samples[c][0]))
-			{
-				printf("Out of memory!\n");
-				return NULL;
-			}
-		}
-
-		//Perform resample and Copy components from resampler result samples to image buffer
-		for ( ; ; )
-		{
-			int comp_index;
-			for (comp_index = 0; comp_index < PIXELCHANNELS; comp_index++)
-			{
-				const float* resultSamples = resamplers[comp_index]->get_line();
-				if (!resultSamples)
-					break;
-
-				unsigned char * resultPixel = &resultImage[(resultY * resultPitch) + comp_index];
-
-				for (int x = 0; x < resultWidth; x++)
-				{
-					int c = (int)(255.0f * resultSamples[x] + .5f);
-					if (c < 0) c = 0; else if (c > 255) c = 255;
-					*resultPixel = (unsigned char)c;
-					resultPixel += PIXELSIZE;
-				}
-			}
-			if (comp_index < PIXELCHANNELS)
-				break;
-
-			resultY++;
-		}
-	}
-
-	//Clean up
-	for(int i = 0; i < PIXELCHANNELS; i++)
-	{
-		delete resamplers[i];
-		delete[] samples[i];
-	}
-
-	return (pixel*)resultImage;
-#else
-	if constexpr (DEBUG)
-	{
-		std::cout << "Resampling " << sw << "x" << sh << " to " << rw << "x" << rh << std::endl;
-	}
-	bool stairstep = false;
-	if(rw < sw || rh < sh)
-	{
-		float fx = (float)(((float)sw)/((float)rw));
-		float fy = (float)(((float)sh)/((float)rh));
-
-		int fxint, fyint;
-		double fxintp_t, fyintp_t;
-
-		float fxf = modf(fx, &fxintp_t), fyf = modf(fy, &fyintp_t);
-		fxint = fxintp_t;
-		fyint = fyintp_t;
-
-		if(((fxint & (fxint-1)) == 0 && fxf < 0.1f) || ((fyint & (fyint-1)) == 0 && fyf < 0.1f))
-			stairstep = true;
-
-		if constexpr (DEBUG)
-		{
-			if(stairstep)
-				std::cout << "Downsampling by " << fx << "x" << fy << " using stairstepping" << std::endl;
-			else
-				std::cout << "Downsampling by " << fx << "x" << fy << " without stairstepping" << std::endl;
-		}
-	}
-
-	int y, x, fxceil, fyceil;
-	//int i,j,x,y,w,h,r,g,b,c;
-	pixel *q = NULL;
-	if(rw == sw && rh == sh){
-		//Don't resample
-		q = new pixel[rw*rh];
-		std::copy(src, src+(rw*rh), q);
-	} else if(!stairstep) {
-		float fx, fy, fyc, fxc;
-		double intp;
-		pixel tr, tl, br, bl;
-		q = new pixel[rw*rh];
-		//Bilinear interpolation for upscaling
-		for (y=0; y<rh; y++)
-			for (x=0; x<rw; x++)
-			{
-				fx = ((float)x)*((float)sw)/((float)rw);
-				fy = ((float)y)*((float)sh)/((float)rh);
-				fxc = modf(fx, &intp);
-				fyc = modf(fy, &intp);
-				fxceil = (int)ceil(fx);
-				fyceil = (int)ceil(fy);
-				if (fxceil>=sw) fxceil = sw-1;
-				if (fyceil>=sh) fyceil = sh-1;
-				tr = src[sw*(int)floor(fy)+fxceil];
-				tl = src[sw*(int)floor(fy)+(int)floor(fx)];
-				br = src[sw*fyceil+fxceil];
-				bl = src[sw*fyceil+(int)floor(fx)];
-				q[rw*y+x] = PIXRGB(
-					(int)(((((float)PIXR(tl))*(1.0f-fxc))+(((float)PIXR(tr))*(fxc)))*(1.0f-fyc) + ((((float)PIXR(bl))*(1.0f-fxc))+(((float)PIXR(br))*(fxc)))*(fyc)),
-					(int)(((((float)PIXG(tl))*(1.0f-fxc))+(((float)PIXG(tr))*(fxc)))*(1.0f-fyc) + ((((float)PIXG(bl))*(1.0f-fxc))+(((float)PIXG(br))*(fxc)))*(fyc)),
-					(int)(((((float)PIXB(tl))*(1.0f-fxc))+(((float)PIXB(tr))*(fxc)))*(1.0f-fyc) + ((((float)PIXB(bl))*(1.0f-fxc))+(((float)PIXB(br))*(fxc)))*(fyc))
-					);
-			}
-	} else {
-		//Stairstepping
-		float fx, fy, fyc, fxc;
-		double intp;
-		pixel tr, tl, br, bl;
-		int rrw = rw, rrh = rh;
-		pixel * oq;
-		oq = new pixel[sw*sh];
-		std::copy(src, src+(sw*sh), oq);
-		rw = sw;
-		rh = sh;
-		while(rrw != rw && rrh != rh){
-			if(rw > rrw)
-				rw *= 0.7;
-			if(rh > rrh)
-				rh *= 0.7;
-			if(rw <= rrw)
-				rw = rrw;
-			if(rh <= rrh)
-				rh = rrh;
-			q = new pixel[rw*rh];
-			//Bilinear interpolation
-			for (y=0; y<rh; y++)
-				for (x=0; x<rw; x++)
-				{
-					fx = ((float)x)*((float)sw)/((float)rw);
-					fy = ((float)y)*((float)sh)/((float)rh);
-					fxc = modf(fx, &intp);
-					fyc = modf(fy, &intp);
-					fxceil = (int)ceil(fx);
-					fyceil = (int)ceil(fy);
-					if (fxceil>=sw) fxceil = sw-1;
-					if (fyceil>=sh) fyceil = sh-1;
-					tr = oq[sw*(int)floor(fy)+fxceil];
-					tl = oq[sw*(int)floor(fy)+(int)floor(fx)];
-					br = oq[sw*fyceil+fxceil];
-					bl = oq[sw*fyceil+(int)floor(fx)];
-					q[rw*y+x] = PIXRGB(
-						(int)(((((float)PIXR(tl))*(1.0f-fxc))+(((float)PIXR(tr))*(fxc)))*(1.0f-fyc) + ((((float)PIXR(bl))*(1.0f-fxc))+(((float)PIXR(br))*(fxc)))*(fyc)),
-						(int)(((((float)PIXG(tl))*(1.0f-fxc))+(((float)PIXG(tr))*(fxc)))*(1.0f-fyc) + ((((float)PIXG(bl))*(1.0f-fxc))+(((float)PIXG(br))*(fxc)))*(fyc)),
-						(int)(((((float)PIXB(tl))*(1.0f-fxc))+(((float)PIXB(tr))*(fxc)))*(1.0f-fyc) + ((((float)PIXB(bl))*(1.0f-fxc))+(((float)PIXB(br))*(fxc)))*(fyc))
-						);
-				}
-			delete[] oq;
-			oq = q;
-			sw = rw;
-			sh = rh;
-		}
-	}
-	return q;
-#endif
-}
+Graphics::Graphics()
+{}
 
 int Graphics::textwidth(const String &str)
 {
@@ -720,189 +536,27 @@ void Graphics::draw_icon(int x, int y, Icon icon, unsigned char alpha, bool inve
 	}
 }
 
-void Graphics::draw_rgba_image(const pixel *data, int w, int h, int x, int y, float alpha)
-{
-	for (int j = 0; j < h; j++)
-	{
-		for (int i = 0; i < w; i++)
-		{
-			auto rgba = *(data++);
-			auto a = (rgba >> 24) & 0xFF;
-			auto r = (rgba >> 16) & 0xFF;
-			auto g = (rgba >>  8) & 0xFF;
-			auto b = (rgba      ) & 0xFF;
-			addpixel(x+i, y+j, r, g, b, (int)(a*alpha));
-		}
-	}
-}
-
 VideoBuffer Graphics::DumpFrame()
 {
-	VideoBuffer newBuffer(WINDOWW, WINDOWH);
-	std::copy(vid, vid+(WINDOWW*WINDOWH), newBuffer.Buffer);
+	VideoBuffer newBuffer(video.Size());
+	std::copy_n(video.data(), video.Size().X * video.Size().Y, newBuffer.Data());
 	return newBuffer;
+}
+
+void Graphics::SwapClipRect(Rect<int> &rect)
+{
+	std::swap(clipRect, rect);
+	clipRect &= video.Size().OriginRect();
 }
 
 void Graphics::SetClipRect(int &x, int &y, int &w, int &h)
 {
-	int newX = x;
-	int newY = y;
-	int newW = w;
-	int newH = h;
-	if (newX < 0) newX = 0;
-	if (newY < 0) newY = 0;
-	if (newW > WINDOWW - newX) newW = WINDOWW - newX;
-	if (newH > WINDOWH - newY) newH = WINDOWH - newY;
-	x = clipx1;
-	y = clipy1;
-	w = clipx2 - clipx1;
-	h = clipy2 - clipy1;
-	clipx1 = newX;
-	clipy1 = newY;
-	clipx2 = newX + newW;
-	clipy2 = newY + newH;
-}
-
-bool VideoBuffer::WritePNG(const ByteString &path) const
-{
-	std::vector<png_const_bytep> rowPointers(Height);
-	for (auto y = 0; y < Height; ++y)
-	{
-		rowPointers[y] = (png_const_bytep)&Buffer[y * Width];
-	}
-	png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-	if (!png)
-	{
-		std::cerr << "WritePNG: png_create_write_struct failed" << std::endl;
-		return false;
-	}
-	png_infop info = png_create_info_struct(png);
-	if (!info)
-	{
-		std::cerr << "WritePNG: png_create_info_struct failed" << std::endl;
-		png_destroy_write_struct(&png, (png_infopp)NULL);
-		return false;
-	}
-	if (setjmp(png_jmpbuf(png)))
-	{
-		// libpng longjmp'd here in its infinite widsom, clean up and return
-		std::cerr << "WritePNG: longjmp from within libpng" << std::endl;
-		png_destroy_write_struct(&png, &info);
-		return false;
-	}
-	struct InMemoryFile
-	{
-		std::vector<char> data;
-	} imf;
-	png_set_write_fn(png, (png_voidp)&imf, [](png_structp png, png_bytep data, size_t length) -> void {
-		auto ud = png_get_io_ptr(png);
-		auto &imf = *(InMemoryFile *)ud;
-		imf.data.insert(imf.data.end(), data, data + length);
-	}, NULL);
-	png_set_IHDR(png, info, Width, Height, 8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-	png_write_info(png, info);
-	png_set_filler(png, 0, PNG_FILLER_AFTER);
-	png_set_bgr(png);
-	png_write_image(png, (png_bytepp)&rowPointers[0]);
-	png_write_end(png, NULL);
-	png_destroy_write_struct(&png, &info);
-	return Platform::WriteFile(imf.data, path);
-}
-
-bool PngDataToPixels(std::vector<pixel> &imageData, int &imgw, int &imgh, const char *pngData, size_t pngDataSize, bool addBackground)
-{
-	std::vector<png_const_bytep> rowPointers;
-	struct InMemoryFile
-	{
-		png_const_bytep data;
-		size_t size;
-		size_t cursor;
-	} imf{ (png_const_bytep)pngData, pngDataSize, 0 };
-	png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-	if (!png)
-	{
-		std::cerr << "pngDataToPixels: png_create_read_struct failed" << std::endl;
-		return false;
-	}
-	png_infop info = png_create_info_struct(png);
-	if (!info)
-	{
-		std::cerr << "pngDataToPixels: png_create_info_struct failed" << std::endl;
-		png_destroy_read_struct(&png, (png_infopp)NULL, (png_infopp)NULL);
-		return false;
-	}
-	if (setjmp(png_jmpbuf(png)))
-	{
-		// libpng longjmp'd here in its infinite widsom, clean up and return
-		std::cerr << "pngDataToPixels: longjmp from within libpng" << std::endl;
-		png_destroy_read_struct(&png, &info, (png_infopp)NULL);
-		return false;
-	}
-	png_set_read_fn(png, (png_voidp)&imf, [](png_structp png, png_bytep data, size_t length) -> void {
-		auto ud = png_get_io_ptr(png);
-		auto &imf = *(InMemoryFile *)ud;
-		if (length + imf.cursor > imf.size)
-		{
-			png_error(png, "pngDataToPixels: libpng tried to read beyond the buffer");
-		}
-		std::copy(imf.data + imf.cursor, imf.data + imf.cursor + length, data);
-		imf.cursor += length;
-	});
-	png_set_user_limits(png, 1000, 1000);
-	png_read_info(png, info);
-	imgw = png_get_image_width(png, info);
-	imgh = png_get_image_height(png, info);
-	int bitDepth = png_get_bit_depth(png, info);
-	int colorType = png_get_color_type(png, info);
-	imageData.resize(imgw * imgh);
-	rowPointers.resize(imgh);
-	for (auto y = 0; y < imgh; ++y)
-	{
-		rowPointers[y] = (png_const_bytep)&imageData[y * imgw];
-	}
-	if (setjmp(png_jmpbuf(png)))
-	{
-		// libpng longjmp'd here in its infinite widsom, clean up and return
-		std::cerr << "pngDataToPixels: longjmp from within libpng" << std::endl;
-		png_destroy_read_struct(&png, &info, (png_infopp)NULL);
-		return false;
-	}
-	if (addBackground)
-	{
-		png_set_filler(png, 0, PNG_FILLER_AFTER);
-	}
-	png_set_bgr(png);
-	if (colorType == PNG_COLOR_TYPE_PALETTE)
-	{
-		png_set_palette_to_rgb(png);
-	}
-	if (colorType == PNG_COLOR_TYPE_GRAY && bitDepth < 8)
-	{
-		png_set_expand_gray_1_2_4_to_8(png);
-	}
-	if (png_get_valid(png, info, PNG_INFO_tRNS))
-	{
-		png_set_tRNS_to_alpha(png);
-	}
-	if (bitDepth == 16)
-	{
-		png_set_scale_16(png);
-	}
-	if (colorType == PNG_COLOR_TYPE_GRAY || colorType == PNG_COLOR_TYPE_GRAY_ALPHA)
-	{
-		png_set_gray_to_rgb(png);
-	}
-	if (addBackground)
-	{
-		png_color_16 defaultBackground;
-		defaultBackground.red = 0;
-		defaultBackground.green = 0;
-		defaultBackground.blue = 0;
-		png_set_background(png, &defaultBackground, PNG_BACKGROUND_GAMMA_SCREEN, 0, 1.0);
-	}
-	png_read_image(png, (png_bytepp)&rowPointers[0]);
-	png_destroy_read_struct(&png, &info, (png_infopp)NULL);
-	return true;
+	Rect<int> rect = RectSized(Vec2(x, y), Vec2(w, h));
+	SwapClipRect(rect);
+	x = rect.TopLeft.X;
+	y = rect.TopLeft.Y;
+	w = rect.Size().X;
+	h = rect.Size().Y;
 }
 
 bool Graphics::GradientStop::operator <(const GradientStop &other) const
