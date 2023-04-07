@@ -213,7 +213,7 @@ GameView::GameView():
 	selectPoint2(0, 0),
 	currentMouse(0, 0),
 	mousePosition(0, 0),
-	placeSaveThumb(NULL),
+	placeSaveThumb(nullptr),
 	placeSaveOffset(0, 0)
 {
 
@@ -344,8 +344,6 @@ GameView::~GameView()
 		}
 
 	}
-
-	delete placeSaveThumb;
 }
 
 class GameView::OptionListener: public QuickOptionListener
@@ -518,15 +516,15 @@ void GameView::NotifyActiveToolsChanged(GameModel * sender)
 			toolButtons[i]->SetSelectionState(-1);
 	}
 
-	decoBrush = sender->GetActiveTool(0)->GetIdentifier().BeginsWith("DEFAULT_DECOR_");
+	decoBrush = sender->GetActiveTool(0)->Identifier.BeginsWith("DEFAULT_DECOR_");
 
 	if (sender->GetRenderer()->findingElement)
 	{
 		Tool *active = sender->GetActiveTool(0);
-		if (!active->GetIdentifier().Contains("_PT_"))
+		if (!active->Identifier.Contains("_PT_"))
 			ren->findingElement = 0;
 		else
-			ren->findingElement = sender->GetActiveTool(0)->GetToolID();
+			ren->findingElement = sender->GetActiveTool(0)->ToolID;
 	}
 }
 
@@ -534,8 +532,8 @@ void GameView::NotifyLastToolChanged(GameModel * sender)
 {
 	if (sender->GetLastTool())
 	{
-		wallBrush = sender->GetLastTool()->GetBlocky();
-		toolBrush = sender->GetLastTool()->GetIdentifier().BeginsWith("DEFAULT_TOOL_");
+		wallBrush = sender->GetLastTool()->Blocky;
+		toolBrush = sender->GetLastTool()->Identifier.BeginsWith("DEFAULT_TOOL_");
 	}
 }
 
@@ -563,17 +561,17 @@ void GameView::NotifyToolListChanged(GameModel * sender)
 	for (size_t i = 0; i < toolList.size(); i++)
 	{
 		auto *tool = toolList[i];
-		VideoBuffer * tempTexture = tool->GetTexture(26, 14);
+		auto tempTexture = tool->GetTexture(Vec2(26, 14));
 		ToolButton * tempButton;
 
 		//get decotool texture manually, since it changes depending on it's own color
 		if (sender->GetActiveMenu() == SC_DECO)
-			tempTexture = ((DecorationTool*)tool)->GetIcon(tool->GetToolID(), 26, 14);
+			tempTexture = ((DecorationTool*)tool)->GetIcon(tool->ToolID, Vec2(26, 14));
 
-		if(tempTexture)
-			tempButton = new ToolButton(ui::Point(currentX, YRES+1), ui::Point(30, 18), "", tool->GetIdentifier(), tool->GetDescription());
+		if (tempTexture)
+			tempButton = new ToolButton(ui::Point(currentX, YRES+1), ui::Point(30, 18), "", tool->Identifier, tool->Description);
 		else
-			tempButton = new ToolButton(ui::Point(currentX, YRES+1), ui::Point(30, 18), tool->GetName(), tool->GetIdentifier(), tool->GetDescription());
+			tempButton = new ToolButton(ui::Point(currentX, YRES+1), ui::Point(30, 18), tool->Name, tool->Identifier, tool->Description);
 
 		tempButton->clipRectX = 1;
 		tempButton->clipRectY = YRES + 1;
@@ -589,19 +587,19 @@ void GameView::NotifyToolListChanged(GameModel * sender)
 			{
 				if (tempButton->GetSelectionState() == 0)
 				{
-					if (Favorite::Ref().IsFavorite(tool->GetIdentifier()))
+					if (Favorite::Ref().IsFavorite(tool->Identifier))
 					{
-						Favorite::Ref().RemoveFavorite(tool->GetIdentifier());
+						Favorite::Ref().RemoveFavorite(tool->Identifier);
 					}
 					else
 					{
-						Favorite::Ref().AddFavorite(tool->GetIdentifier());
+						Favorite::Ref().AddFavorite(tool->Identifier);
 					}
 					c->RebuildFavoritesMenu();
 				}
 				else if (tempButton->GetSelectionState() == 1)
 				{
-					auto identifier = tool->GetIdentifier();
+					auto identifier = tool->Identifier;
 					if (Favorite::Ref().IsFavorite(identifier))
 					{
 						Favorite::Ref().RemoveFavorite(identifier);
@@ -620,7 +618,7 @@ void GameView::NotifyToolListChanged(GameModel * sender)
 			{
 				if (CtrlBehaviour() && AltBehaviour() && !ShiftBehaviour())
 				{
-					if (tool->GetIdentifier().Contains("_PT_"))
+					if (tool->Identifier.Contains("_PT_"))
 					{
 						tempButton->SetSelectionState(3);
 					}
@@ -631,10 +629,9 @@ void GameView::NotifyToolListChanged(GameModel * sender)
 			}
 		} });
 
-		tempButton->Appearance.SetTexture(tempTexture);
-		delete tempTexture;
+		tempButton->Appearance.SetTexture(std::move(tempTexture));
 
-		tempButton->Appearance.BackgroundInactive = ui::Colour(toolList[i]->colRed, toolList[i]->colGreen, toolList[i]->colBlue);
+		tempButton->Appearance.BackgroundInactive = toolList[i]->Colour.WithAlpha(0xFF);
 
 		if(sender->GetActiveTool(0) == toolList[i])
 		{
@@ -958,7 +955,7 @@ ByteString GameView::TakeScreenshot(int captureUI, int fileType)
 		// We should be able to simply use SDL_PIXELFORMAT_XRGB8888 here with a bit depth of 32 to convert RGBA data to RGB data,
 		// and save the resulting surface directly. However, ubuntu-18.04 ships SDL2 so old that it doesn't have
 		// SDL_PIXELFORMAT_XRGB8888, so we first create an RGBA surface and then convert it.
-		auto *rgbaSurface = SDL_CreateRGBSurfaceWithFormatFrom(screenshot->Buffer, screenshot->Width, screenshot->Height, 32, screenshot->Width * sizeof(pixel), SDL_PIXELFORMAT_ARGB8888);
+		auto *rgbaSurface = SDL_CreateRGBSurfaceWithFormatFrom(screenshot->Data(), screenshot->Size().X, screenshot->Size().Y, 32, screenshot->Size().X * sizeof(pixel), SDL_PIXELFORMAT_ARGB8888);
 		auto *rgbSurface = SDL_ConvertSurfaceFormat(rgbaSurface, SDL_PIXELFORMAT_RGB888, 0);
 		if (!rgbSurface || SDL_SaveBMP(rgbSurface, filename.c_str()))
 		{
@@ -971,7 +968,7 @@ ByteString GameView::TakeScreenshot(int captureUI, int fileType)
 	else if (fileType == 2)
 	{
 		filename += ".ppm";
-		if (!Platform::WriteFile(format::VideoBufferToPPM(*screenshot), filename))
+		if (!Platform::WriteFile(screenshot->ToPPM(), filename))
 		{
 			filename = "";
 		}
@@ -979,10 +976,13 @@ ByteString GameView::TakeScreenshot(int captureUI, int fileType)
 	else
 	{
 		filename += ".png";
-		if (!screenshot->WritePNG(filename))
+		if (auto data = screenshot->ToPNG())
 		{
-			filename = "";
+			if (!Platform::WriteFile(*data, filename))
+				filename = "";
 		}
+		else
+			filename = "";
 	}
 
 	return filename;
@@ -1156,8 +1156,8 @@ void GameView::OnMouseDown(int x, int y, unsigned button)
 				return;
 			Tool *lastTool = c->GetActiveTool(toolIndex);
 			c->SetLastTool(lastTool);
-			windTool = lastTool->GetIdentifier() == "DEFAULT_UI_WIND";
-			decoBrush = lastTool->GetIdentifier().BeginsWith("DEFAULT_DECOR_");
+			windTool = lastTool->Identifier == "DEFAULT_UI_WIND";
+			decoBrush = lastTool->Identifier.BeginsWith("DEFAULT_DECOR_");
 
 			UpdateDrawMode();
 
@@ -1200,20 +1200,9 @@ void GameView::OnMouseUp(int x, int y, unsigned button)
 				{
 					if (placeSaveThumb && y <= WINDOWH-BARSIZE)
 					{
-						int thumbX = selectPoint2.X - ((placeSaveThumb->Width-placeSaveOffset.X)/2);
-						int thumbY = selectPoint2.Y - ((placeSaveThumb->Height-placeSaveOffset.Y)/2);
-
-						if (thumbX < 0)
-							thumbX = 0;
-						if (thumbX+(placeSaveThumb->Width) >= XRES)
-							thumbX = XRES-placeSaveThumb->Width;
-
-						if (thumbY < 0)
-							thumbY = 0;
-						if (thumbY+(placeSaveThumb->Height) >= YRES)
-							thumbY = YRES-placeSaveThumb->Height;
-
-						c->PlaceSave(ui::Point(thumbX, thumbY));
+						auto thumb = selectPoint2 - (placeSaveThumb->Size() - placeSaveOffset) / 2;
+						thumb = thumb.Clamp(RectBetween(Vec2<int>::Zero, RES - placeSaveThumb->Size()));
+						c->PlaceSave(thumb);
 					}
 				}
 				else
@@ -1446,10 +1435,10 @@ void GameView::OnKeyPress(int key, int scan, bool repeat, bool shift, bool ctrl,
 		if (ctrl)
 		{
 			Tool *active = c->GetActiveTool(0);
-			if (!active->GetIdentifier().Contains("_PT_") || (ren->findingElement == active->GetToolID()))
+			if (!active->Identifier.Contains("_PT_") || (ren->findingElement == active->ToolID))
 				ren->findingElement = 0;
 			else
-				ren->findingElement = active->GetToolID();
+				ren->findingElement = active->ToolID;
 		}
 		else
 			c->FrameStep();
@@ -1926,7 +1915,6 @@ void GameView::NotifyLogChanged(GameModel * sender, String entry)
 
 void GameView::NotifyPlaceSaveChanged(GameModel * sender)
 {
-	delete placeSaveThumb;
 	placeSaveOffset = ui::Point(0, 0);
 	if(sender->GetPlaceSave())
 	{
@@ -1936,7 +1924,7 @@ void GameView::NotifyPlaceSaveChanged(GameModel * sender)
 	}
 	else
 	{
-		placeSaveThumb = NULL;
+		placeSaveThumb = nullptr;
 		selectMode = SelectNone;
 	}
 }
@@ -2074,7 +2062,7 @@ void GameView::OnDraw()
 	Graphics * g = GetGraphics();
 	if (ren)
 	{
-		ren->clearScreen(1.0f);
+		ren->clearScreen();
 		ren->RenderBegin();
 		ren->SetSample(c->PointTranslate(currentMouse).X, c->PointTranslate(currentMouse).Y);
 		if (showBrush && selectMode == SelectNone && (!zoomEnabled || zoomCursorFixed) && activeBrush && (isMouseDown || (currentMouse.X >= 0 && currentMouse.X < XRES && currentMouse.Y >= 0 && currentMouse.Y < YRES)))
@@ -2145,24 +2133,11 @@ void GameView::OnDraw()
 			{
 				if(placeSaveThumb && selectPoint2.X!=-1)
 				{
-					int thumbX = selectPoint2.X - ((placeSaveThumb->Width-placeSaveOffset.X)/2) + CELL/2;
-					int thumbY = selectPoint2.Y - ((placeSaveThumb->Height-placeSaveOffset.Y)/2) + CELL/2;
-
-					ui::Point thumbPos = c->NormaliseBlockCoord(ui::Point(thumbX, thumbY));
-
-					if(thumbPos.X<0)
-						thumbPos.X = 0;
-					if(thumbPos.X+(placeSaveThumb->Width)>=XRES)
-						thumbPos.X = XRES-placeSaveThumb->Width;
-
-					if(thumbPos.Y<0)
-						thumbPos.Y = 0;
-					if(thumbPos.Y+(placeSaveThumb->Height)>=YRES)
-						thumbPos.Y = YRES-placeSaveThumb->Height;
-
-					ren->draw_image(placeSaveThumb, thumbPos.X, thumbPos.Y, 128);
-
-					ren->xor_rect(thumbPos.X, thumbPos.Y, placeSaveThumb->Width, placeSaveThumb->Height);
+					auto thumb = selectPoint2 - (placeSaveThumb->Size() - placeSaveOffset) / 2 + Vec2(1, 1) * CELL / 2;
+					thumb = c->NormaliseBlockCoord(thumb).Clamp(RectBetween(Vec2<int>::Zero, RES - placeSaveThumb->Size()));
+					auto rect = RectSized(thumb, placeSaveThumb->Size());
+					ren->BlendImage(placeSaveThumb->Data(), 0x80, rect);
+					ren->XorDottedRect(rect);
 				}
 			}
 			else
@@ -2196,6 +2171,9 @@ void GameView::OnDraw()
 
 		ren->RenderEnd();
 
+		std::copy_n(ren->Data(), WINDOWW * YRES, g->vid);
+
+
 		if (doScreenshot)
 		{
 			doScreenshot = false;
@@ -2204,8 +2182,7 @@ void GameView::OnDraw()
 
 		if(recording)
 		{
-			VideoBuffer screenshot(ren->DumpFrame());
-			std::vector<char> data = format::VideoBufferToPPM(screenshot);
+			std::vector<char> data = ren->DumpFrame().ToPPM();
 
 			ByteString filename = ByteString::Build("recordings", PATH_SEP_CHAR, recordingFolder, PATH_SEP_CHAR, "frame_", Format::Width(recordingIndex++, 6), ".ppm");
 
