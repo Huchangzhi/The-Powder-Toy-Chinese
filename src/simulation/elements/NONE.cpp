@@ -1,6 +1,6 @@
 #include "simulation/ElementCommon.h"
 
-static std::unique_ptr<VideoBuffer> iconGen(int wallID, Vec2<int> size);
+static VideoBuffer *iconGen(int wallID, int width, int height);
 
 void Element::Element_NONE()
 {
@@ -45,9 +45,17 @@ void Element::Element_NONE()
 	IconGenerator = &iconGen;
 }
 
-static std::unique_ptr<VideoBuffer> iconGen(int wallID, Vec2<int> size)
+static VideoBuffer *iconGen(int wallID, int width, int height)
 {
-	auto texture = std::make_unique<VideoBuffer>(size);
-	texture->BlendChar(size / 2 - Vec2(4, 2), 0xE06C, 0xFF0000_rgb .WithAlpha(0xFF));
-	return texture;
+	VideoBuffer * newTexture = new VideoBuffer(width, height);
+
+	for (int j=3; j<(width-4)/2; j++)
+	{
+		newTexture->SetPixel(j+6, j, 0xFF, 0, 0, 255);
+		newTexture->SetPixel(j+7, j, 0xFF, 0, 0, 255);
+		newTexture->SetPixel(-j+19, j, 0xFF, 0, 0, 255);
+		newTexture->SetPixel(-j+20, j, 0xFF, 0, 0, 255);
+	}
+
+	return newTexture;
 }

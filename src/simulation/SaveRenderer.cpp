@@ -8,8 +8,9 @@
 #include "Simulation.h"
 
 SaveRenderer::SaveRenderer(){
+	g = new Graphics();
 	sim = new Simulation();
-	ren = new Renderer(sim);
+	ren = new Renderer(g, sim);
 	ren->decorations_enable = true;
 	ren->blackDecorations = true;
 }
@@ -20,7 +21,7 @@ void SaveRenderer::Flush(int begin, int end)
 	std::fill(ren->graphicscache + begin, ren->graphicscache + end, gcache_item());
 }
 
-std::unique_ptr<VideoBuffer> SaveRenderer::Render(GameSave * save, bool decorations, bool fire, Renderer *renderModeSource)
+VideoBuffer * SaveRenderer::Render(GameSave * save, bool decorations, bool fire, Renderer *renderModeSource)
 {
 	std::lock_guard<std::mutex> gx(renderMutex);
 
@@ -32,16 +33,23 @@ std::unique_ptr<VideoBuffer> SaveRenderer::Render(GameSave * save, bool decorati
 		ren->SetColourMode(renderModeSource->GetColourMode());
 	}
 
-	std::unique_ptr<VideoBuffer> tempThumb;
+	int width, height;
+	VideoBuffer * tempThumb = NULL;
+	width = save->blockWidth;
+	height = save->blockHeight;
 
+	g->Clear();
 	sim->clear_sim();
 
 	if(!sim->Load(save, true))
 	{
 		ren->decorations_enable = true;
 		ren->blackDecorations = !decorations;
+		pixel * pData = NULL;
+		pixel * dst;
+		pixel * src = g->vid;
+
 		ren->ClearAccumulation();
-		ren->clearScreen();
 
 		if (fire)
 		{
@@ -51,15 +59,24 @@ std::unique_ptr<VideoBuffer> SaveRenderer::Render(GameSave * save, bool decorati
 				frame--;
 				ren->render_parts();
 				ren->render_fire();
-				ren->clearScreen();
+				ren->clearScreen(1.0f);
 			}
 		}
 
 		ren->RenderBegin();
 		ren->RenderEnd();
 
-		tempThumb = std::make_unique<VideoBuffer>(Vec2(save->blockWidth, save->blockHeight) * CELL);
-		tempThumb->BlendImage(ren->Data(), 0xFF, ren->Size().OriginRect());
+
+		pData = (pixel *)malloc(PIXELSIZE * ((width*CELL)*(height*CELL)));
+		dst = pData;
+		for(int i = 0; i < height*CELL; i++)
+		{
+			memcpy(dst, src, (width*CELL)*PIXELSIZE);
+			dst+=(width*CELL);///PIXELSIZE;
+			src+=WINDOWW;
+		}
+		tempThumb = new VideoBuffer(pData, width*CELL, height*CELL);
+		free(pData);
 	}
 
 	return tempThumb;
@@ -69,4 +86,5 @@ SaveRenderer::~SaveRenderer()
 {
 	delete ren;
 	delete sim;
+	delete g;
 }

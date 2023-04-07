@@ -19,6 +19,8 @@
 
 #include "gui/Style.h"
 
+#include "save_online.png.h"
+
 class SaveUploadTask: public Task
 {
 	SaveInfo save;
@@ -59,6 +61,8 @@ ServerSaveActivity::ServerSaveActivity(SaveInfo save, OnUploaded onUploaded_) :
 	onUploaded(onUploaded_),
 	saveUploadTask(NULL)
 {
+	PngDataToPixels(save_to_server_image, save_to_server_imageW, save_to_server_imageH, reinterpret_cast<const char *>(save_online_png), save_online_png_size, false);
+
 	titleLabel = new ui::Label(ui::Point(4, 5), ui::Point((Size.X/2)-8, 16), "");
 	titleLabel->SetTextColour(style::Colour::InformationTitle);
 	titleLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
@@ -143,7 +147,7 @@ ServerSaveActivity::ServerSaveActivity(SaveInfo save, OnUploaded onUploaded_) :
 
 	if (save.GetGameSave())
 	{
-		thumbnailRenderer = new ThumbnailRendererTask(*save.GetGameSave(), Size / 2 - Vec2(16, 16), false, true);
+		thumbnailRenderer = new ThumbnailRendererTask(save.GetGameSave(), (Size.X/2)-16, -1, false, false, true);
 		thumbnailRenderer->Start();
 	}
 }
@@ -155,6 +159,8 @@ ServerSaveActivity::ServerSaveActivity(SaveInfo save, bool saveNow, OnUploaded o
 	onUploaded(onUploaded_),
 	saveUploadTask(NULL)
 {
+	PngDataToPixels(save_to_server_image, save_to_server_imageW, save_to_server_imageH, reinterpret_cast<const char *>(save_online_png), save_online_png_size, false);
+
 	ui::Label * titleLabel = new ui::Label(ui::Point(0, 0), Size, "Saving to server...");
 	titleLabel->SetTextColour(style::Colour::InformationTitle);
 	titleLabel->Appearance.HorizontalAlign = ui::Appearance::AlignCentre;
@@ -368,18 +374,17 @@ void ServerSaveActivity::OnTick(float dt)
 void ServerSaveActivity::OnDraw()
 {
 	Graphics * g = GetGraphics();
-	g->BlendRGBAImage(saveToServerImage->data(), RectSized(Vec2(-10, 0), saveToServerImage->Size()));
-	g->DrawFilledRect(RectSized(Position, Size).Inset(-1), 0x000000_rgb);
-	g->DrawRect(RectSized(Position, Size), 0xFFFFFF_rgb);
+	g->draw_rgba_image(&save_to_server_image[0], save_to_server_imageW, save_to_server_imageH, -10, 0, 0.7f);
+	g->clearrect(Position.X-2, Position.Y-2, Size.X+3, Size.Y+3);
+	g->drawrect(Position.X, Position.Y, Size.X, Size.Y, 255, 255, 255, 255);
 
-	if (Size.X > 220)
-		g->DrawLine(Position + Vec2(Size.X / 2 - 1, 0), Position + Vec2(Size.X / 2 - 1, Size.Y - 1), 0xFFFFFF_rgb);
+	if(Size.X>220)
+		g->draw_line(Position.X+(Size.X/2)-1, Position.Y, Position.X+(Size.X/2)-1, Position.Y+Size.Y-1, 255, 255, 255, 255);
 
-	if (thumbnail)
+	if(thumbnail)
 	{
-		auto rect = RectSized(Position + Vec2(Size.X / 2 + (Size.X / 2 - thumbnail->Size().X) / 2, 25), thumbnail->Size());
-		g->BlendImage(thumbnail->Data(), 0xFF, rect);
-		g->DrawRect(rect, 0xB4B4B4_rgb);
+		g->draw_image(thumbnail.get(), Position.X+(Size.X/2)+((Size.X/2)-thumbnail->Width)/2, Position.Y+25, 255);
+		g->drawrect(Position.X+(Size.X/2)+((Size.X/2)-thumbnail->Width)/2, Position.Y+25, thumbnail->Width, thumbnail->Height, 180, 180, 180, 255);
 	}
 }
 

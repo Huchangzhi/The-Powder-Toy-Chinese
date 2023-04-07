@@ -35,7 +35,7 @@
 
 PreviewView::PreviewView():
 	ui::Window(ui::Point(-1, -1), ui::Point((XRES/2)+210, (YRES/2)+150)),
-	savePreview(nullptr),
+	savePreview(NULL),
 	submitCommentButton(NULL),
 	addCommentBox(NULL),
 	commentWarningLabel(NULL),
@@ -285,9 +285,9 @@ void PreviewView::OnDraw()
 	g->clearrect(Position.X-2, Position.Y-2, Size.X+4, Size.Y+4);
 
 	//Save preview (top-left)
-	if (savePreview)
+	if(savePreview && savePreview->Buffer)
 	{
-		g->BlendImage(savePreview->Data(), 0xFF, RectSized(Position + Vec2(1, 1) + (RES / 2 - savePreview->Size()) / 2, savePreview->Size()));
+		g->draw_image(savePreview, (Position.X+1)+(((XRES/2)-savePreview->Width)/2), (Position.Y+1)+(((YRES/2)-savePreview->Height)/2), 255);
 	}
 	g->drawrect(Position.X, Position.Y, (XRES/2)+1, (YRES/2)+1, 255, 255, 255, 100);
 	g->draw_line(Position.X+XRES/2, Position.Y+1, Position.X+XRES/2, Position.Y+Size.Y-2, 200, 200, 200, 255);
@@ -418,7 +418,8 @@ void PreviewView::OnKeyPress(int key, int scan, bool repeat, bool shift, bool ct
 void PreviewView::NotifySaveChanged(PreviewModel * sender)
 {
 	SaveInfo * save = sender->GetSaveInfo();
-	savePreview = nullptr;
+	delete savePreview;
+	savePreview = NULL;
 	if(save)
 	{
 		votesUp = save->votesUp;
@@ -463,8 +464,18 @@ void PreviewView::NotifySaveChanged(PreviewModel * sender)
 		if(save->GetGameSave())
 		{
 			savePreview = SaveRenderer::Ref().Render(save->GetGameSave(), false, true);
-			if (savePreview)
-				savePreview->ResizeToFit(RES / 2, true);
+
+			if(savePreview && savePreview->Buffer && !(savePreview->Width == XRES/2 && savePreview->Height == YRES/2))
+			{
+				pixel * oldData = savePreview->Buffer;
+				float factorX = ((float)XRES/2)/((float)savePreview->Width);
+				float factorY = ((float)YRES/2)/((float)savePreview->Height);
+				float scaleFactor = factorY < factorX ? factorY : factorX;
+				savePreview->Buffer = Graphics::resample_img(oldData, savePreview->Width, savePreview->Height, int(savePreview->Width*scaleFactor), int(savePreview->Height*scaleFactor));
+				delete[] oldData;
+				savePreview->Width = int(savePreview->Width * scaleFactor);
+				savePreview->Height = int(savePreview->Height * scaleFactor);
+			}
 		}
 		else if (!sender->GetCanOpen())
 			openButton->Enabled = false;
@@ -656,4 +667,5 @@ PreviewView::~PreviewView()
 		RemoveComponent(submitCommentButton);
 		delete submitCommentButton;
 	}
+	delete savePreview;
 }

@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
 
 	auto rng = std::make_unique<RNG>();
 	Simulation * sim = new Simulation();
-	Renderer * ren = new Renderer(sim);
+	Renderer * ren = new Renderer(new Graphics(), sim);
 
 	if (gameSave)
 	{
@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
 			frame--;
 			ren->render_parts();
 			ren->render_fire();
-			ren->clearScreen();
+			ren->clearScreen(1.0f);
 		}
 	}
 	else
@@ -70,6 +70,6 @@ int main(int argc, char *argv[])
 	ren->RenderBegin();
 	ren->RenderEnd();
 
-	if (auto data = ren->DumpFrame().ToPNG())
-		Platform::WriteFile(*data, outputFilename);
+	VideoBuffer screenBuffer = ren->DumpFrame();
+	screenBuffer.WritePNG(outputFilename);
 }

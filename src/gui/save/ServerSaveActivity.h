@@ -1,17 +1,13 @@
 #pragma once
 
-#include <functional>
-#include <memory>
-#include <vector>
-
 #include "Activity.h"
 #include "client/SaveInfo.h"
-#include "common/Plane.h"
-#include "Format.h"
-#include "graphics/Pixel.h"
 #include "tasks/TaskListener.h"
+#include "graphics/Pixel.h"
 
-#include "save_online.png.h"
+#include <memory>
+#include <functional>
+#include <vector>
 
 namespace ui
 {
@@ -26,9 +22,8 @@ class VideoBuffer;
 class ServerSaveActivity: public WindowActivity, public TaskListener
 {
 	using OnUploaded = std::function<void (SaveInfo &)>;
-	std::unique_ptr<PlaneAdapter<std::vector<pixel_rgba>>> saveToServerImage = format::PixelsFromPNG(
-		std::vector<char>(save_online_png, save_online_png + save_online_png_size)
-	);
+	std::vector<pixel> save_to_server_image;
+	int save_to_server_imageW, save_to_server_imageH;
 
 public:
 	ServerSaveActivity(SaveInfo save, OnUploaded onUploaded);

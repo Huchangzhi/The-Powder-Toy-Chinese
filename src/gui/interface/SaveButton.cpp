@@ -131,7 +131,7 @@ void SaveButton::Tick(float dt)
 			{
 				if(save->GetGameSave())
 				{
-					thumbnailRenderer = new ThumbnailRendererTask(*save->GetGameSave(), thumbBoxSize, true, true);
+					thumbnailRenderer = new ThumbnailRendererTask(save->GetGameSave(), thumbBoxSize.X, thumbBoxSize.Y);
 					thumbnailRenderer->Start();
 					triedThumbnail = true;
 				}
@@ -144,7 +144,7 @@ void SaveButton::Tick(float dt)
 			}
 			else if (file && file->GetGameSave())
 			{
-				thumbnailRenderer = new ThumbnailRendererTask(*file->GetGameSave(), thumbBoxSize, true, false);
+				thumbnailRenderer = new ThumbnailRendererTask(file->GetGameSave(), thumbBoxSize.X, thumbBoxSize.Y, true, true, false);
 				thumbnailRenderer->Start();
 				triedThumbnail = true;
 			}
@@ -168,7 +168,7 @@ void SaveButton::Tick(float dt)
 
 		if (thumbnail && file)
 		{
-			thumbSize = thumbnail->Size();
+			thumbSize = ui::Point(thumbnail->Width, thumbnail->Height);
 		}
 	}
 	if (file && !wantsDraw && !thumbnailRenderer)

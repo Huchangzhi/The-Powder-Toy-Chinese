@@ -1,16 +1,27 @@
-#include <cmath>
-#include "gui/game/RenderPreset.h"
-#include "RasterDrawMethodsImpl.h"
 #include "Renderer.h"
-#include "simulation/ElementClasses.h"
-#include "simulation/ElementGraphics.h"
+#include "gui/game/RenderPreset.h"
 #include "simulation/Simulation.h"
+#include "simulation/ElementGraphics.h"
+#include "simulation/ElementClasses.h"
+#include <cmath>
 
 constexpr auto VIDXRES = WINDOWW;
 constexpr auto VIDYRES = WINDOWH;
 
 void Renderer::RenderBegin()
 {
+	if(display_mode & DISPLAY_PERS)
+	{
+		std::copy(persistentVid, persistentVid+(VIDXRES*YRES), vid);
+	}
+	pixel * oldVid = NULL;
+	if(display_mode & DISPLAY_WARP)
+	{
+		oldVid = vid;
+		vid = warpVid;
+		std::fill(warpVid, warpVid+(VIDXRES*VIDYRES), 0);
+	}
+
 	draw_air();
 	draw_grav();
 	DrawWalls();
@@ -39,6 +50,11 @@ void Renderer::RenderBegin()
 	draw_grav_zones();
 	DrawSigns();
 
+	if(display_mode & DISPLAY_WARP)
+	{
+		vid = oldVid;
+	}
+
 	FinaliseParts();
 }
 
@@ -52,23 +68,15 @@ void Renderer::SetSample(int x, int y)
 	sampleColor = GetPixel(x, y);
 }
 
-void Renderer::clearScreen() {
-	if(display_mode & DISPLAY_PERS)
-	{
-		std::copy(persistentVid, persistentVid+(VIDXRES*YRES), vid);
-	}
-	else
-	{
-		std::fill_n(video.data(), VIDXRES * YRES, 0);
-	}
+void Renderer::clearScreen(float alpha)
+{
+	g->Clear();
 }
 
 void Renderer::FinaliseParts()
 {
 	if(display_mode & DISPLAY_WARP)
 	{
-		warpVideo = video;
-		std::fill_n(video.data(), VIDXRES * YRES, 0);
 		render_gravlensing(warpVid);
 	}
 }
@@ -261,8 +269,9 @@ void Renderer::PopulateTables()
 	}
 }
 
-Renderer::Renderer(Simulation * sim):
+Renderer::Renderer(Graphics * g, Simulation * sim):
 	sim(NULL),
+	g(NULL),
 	render_mode(0),
 	colour_mode(0),
 	display_mode(0),
@@ -284,7 +293,11 @@ Renderer::Renderer(Simulation * sim):
 {
 	PopulateTables();
 
+	this->g = g;
 	this->sim = sim;
+	vid = g->vid;
+	persistentVid = new pixel[VIDXRES*YRES];
+	warpVid = new pixel[VIDXRES*VIDYRES];
 
 	memset(fire_r, 0, sizeof(fire_r));
 	memset(fire_g, 0, sizeof(fire_g));
@@ -499,14 +512,21 @@ void Renderer::ResetModes()
 
 VideoBuffer Renderer::DumpFrame()
 {
-	VideoBuffer newBuffer(RES);
-	newBuffer.BlendImage(video.data(), 0xFF, Size().OriginRect());
+	VideoBuffer newBuffer(XRES, YRES);
+	for(int y = 0; y < YRES; y++)
+	{
+		std::copy(vid+(y*WINDOWW), vid+(y*WINDOWW)+XRES, newBuffer.Buffer+(y*XRES));
+	}
 	return newBuffer;
 }
 
 Renderer::~Renderer()
 {
+	delete[] persistentVid;
+	delete[] warpVid;
 	delete[] graphicscache;
 }
 
-template class RasterDrawMethods<Renderer>;
+#define PIXELMETHODS_CLASS Renderer
+#include "RasterDrawMethods.inl"
+#undef PIXELMETHODS_CLASS

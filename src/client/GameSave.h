@@ -1,5 +1,4 @@
 #pragma once
-#include "common/Plane.h"
 #include "common/String.h"
 #include "simulation/Sign.h"
 #include "simulation/Particle.h"
@@ -52,27 +51,26 @@ public:
 	}
 };
 
-template<typename Item>
-struct [[deprecated("Use PlaneAdapter<std::vector>")]] Plane: PlaneAdapter<std::vector<Item>>
+template<class Item>
+struct Plane
 {
-	[[deprecated("Use operator[](Vec2)")]]
+	int width = 0;
+	int height = 0;
+	std::vector<Item> items;
+	// invariant: items.size() == width * height
+
 	Item *operator [](int y)
 	{
-		return &*PlaneAdapter<std::vector<Item>>::RowIterator(Vec2(0, y));
+		return &items[y * width];
 	}
 
-	[[deprecated("Use operator[](Vec2)")]]
 	const Item *operator [](int y) const
 	{
-		return &*PlaneAdapter<std::vector<Item>>::RowIterator(Vec2(0, y));
+		return &items[y * width];
 	}
 
-	[[deprecated("Use PlaneAdapter<std::vector>")]]
 	Plane() = default;
-
-	[[deprecated("Use PlaneAdapter<std::vector>")]]
-	Plane(int newWidth, int newHeight, Item defaultVal):
-		PlaneAdapter<std::vector<Item>>(Vec2(newWidth, newHeight), defaultVal)
+	Plane(int newWidth, int newHeight, Item defaultVal) : width(newWidth), height(newHeight), items(width * height, defaultVal)
 	{
 	}
 };
