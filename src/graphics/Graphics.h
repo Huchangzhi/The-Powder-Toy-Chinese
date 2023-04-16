@@ -67,13 +67,20 @@ class Graphics: public RasterDrawMethods<Graphics>
 	friend struct RasterDrawMethods<Graphics>;
 
 public:
+	Vec2<int> Size() const
+	{
+		return video.Size();
+	}
+
 	pixel const *Data() const
 	{
 		return video.data();
 	}
 
-	[[deprecated("Use Data()")]]
-	pixel *vid = video.data();
+	pixel *Data()
+	{
+		return video.data();
+	}
 
 	struct GradientStop
 	{
@@ -85,10 +92,8 @@ public:
 	static std::vector<pixel> Gradient(std::vector<GradientStop> stops, int resolution);
 
 	//Font/text metrics
-	static int CharWidth(String::value_type c);
-	static int textwidthx(const String &s, int w);
+	[[deprecated("Use TextSize().X")]]
 	static int textwidth(const String &s);
-	static void textsize(const String &s, int & width, int & height);
 
 	VideoBuffer DumpFrame();
 
@@ -99,6 +104,4 @@ public:
 	Graphics();
 
 	void SwapClipRect(Rect<int> &);
-	[[deprecated("Use SwapClipRect")]]
-	void SetClipRect(int &x, int &y, int &w, int &h);
 };

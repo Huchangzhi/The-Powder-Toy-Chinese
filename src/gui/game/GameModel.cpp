@@ -941,6 +941,38 @@ SaveInfo * GameModel::GetSave()
 	return currentSave;
 }
 
+void GameModel::SaveToSimParameters(const GameSave *saveData)
+{
+	SetPaused(saveData->paused | GetPaused());
+	sim->gravityMode = saveData->gravityMode;
+	sim->customGravityX = saveData->customGravityX;
+	sim->customGravityY = saveData->customGravityY;
+	sim->air->airMode = saveData->airMode;
+	sim->air->ambientAirTemp = saveData->ambientAirTemp;
+	sim->edgeMode = saveData->edgeMode;
+	sim->legacy_enable = saveData->legacyEnable;
+	sim->water_equal_test = saveData->waterEEnabled;
+	sim->aheat_enable = saveData->aheatEnable;
+	if (saveData->gravityEnable && !sim->grav->IsEnabled())
+	{
+		sim->grav->start_grav_async();
+	}
+	else if (!saveData->gravityEnable && sim->grav->IsEnabled())
+	{
+		sim->grav->stop_grav_async();
+	}
+	sim->frameCount = saveData->frameCount;
+	if (saveData->hasRngState)
+	{
+		sim->rng.state(saveData->rngState);
+	}
+	else
+	{
+		sim->rng = RNG();
+	}
+	sim->ensureDeterminism = saveData->ensureDeterminism;
+}
+
 void GameModel::SetSave(SaveInfo * newSave, bool invertIncludePressure)
 {
 	if(currentSave != newSave)
@@ -954,23 +986,10 @@ void GameModel::SetSave(SaveInfo * newSave, bool invertIncludePressure)
 	delete currentFile;
 	currentFile = NULL;
 
-	if(currentSave && currentSave->GetGameSave())
+	if (newSave && newSave->GetGameSave())
 	{
-		GameSave * saveData = currentSave->GetGameSave();
-		SetPaused(saveData->paused | GetPaused());
-		sim->gravityMode = saveData->gravityMode;
-		sim->customGravityX = saveData->customGravityX;
-		sim->customGravityY = saveData->customGravityY;
-		sim->air->airMode = saveData->airMode;
-		sim->air->ambientAirTemp = saveData->ambientAirTemp;
-		sim->edgeMode = saveData->edgeMode;
-		sim->legacy_enable = saveData->legacyEnable;
-		sim->water_equal_test = saveData->waterEEnabled;
-		sim->aheat_enable = saveData->aheatEnable;
-		if(saveData->gravityEnable)
-			sim->grav->start_grav_async();
-		else
-			sim->grav->stop_grav_async();
+		GameSave *saveData = newSave->GetGameSave();
+		SaveToSimParameters(saveData);
 		sim->clear_sim();
 		ren->ClearAccumulation();
 		if (!sim->Load(saveData, !invertIncludePressure))
@@ -1018,27 +1037,10 @@ void GameModel::SetSaveFile(SaveFile * newSave, bool invertIncludePressure)
 	delete currentSave;
 	currentSave = NULL;
 
-	if(newSave && newSave->GetGameSave())
+	if (newSave && newSave->GetGameSave())
 	{
-		GameSave * saveData = newSave->GetGameSave();
-		SetPaused(saveData->paused | GetPaused());
-		sim->gravityMode = saveData->gravityMode;
-		sim->customGravityX = saveData->customGravityX;
-		sim->customGravityY = saveData->customGravityY;
-		sim->air->airMode = saveData->airMode;
-		sim->air->ambientAirTemp = saveData->ambientAirTemp;
-		sim->edgeMode = saveData->edgeMode;
-		sim->legacy_enable = saveData->legacyEnable;
-		sim->water_equal_test = saveData->waterEEnabled;
-		sim->aheat_enable = saveData->aheatEnable;
-		if(saveData->gravityEnable && !sim->grav->IsEnabled())
-		{
-			sim->grav->start_grav_async();
-		}
-		else if(!saveData->gravityEnable && sim->grav->IsEnabled())
-		{
-			sim->grav->stop_grav_async();
-		}
+		GameSave *saveData = newSave->GetGameSave();
+		SaveToSimParameters(saveData);
 		sim->clear_sim();
 		ren->ClearAccumulation();
 		if (!sim->Load(saveData, !invertIncludePressure))

@@ -8,6 +8,7 @@
 #include "MenuSection.h"
 #include "CoordStack.h"
 #include "gravity/GravityPtr.h"
+#include "common/tpt-rand.h"
 #include "Element.h"
 #include "SimulationConfig.h"
 #include <cstring>
@@ -38,6 +39,7 @@ public:
 
 	GravityPtr grav;
 	Air * air;
+	RNG rng;
 
 	std::vector<sign> signs;
 	std::array<Element, PT_NUM> elements;
@@ -113,8 +115,11 @@ public:
 	int framerender;
 	int pretty_powder;
 	int sandcolour;
+	int sandcolour_interface;
 	int sandcolour_frame;
 	int deco_space;
+	uint64_t frameCount;
+	bool ensureDeterminism;
 
 	int Load(const GameSave * save, bool includePressure);
 	int Load(const GameSave * save, bool includePressure, int x, int y);

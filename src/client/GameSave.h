@@ -1,11 +1,13 @@
 #pragma once
 #include "common/Plane.h"
 #include "common/String.h"
+#include "common/tpt-rand.h"
 #include "simulation/Sign.h"
 #include "simulation/Particle.h"
 #include "Misc.h"
 #include "SimulationConfig.h"
 #include <vector>
+#include <array>
 #include <json/json.h>
 
 struct sign;
@@ -93,6 +95,11 @@ public:
 	int minorVersion = 0;
 	bool hasPressure = false;
 	bool hasAmbientHeat = false;
+	bool hasBlockAirMaps = false; // only written by readOPS, never read
+	bool ensureDeterminism = false; // only taken seriously by serializeOPS; readOPS may set this even if the save does not have everything required for determinism
+	bool hasRngState = false; // only written by readOPS, never read
+	RNG::State rngState;
+	uint64_t frameCount = 0;
 
 	//Simulation data
 	int particlesCount = 0;
@@ -104,6 +111,8 @@ public:
 	Plane<float> velocityX;
 	Plane<float> velocityY;
 	Plane<float> ambientHeat;
+	Plane<unsigned char> blockAir;
+	Plane<unsigned char> blockAirh;
 
 	//Simulation Options
 	bool waterEEnabled = false;
