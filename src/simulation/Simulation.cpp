@@ -736,7 +736,7 @@ int Simulation::FloodINST(int x, int y)
 
 bool Simulation::flood_water(int x, int y, int i)
 {
-	int x1, x2, originalY = y;
+	int x1, x2, originalX = x, originalY = y;
 	int r = pmap[y][x];
 	if (!r)
 		return false;
@@ -780,12 +780,7 @@ bool Simulation::flood_water(int x, int y, int i)
 					else if (!eval_move(parts[i].type, x, y - 1, nullptr))
 						continue;
 
-					int oldx = (int)(parts[i].x + 0.5f);
-					int oldy = (int)(parts[i].y + 0.5f);
-					pmap[y - 1][x] = pmap[oldy][oldx];
-					pmap[oldy][oldx] = 0;
-					parts[i].x = float(x);
-					parts[i].y = float(y - 1);
+					move(i, originalX, originalY, x, y - 1);
 					return true;
 				}
 
@@ -2139,13 +2134,14 @@ int Simulation::create_part(int p, int x, int y, int t, int v)
 	if((elements[t].Properties & TYPE_PART) && pretty_powder)
 	{
 		int colr, colg, colb;
-		auto sandcolourToUse = p == -2 ? sandcolour_interface : sandcolour;
-		colr = PIXR(elements[t].Colour) + int(sandcolourToUse * 1.3) + rng.between(-20, 20) + rng.between(-15, 15);
-		colg = PIXG(elements[t].Colour) + int(sandcolourToUse * 1.3) + rng.between(-20, 20) + rng.between(-15, 15);
-		colb = PIXB(elements[t].Colour) + int(sandcolourToUse * 1.3) + rng.between(-20, 20) + rng.between(-15, 15);
-		colr = colr>255 ? 255 : (colr<0 ? 0 : colr);
-		colg = colg>255 ? 255 : (colg<0 ? 0 : colg);
-		colb = colb>255 ? 255 : (colb<0 ? 0 : colb);
+		int sandcolourToUse = p == -2 ? sandcolour_interface : sandcolour;
+		RGB<uint8_t> colour = elements[t].Colour;
+		colr = colour.Red   + int(sandcolourToUse * 1.3) + rng.between(-20, 20) + rng.between(-15, 15);
+		colg = colour.Green + int(sandcolourToUse * 1.3) + rng.between(-20, 20) + rng.between(-15, 15);
+		colb = colour.Blue  + int(sandcolourToUse * 1.3) + rng.between(-20, 20) + rng.between(-15, 15);
+		colr = std::clamp(colr, 0, 255);
+		colg = std::clamp(colg, 0, 255);
+		colb = std::clamp(colb, 0, 255);
 		parts[i].dcolour = (rng.between(0, 149)<<24) | (colr<<16) | (colg<<8) | colb;
 	}
 

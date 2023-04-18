@@ -6,7 +6,7 @@ void SimTool::Tool_AMBM()
 {
 	Identifier = "DEFAULT_TOOL_AMBM";
 	Name = "AMBM";
-	Colour = PIXPACK(0x00DDFF);
+	Colour = 0x00DDFF_rgb;
 	Description = ByteString("环境热减少工具,降低环境空气温度").FromUtf8();
 	Perform = &perform;
 }

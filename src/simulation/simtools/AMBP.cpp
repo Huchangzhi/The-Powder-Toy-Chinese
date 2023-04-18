@@ -6,7 +6,7 @@ void SimTool::Tool_AMBP()
 {
 	Identifier = "DEFAULT_TOOL_AMBP";
 	Name = "AMBP";
-	Colour = PIXPACK(0xFFDD00);
+	Colour = 0xFFDD00_rgb;
 	Description = ByteString("环境热增加工具,增加环境空气温度").FromUtf8();
 	Perform = &perform;
 }

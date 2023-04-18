@@ -16,32 +16,6 @@ constexpr int PIXELCHANNELS = 3;
 // Use sparingly, e.g. when passing packed data to a third party library.
 typedef uint32_t pixel_rgba;
 
-[[deprecated("Use 0x######_rgb .Pack()")]]
-constexpr pixel PIXPACK(int x)
-{
-	return x;
-}
-[[deprecated("Use RGB(...).Pack()")]]
-constexpr pixel PIXRGB(int r, int g, int b)
-{
-	return (r << 16) | (g << 8) | b;
-}
-[[deprecated("Use RGB<uint8_t>::Unpack(...).Red")]]
-constexpr int PIXR(pixel x)
-{
-	return (x >> 16) & 0xFF;
-}
-[[deprecated("Use RGB<uint8_t>::Unpack(...).Green")]]
-constexpr int PIXG(pixel x)
-{
-	return (x >> 8) & 0xFF;
-}
-[[deprecated("Use RGB<uint8_t>::Unpack(...).Blue")]]
-constexpr int PIXB(pixel x)
-{
-	return x & 0xFF;
-}
-
 template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
 struct RGBA;
 
@@ -160,6 +134,12 @@ struct alignas(alignof(uint32_t) > alignof(T) ? alignof(uint32_t) : alignof(T)) 
 	constexpr RGB<T> NoAlpha() const
 	{
 		return RGB<T>(Red, Green, Blue);
+	}
+
+	template<typename S = T, typename = std::enable_if_t<std::is_same_v<S, uint8_t>>>
+	constexpr pixel Pack() const
+	{
+		return Red << 16 | Green << 8 | Blue | Alpha << 24;
 	}
 
 	template<typename S = T, typename = std::enable_if_t<std::is_same_v<S, uint8_t>>>

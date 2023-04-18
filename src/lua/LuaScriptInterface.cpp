@@ -1853,36 +1853,22 @@ int LuaScriptInterface::simulation_decoBox(lua_State * l)
 int LuaScriptInterface::simulation_decoColor(lua_State * l)
 {
 	int acount = lua_gettop(l);
-	unsigned int color;
+	RGBA<uint8_t> color(0, 0, 0, 0);
 	if (acount == 0)
 	{
-		ui::Colour tempColor = luacon_model->GetColourSelectorColour();
-		unsigned int color = (tempColor.Alpha << 24) | PIXRGB(tempColor.Red, tempColor.Green, tempColor.Blue);
-		lua_pushnumber(l, color);
+		lua_pushnumber(l, luacon_model->GetColourSelectorColour().Pack());
 		return 1;
 	}
 	else if (acount == 1)
-		color = (unsigned int)luaL_optnumber(l, 1, 0xFFFF0000);
+		color = RGBA<uint8_t>::Unpack(luaL_optnumber(l, 1, 0xFFFF0000));
 	else
 	{
-		int r, g, b, a;
-		r = luaL_optint(l, 1, 255);
-		g = luaL_optint(l, 2, 255);
-		b = luaL_optint(l, 3, 255);
-		a = luaL_optint(l, 4, 255);
-
-		if (r < 0) r = 0;
-		if (r > 255) r = 255;
-		if (g < 0) g = 0;
-		if (g > 255) g = 255;
-		if (b < 0) b = 0;
-		if (b > 255) b = 255;
-		if (a < 0) a = 0;
-		if (a > 255) a = 255;
-
-		color = (a << 24) + PIXRGB(r, g, b);
+		color.Red   = std::clamp(luaL_optint(l, 1, 255), 0, 255);
+		color.Green = std::clamp(luaL_optint(l, 2, 255), 0, 255);
+		color.Blue  = std::clamp(luaL_optint(l, 3, 255), 0, 255);
+		color.Alpha = std::clamp(luaL_optint(l, 4, 255), 0, 255);
 	}
-	luacon_model->SetColourSelectorColour(ui::Colour(PIXR(color), PIXG(color), PIXB(color), color >> 24));
+	luacon_model->SetColourSelectorColour(color);
 	return 0;
 }
 
@@ -1899,8 +1885,8 @@ int LuaScriptInterface::simulation_floodDeco(lua_State * l)
 		return luaL_error(l, "coordinates out of range (%d,%d)", x, y);
 
 	// hilariously broken, intersects with console and all Lua graphics
-	pixel loc = luacon_ren->vid[x + y * WINDOWW];
-	luacon_sim->ApplyDecorationFill(luacon_ren, x, y, r, g, b, a, PIXR(loc), PIXG(loc), PIXB(loc));
+	auto loc = RGB<uint8_t>::Unpack(luacon_ren->vid[x + y * WINDOWW]);
+	luacon_sim->ApplyDecorationFill(luacon_ren, x, y, r, g, b, a, loc.Red, loc.Green, loc.Blue);
 	return 0;
 }
 

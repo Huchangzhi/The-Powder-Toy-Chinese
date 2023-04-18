@@ -7,7 +7,7 @@ void SimTool::Tool_AIR()
 {
 	Identifier = "DEFAULT_TOOL_AIR";
 	Name = "AIR";
-	Colour = PIXPACK(0xFFFFFF);
+	Colour = 0xFFFFFF_rgb;
 	Description = ByteString("气压工具,增加目标区域内的气压").FromUtf8();
 	Perform = &perform;
 }
