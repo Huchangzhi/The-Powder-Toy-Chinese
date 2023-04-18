@@ -582,7 +582,7 @@ void GameSave::readOPS(const std::vector<char> &data)
 										}
 										else if (tempSign.text == "{p}")
 										{
-											tempSign.text = "Pressure: {p}";
+											tempSign.text = ByteString("压力: {p}").FromUtf8();
 										}
 									}
 								}

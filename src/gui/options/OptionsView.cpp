@@ -31,7 +31,7 @@ OptionsView::OptionsView():
 		c->Size.X = Size.X - c->Position.X - 12;
 	};
 	
-	ui::Label * tempLabel = new ui::Label(ui::Point(4, 1), ui::Point(Size.X-8, 22), "Simulation Options");
+	ui::Label * tempLabel = new ui::Label(ui::Point(4, 1), ui::Point(Size.X-8, 22), ByteString("设置").FromUtf8());
 	tempLabel->SetTextColour(style::Colour::InformationTitle);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -58,48 +58,48 @@ OptionsView::OptionsView():
 	
 	AddComponent(scrollPanel);
 
-	heatSimulation = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), "Heat simulation \bgIntroduced in version 34", "");
+	heatSimulation = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("热模拟 \bg34.0版本后加入").FromUtf8(), "");
 	autowidth(heatSimulation);
 	heatSimulation->SetActionCallback({ [this] { c->SetHeatSimulation(heatSimulation->GetChecked()); } });
 	scrollPanel->AddChild(heatSimulation);
 	currentY+=14;
-	tempLabel = new ui::Label(ui::Point(24, currentY), ui::Point(1, 16), "\bgCan cause odd behaviour when disabled");
+	tempLabel = new ui::Label(ui::Point(24, currentY), ui::Point(1, 16), ByteString("\bg 关闭此选项可能导致一些奇怪的问题").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	scrollPanel->AddChild(tempLabel);
 
 	currentY+=16;
-	ambientHeatSimulation = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), "Ambient heat simulation \bgIntroduced in version 50", "");
+	ambientHeatSimulation = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("环境热模拟 \bg50.0版本后加入").FromUtf8(), "");
 	autowidth(ambientHeatSimulation);
 	ambientHeatSimulation->SetActionCallback({ [this] { c->SetAmbientHeatSimulation(ambientHeatSimulation->GetChecked()); } });
 	scrollPanel->AddChild(ambientHeatSimulation);
 	currentY+=14;
-	tempLabel = new ui::Label(ui::Point(24, currentY), ui::Point(1, 16), "\bgCan cause odd / broken behaviour with many saves");
+	tempLabel = new ui::Label(ui::Point(24, currentY), ui::Point(1, 16), ByteString("\bg 关闭此项可能导致一些沙盘不能正常运行").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	scrollPanel->AddChild(tempLabel);
 
 	currentY+=16;
-	newtonianGravity = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), "Newtonian gravity \bgIntroduced in version 48", "");
+	newtonianGravity = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("牛顿引力模拟 \bg48.0版本后加入").FromUtf8(), "");
 	autowidth(newtonianGravity);
 	newtonianGravity->SetActionCallback({ [this] { c->SetNewtonianGravity(newtonianGravity->GetChecked()); } });
 	scrollPanel->AddChild(newtonianGravity);
 	currentY+=14;
-	tempLabel = new ui::Label(ui::Point(24, currentY), ui::Point(1, 16), "\bgMay cause poor performance on older computers");
+	tempLabel = new ui::Label(ui::Point(24, currentY), ui::Point(1, 16), ByteString("\bg 会降低游戏运行的效能").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	scrollPanel->AddChild(tempLabel);
 
 	currentY+=16;
-	waterEqualisation = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), "Water equalisation \bgIntroduced in version 61", "");
+	waterEqualisation = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("连通器模拟 \bg61.0版本后加入 ").FromUtf8(), "");
 	autowidth(waterEqualisation);
 	waterEqualisation->SetActionCallback({ [this] { c->SetWaterEqualisation(waterEqualisation->GetChecked()); } });
 	scrollPanel->AddChild(waterEqualisation);
 	currentY+=14;
-	tempLabel = new ui::Label(ui::Point(24, currentY), ui::Point(1, 16), "\bgMay cause poor performance with a lot of water");
+	tempLabel = new ui::Label(ui::Point(24, currentY), ui::Point(1, 16), ByteString("\bg 有大量液体存在时会降低游戏运行的效能").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -108,14 +108,14 @@ OptionsView::OptionsView():
 	currentY+=19;
 	airMode = new ui::DropDown(ui::Point(Size.X-95, currentY), ui::Point(80, 16));
 	scrollPanel->AddChild(airMode);
-	airMode->AddOption(std::pair<String, int>("On", 0));
-	airMode->AddOption(std::pair<String, int>("Pressure off", 1));
-	airMode->AddOption(std::pair<String, int>("Velocity off", 2));
-	airMode->AddOption(std::pair<String, int>("Off", 3));
-	airMode->AddOption(std::pair<String, int>("No Update", 4));
+	airMode->AddOption(std::pair<String, int>(ByteString("开启").FromUtf8(), 0));
+	airMode->AddOption(std::pair<String, int>(ByteString("关闭压力").FromUtf8(), 1));
+	airMode->AddOption(std::pair<String, int>(ByteString("关闭温度").FromUtf8(), 2));
+	airMode->AddOption(std::pair<String, int>(ByteString("关闭").FromUtf8(), 3));
+	airMode->AddOption(std::pair<String, int>(ByteString("更新停止").FromUtf8(), 4));
 	airMode->SetActionCallback({ [this] { c->SetAirMode(airMode->GetOption().second); } });
 
-	tempLabel = new ui::Label(ui::Point(8, currentY), ui::Point(Size.X-96, 16), "Air Simulation Mode");
+	tempLabel = new ui::Label(ui::Point(8, currentY), ui::Point(Size.X-96, 16), ByteString("空气模拟模式").FromUtf8());
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	scrollPanel->AddChild(tempLabel);
@@ -130,10 +130,10 @@ OptionsView::OptionsView():
 	}});
 	scrollPanel->AddChild(ambientAirTemp);
 
-	ambientAirTempPreview = new ui::Button(ui::Point(Size.X-31, currentY), ui::Point(16, 16), "", "Preview");
+	ambientAirTempPreview = new ui::Button(ui::Point(Size.X-31, currentY), ui::Point(16, 16), "", ByteString("预览").FromUtf8());
 	scrollPanel->AddChild(ambientAirTempPreview);
 
-	tempLabel = new ui::Label(ui::Point(8, currentY), ui::Point(Size.X-96, 16), "Ambient Air Temperature");
+	tempLabel = new ui::Label(ui::Point(8, currentY), ui::Point(Size.X-96, 16), ByteString("环境空气温度").FromUtf8());
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	scrollPanel->AddChild(tempLabel);
@@ -141,10 +141,10 @@ OptionsView::OptionsView():
 	currentY+=20;
 	gravityMode = new ui::DropDown(ui::Point(Size.X-95, currentY), ui::Point(80, 16));
 	scrollPanel->AddChild(gravityMode);
-	gravityMode->AddOption(std::pair<String, int>("Vertical", 0));
-	gravityMode->AddOption(std::pair<String, int>("Off", 1));
-	gravityMode->AddOption(std::pair<String, int>("Radial", 2));
-	gravityMode->AddOption(std::pair<String, int>("Custom", 3));
+	gravityMode->AddOption(std::pair<String, int>(ByteString("数值").FromUtf8(), 0));
+	gravityMode->AddOption(std::pair<String, int>(ByteString("关闭").FromUtf8(), 1));
+	gravityMode->AddOption(std::pair<String, int>(ByteString("中心").FromUtf8(), 2));
+	gravityMode->AddOption(std::pair<String, int>(ByteString("自定义").FromUtf8(), 3));
 
 	class GravityWindow : public ui::Window
 	{
@@ -217,7 +217,7 @@ OptionsView::OptionsView():
 			new GravityWindow(ui::Point(-1, -1), 0.05f, 40, customGravityX, customGravityY, c);
 	} });
 
-	tempLabel = new ui::Label(ui::Point(8, currentY), ui::Point(Size.X-96, 16), "Gravity Simulation Mode");
+	tempLabel = new ui::Label(ui::Point(8, currentY), ui::Point(Size.X-96, 16), ByteString("重力模拟模式").FromUtf8());
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	scrollPanel->AddChild(tempLabel);
@@ -225,12 +225,12 @@ OptionsView::OptionsView():
 	currentY+=20;
 	edgeMode = new ui::DropDown(ui::Point(Size.X-95, currentY), ui::Point(80, 16));
 	scrollPanel->AddChild(edgeMode);
-	edgeMode->AddOption(std::pair<String, int>("Void", 0));
-	edgeMode->AddOption(std::pair<String, int>("Solid", 1));
-	edgeMode->AddOption(std::pair<String, int>("Loop", 2));
+	edgeMode->AddOption(std::pair<String, int>(ByteString("虚空").FromUtf8(), 0));
+	edgeMode->AddOption(std::pair<String, int>(ByteString("固体").FromUtf8(), 1));
+	edgeMode->AddOption(std::pair<String, int>(ByteString("循环").FromUtf8(), 2));
 	edgeMode->SetActionCallback({ [this] { c->SetEdgeMode(edgeMode->GetOption().second); } });
 
-	tempLabel = new ui::Label(ui::Point(8, currentY), ui::Point(Size.X-96, 16), "Edge Mode");
+	tempLabel = new ui::Label(ui::Point(8, currentY), ui::Point(Size.X-96, 16), ByteString("边界模式").FromUtf8());
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	scrollPanel->AddChild(tempLabel);
@@ -238,12 +238,12 @@ OptionsView::OptionsView():
 	currentY+=20;
 	temperatureScale = new ui::DropDown(ui::Point(Size.X-95, currentY), ui::Point(80, 16));
 	scrollPanel->AddChild(temperatureScale);
-	temperatureScale->AddOption(std::pair<String, int>("Kelvin", 0));
-	temperatureScale->AddOption(std::pair<String, int>("Celsius", 1));
-	temperatureScale->AddOption(std::pair<String, int>("Fahrenheit", 2));
+	temperatureScale->AddOption(std::pair<String, int>(ByteString("开尔文").FromUtf8(), 0));
+	temperatureScale->AddOption(std::pair<String, int>(ByteString("摄氏度").FromUtf8(), 1));
+	temperatureScale->AddOption(std::pair<String, int>(ByteString("华氏度").FromUtf8(), 2));
 	temperatureScale->SetActionCallback({ [this] { c->SetTemperatureScale(temperatureScale->GetOption().second); } });
 
-	tempLabel = new ui::Label(ui::Point(8, currentY), ui::Point(Size.X-96, 16), "Temperature Scale");
+	tempLabel = new ui::Label(ui::Point(8, currentY), ui::Point(Size.X-96, 16), ByteString("温度单位").FromUtf8());
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	scrollPanel->AddChild(tempLabel);
@@ -272,16 +272,16 @@ OptionsView::OptionsView():
 	scale->SetActionCallback({ [this] { c->SetScale(scale->GetOption().second); } });
 	scrollPanel->AddChild(scale);
 
-	tempLabel = new ui::Label(ui::Point(scale->Position.X+scale->Size.X+3, currentY), ui::Point(Size.X-40, 16), "\bg- Window scale factor for larger screens");
+	tempLabel = new ui::Label(ui::Point(scale->Position.X+scale->Size.X+3, currentY), ui::Point(Size.X-40, 16), ByteString("\bg - 大屏幕的窗口比例因子").FromUtf8());
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	scrollPanel->AddChild(tempLabel);
 
 	currentY+=20;
-	resizable = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), "Resizable", "");
+	resizable = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("可调整大小").FromUtf8(), "");
 	autowidth(resizable);
 	resizable->SetActionCallback({ [this] { c->SetResizable(resizable->GetChecked()); } });
-	tempLabel = new ui::Label(ui::Point(resizable->Position.X+Graphics::textwidth(resizable->GetText())+20, currentY), ui::Point(1, 16), "\bg- Allow resizing and maximizing window");
+	tempLabel = new ui::Label(ui::Point(resizable->Position.X+Graphics::textwidth(resizable->GetText())+20, currentY), ui::Point(1, 16), ByteString("\bg - 允许调整大小和最大化窗口").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -289,10 +289,10 @@ OptionsView::OptionsView():
 	scrollPanel->AddChild(resizable);
 
 	currentY+=20;
-	fullscreen = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), "Fullscreen", "");
+	fullscreen = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("全屏").FromUtf8(), "");
 	autowidth(fullscreen);
 	fullscreen->SetActionCallback({ [this] { c->SetFullscreen(fullscreen->GetChecked()); } });
-	tempLabel = new ui::Label(ui::Point(fullscreen->Position.X+Graphics::textwidth(fullscreen->GetText())+20, currentY), ui::Point(1, 16), "\bg- Fill the entire screen");
+	tempLabel = new ui::Label(ui::Point(fullscreen->Position.X+Graphics::textwidth(fullscreen->GetText())+20, currentY), ui::Point(1, 16), ByteString("\bg - 进入全屏模式").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -300,10 +300,10 @@ OptionsView::OptionsView():
 	scrollPanel->AddChild(fullscreen);
 
 	currentY+=20;
-	altFullscreen = new ui::Checkbox(ui::Point(23, currentY), ui::Point(1, 16), "Change Resolution", "");
+	altFullscreen = new ui::Checkbox(ui::Point(23, currentY), ui::Point(1, 16), ByteString("更改分辨率").FromUtf8(), "");
 	autowidth(altFullscreen);
 	altFullscreen->SetActionCallback({ [this] { c->SetAltFullscreen(altFullscreen->GetChecked()); } });
-	tempLabel = new ui::Label(ui::Point(altFullscreen->Position.X+Graphics::textwidth(altFullscreen->GetText())+20, currentY), ui::Point(1, 16), "\bg- Set optimal screen resolution");
+	tempLabel = new ui::Label(ui::Point(altFullscreen->Position.X+Graphics::textwidth(altFullscreen->GetText())+20, currentY), ui::Point(1, 16), ByteString("\bg - 设置最佳屏幕分辨率").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -311,10 +311,10 @@ OptionsView::OptionsView():
 	scrollPanel->AddChild(altFullscreen);
 
 	currentY+=20;
-	forceIntegerScaling = new ui::Checkbox(ui::Point(23, currentY), ui::Point(1, 16), "Force Integer Scaling", "");
+	forceIntegerScaling = new ui::Checkbox(ui::Point(23, currentY), ui::Point(1, 16), ByteString("强制整数缩放").FromUtf8(), "");
 	autowidth(forceIntegerScaling);
 	forceIntegerScaling->SetActionCallback({ [this] { c->SetForceIntegerScaling(forceIntegerScaling->GetChecked()); } });
-	tempLabel = new ui::Label(ui::Point(altFullscreen->Position.X+Graphics::textwidth(forceIntegerScaling->GetText())+20, currentY), ui::Point(1, 16), "\bg- Less blurry");
+	tempLabel = new ui::Label(ui::Point(altFullscreen->Position.X+Graphics::textwidth(forceIntegerScaling->GetText())+20, currentY), ui::Point(1, 16), ByteString("\bg - 不再那么模糊").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -322,10 +322,10 @@ OptionsView::OptionsView():
 	scrollPanel->AddChild(forceIntegerScaling);
 
 	currentY+=20;
-	fastquit = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), "Fast Quit", "");
+	fastquit = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("快速退出").FromUtf8(), "");
 	autowidth(fastquit);
 	fastquit->SetActionCallback({ [this] { c->SetFastQuit(fastquit->GetChecked()); } });
-	tempLabel = new ui::Label(ui::Point(fastquit->Position.X+Graphics::textwidth(fastquit->GetText())+20, currentY), ui::Point(1, 16), "\bg- Always exit completely when hitting close");
+	tempLabel = new ui::Label(ui::Point(fastquit->Position.X+Graphics::textwidth(fastquit->GetText())+20, currentY), ui::Point(1, 16), ByteString("\bg - 点击关闭按钮时总是完全退出游戏").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -333,10 +333,10 @@ OptionsView::OptionsView():
 	scrollPanel->AddChild(fastquit);
 
 	currentY+=20;
-	showAvatars = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), "Show Avatars", "");
+	showAvatars = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("显示头像").FromUtf8(), "");
 	autowidth(showAvatars);
 	showAvatars->SetActionCallback({ [this] { c->SetShowAvatars(showAvatars->GetChecked()); } });
-	tempLabel = new ui::Label(ui::Point(showAvatars->Position.X+Graphics::textwidth(showAvatars->GetText())+20, currentY), ui::Point(1, 16), "\bg- Disable if you have a slow connection");
+	tempLabel = new ui::Label(ui::Point(showAvatars->Position.X+Graphics::textwidth(showAvatars->GetText())+20, currentY), ui::Point(1, 16), ByteString("\bg - 禁用此项可减少网络带宽").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -344,10 +344,10 @@ OptionsView::OptionsView():
 	scrollPanel->AddChild(showAvatars);
 
 	currentY += 20;
-	momentumScroll = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), "Momentum/Old Scrolling", "");
+	momentumScroll = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("动力/旧版滚动").FromUtf8(), "");
 	autowidth(momentumScroll);
 	momentumScroll->SetActionCallback({ [this] { c->SetMomentumScroll(momentumScroll->GetChecked()); } });
-	tempLabel = new ui::Label(ui::Point(momentumScroll->Position.X + Graphics::textwidth(momentumScroll->GetText()) + 20, currentY), ui::Point(1, 16), "\bg- Accelerating instead of step scroll");
+	tempLabel = new ui::Label(ui::Point(momentumScroll->Position.X + Graphics::textwidth(momentumScroll->GetText()) + 20, currentY), ui::Point(1, 16), ByteString("\bg - 启用此项时将步进滚动改为加速").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -355,10 +355,10 @@ OptionsView::OptionsView():
 	scrollPanel->AddChild(momentumScroll);
 
 	currentY+=20;
-	mouseClickRequired = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), "Sticky Categories", "");
+	mouseClickRequired = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("置顶类别").FromUtf8(), "");
 	autowidth(mouseClickRequired);
 	mouseClickRequired->SetActionCallback({ [this] { c->SetMouseClickrequired(mouseClickRequired->GetChecked()); } });
-	tempLabel = new ui::Label(ui::Point(mouseClickRequired->Position.X+Graphics::textwidth(mouseClickRequired->GetText())+20, currentY), ui::Point(1, 16), "\bg- Switch between categories by clicking");
+	tempLabel = new ui::Label(ui::Point(mouseClickRequired->Position.X+Graphics::textwidth(mouseClickRequired->GetText())+20, currentY), ui::Point(1, 16), ByteString("\bg - 启用此项时将滑动切换类别改为点击").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -366,10 +366,10 @@ OptionsView::OptionsView():
 	scrollPanel->AddChild(mouseClickRequired);
 
 	currentY+=20;
-	includePressure = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), "Include Pressure", "");
+	includePressure = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("包括压力").FromUtf8(), "");
 	autowidth(includePressure);
 	includePressure->SetActionCallback({ [this] { c->SetIncludePressure(includePressure->GetChecked()); } });
-	tempLabel = new ui::Label(ui::Point(includePressure->Position.X+Graphics::textwidth(includePressure->GetText())+20, currentY), ui::Point(1, 16), "\bg- When saving, copying, stamping, etc.");
+	tempLabel = new ui::Label(ui::Point(includePressure->Position.X+Graphics::textwidth(includePressure->GetText())+20, currentY), ui::Point(1, 16), ByteString("\bg - 沙盘,复制,Stamps保存压力数据").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -377,10 +377,10 @@ OptionsView::OptionsView():
 	scrollPanel->AddChild(includePressure);
 
 	currentY+=20;
-	perfectCirclePressure = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), "Perfect Circle", "");
+	perfectCirclePressure = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("完美的圆").FromUtf8(), "");
 	autowidth(perfectCirclePressure);
 	perfectCirclePressure->SetActionCallback({ [this] { c->SetPerfectCircle(perfectCirclePressure->GetChecked()); } });
-	tempLabel = new ui::Label(ui::Point(perfectCirclePressure->Position.X+Graphics::textwidth(perfectCirclePressure->GetText())+20, currentY), ui::Point(1, 16), "\bg- Better circle brush, without incorrect points on edges");
+	tempLabel = new ui::Label(ui::Point(perfectCirclePressure->Position.X+Graphics::textwidth(perfectCirclePressure->GetText())+20, currentY), ui::Point(1, 16), ByteString("\bg - 由Notch创造的最完美的圆").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -396,13 +396,13 @@ OptionsView::OptionsView():
 	decoSpace->AddOption(std::pair<String, int>("Gamma 2.2", 2));
 	decoSpace->AddOption(std::pair<String, int>("Gamma 1.8", 3));
 
-	tempLabel = new ui::Label(ui::Point(decoSpace->Position.X+decoSpace->Size.X+3, currentY), ui::Point(Size.X-40, 16), "\bg- Colour space used by decoration tools");
+	tempLabel = new ui::Label(ui::Point(decoSpace->Position.X+decoSpace->Size.X+3, currentY), ui::Point(Size.X-40, 16), ByteString("\bg - 装饰工具使用的颜色空间").FromUtf8());
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	scrollPanel->AddChild(tempLabel);
 
 	currentY+=20;
-	ui::Button * dataFolderButton = new ui::Button(ui::Point(8, currentY), ui::Point(90, 16), "Open Data Folder");
+	ui::Button * dataFolderButton = new ui::Button(ui::Point(8, currentY), ui::Point(90, 16), ByteString("打开数据目录").FromUtf8());
 	dataFolderButton->SetActionCallback({ [] {
 		ByteString cwd = Platform::GetCwd();
 		if (!cwd.empty())
@@ -412,7 +412,7 @@ OptionsView::OptionsView():
 	} });
 	scrollPanel->AddChild(dataFolderButton);
 
-	ui::Button * migrationButton = new ui::Button(ui::Point(Size.X - 178, currentY), ui::Point(163, 16), "Migrate to shared data directory");
+	ui::Button * migrationButton = new ui::Button(ui::Point(Size.X - 178, currentY), ui::Point(163, 16), ByteString("迁移到共享数据目录").FromUtf8());
 	migrationButton->SetActionCallback({ [] {
 		ByteString from = Platform::originalCwd;
 		ByteString to = Platform::sharedCwd;

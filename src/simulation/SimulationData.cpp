@@ -68,7 +68,7 @@ std::vector<wall_type> LoadWalls()
 		{0xFFEE00_rgb, 0xAA9900_rgb, 4, Renderer::WallIcon, String("GRAVITY WALL"),    "DEFAULT_WL_GRVTY",  String(ByteString("引力墙,范围内的万有引力(注:默认的普通引力除外,可以按W切换)将失效").FromUtf8()) },
 		{0xFFAA00_rgb, 0xAA5500_rgb, 4, Renderer::WallIcon, String("ENERGY WALL"),     "DEFAULT_WL_ENRGY",  String(ByteString("能量墙,允许能量粒子通过,阻挡其他物质").FromUtf8()) },
 		{0xDCDCDC_rgb, 0x000000_rgb, 1, Renderer::WallIcon, String("AIRBLOCK WALL"),   "DEFAULT_WL_NOAIR",  String(ByteString("阻压墙,允许所有物质通过,隔绝压力").FromUtf8()) },
-		{0xDCDCDC_rgb, 0x000000_rgb, 1, Renderer::WallIcon, String("ERASEALL"),        "DEFAULT_WL_ERASEA", String(ByteString("清除墙,物质,标识").FromUtf8()) },
+		{0xDCDCDC_rgb, 0x000000_rgb, 1, Renderer::WallIcon, String("ERASEALL"),        "DEFAULT_WL_ERASEA", String(ByteString("清除墙,物质,标记").FromUtf8()) },
 		{0x808080_rgb, 0x000000_rgb, 0, Renderer::WallIcon, String("STASIS WALL"),     "DEFAULT_WL_STASIS", String(ByteString("静止墙,静止其内所有物质,除非通电").FromUtf8()) },
 		// 	return std::vector<wall_type>{
 		// {PIXPACK(0x808080), PIXPACK(0x000000), 0, Renderer::WallIcon, String("ERASE"), "DEFAULT_WL_ERASE", String(ByteString("清除所有墙类").FromUtf8())},
@@ -88,7 +88,7 @@ std::vector<wall_type> LoadWalls()
 		// { PIXPACK(0xFFEE00), PIXPACK(0xAA9900), 4, Renderer::WallIcon, String("GRAVITY WALL"), "DEFAULT_WL_GRVTY", 	String(ByteString("引力墙,范围内的万有引力(注:默认的普通引力除外,可以按 W 切换)将失效").FromUtf8()) },
 		// { PIXPACK(0xFFAA00), PIXPACK(0xAA5500), 4, Renderer::WallIcon, String("ENERGY WALL"), "DEFAULT_WL_ENRGY", 	String(ByteString("能量墙,允许能量粒子通过,阻挡其他物质").FromUtf8()) },
 		// { PIXPACK(0xDCDCDC), PIXPACK(0x000000), 1, Renderer::WallIcon, String("AIRBLOCK WALL"), "DEFAULT_WL_NOAIR", 	String(ByteString("阻压墙,允许所有物质通过,隔绝压力").FromUtf8()) },
-		// { 0x808080_rgb, 0x000000_rgb, 0, Renderer::WallIcon, String("ERASEALL"), "DEFAULT_WL_ERASEA", 		String(ByteString("清除墙,物质,标识").FromUtf8()) },
+		// { 0x808080_rgb, 0x000000_rgb, 0, Renderer::WallIcon, String("ERASEALL"), "DEFAULT_WL_ERASEA", 		String(ByteString("清除墙,物质,标记").FromUtf8()) },
 		// { PIXPACK(0x800080), PIXPACK(0x000000), 0, Renderer::WallIcon, String("STASIS WALL"), "DEFAULT_WL_STASIS", 	String(ByteString("静止墙,静止其内所有物质,除非通电").FromUtf8()) },
 	};
 }

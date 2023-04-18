@@ -13,9 +13,9 @@ class ConfirmPrompt : public ui::Window
 	ResultCallback callback;
 
 public:
-	ConfirmPrompt(String title, String message, ResultCallback callback_ = {}, String buttonText = String("Confirm"));
+	ConfirmPrompt(String title, String message, ResultCallback callback_ = {}, String buttonText = String(ByteString("继续").FromUtf8()));
 	virtual ~ConfirmPrompt() = default;
 
-	static bool Blocking(String title, String message, String buttonText = String("Confirm"));
+	static bool Blocking(String title, String message, String buttonText = String(ByteString("继续").FromUtf8()));
 	void OnDraw() override;
 };

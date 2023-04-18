@@ -22,7 +22,7 @@ void SandEffectOption::perform()
 
 
 DrawGravOption::DrawGravOption(GameModel * m):
-QuickOption("G",  ByteString("引力网格(ctrl+g)").FromUtf8(), m, Toggle)
+QuickOption("G",  ByteString("引力网格 \bo(ctrl+g)").FromUtf8(), m, Toggle)
 {
 
 }
@@ -38,7 +38,7 @@ void DrawGravOption::perform()
 
 
 DecorationsOption::DecorationsOption(GameModel * m):
-QuickOption("D", ByteString("装饰图层(ctrl+b)").FromUtf8(), m, Toggle)
+QuickOption("D", ByteString("装饰图层 \bo(ctrl+b)").FromUtf8(), m, Toggle)
 {
 
 }
@@ -54,7 +54,7 @@ void DecorationsOption::perform()
 
 
 NGravityOption::NGravityOption(GameModel * m):
-QuickOption("N", ByteString("引力模拟(n)").FromUtf8(), m, Toggle)
+QuickOption("N", ByteString("引力模拟 \bo(n)").FromUtf8(), m, Toggle)
 {
 
 }
@@ -70,7 +70,7 @@ void NGravityOption::perform()
 
 
 AHeatOption::AHeatOption(GameModel * m):
-QuickOption("A", ByteString("环境热模拟(u)").FromUtf8(), m, Toggle)
+QuickOption("A", ByteString("环境热模拟 \bo(u)").FromUtf8(), m, Toggle)
 {
 
 }
@@ -86,7 +86,7 @@ void AHeatOption::perform()
 
 
 ConsoleShowOption::ConsoleShowOption(GameModel * m, GameController * c_):
-QuickOption("C", ByteString("打开控制台(~)").FromUtf8(), m, Toggle)
+QuickOption("C", ByteString("打开控制台 \bo(~)").FromUtf8(), m, Toggle)
 {
 	c = c_;
 }

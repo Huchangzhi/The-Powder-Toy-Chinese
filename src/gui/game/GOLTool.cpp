@@ -49,7 +49,7 @@ GOLWindow::GOLWindow(GameModel &gameModel_, Simulation *sim_, int toolSelection,
 {
 	highColour.Alpha = 255;
 	lowColour.Alpha = 255;
-	ui::Label * messageLabel = new ui::Label(ui::Point(4, 5), ui::Point(Size.X-8, 14), "Edit custom GOL type");
+	ui::Label * messageLabel = new ui::Label(ui::Point(4, 5), ui::Point(Size.X-8, 14), ByteString("编辑自定义GOL类型").FromUtf8());
 	messageLabel->SetTextColour(style::Colour::InformationTitle);
 	messageLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	messageLabel->Appearance.VerticalAlign = ui::Appearance::AlignTop;

@@ -19,7 +19,7 @@ ProfileActivity::ProfileActivity(ByteString username) :
 {
 	editable = Client::Ref().GetAuthUser().UserID && Client::Ref().GetAuthUser().Username == username;
 
-	ui::Button * closeButton = new ui::Button(ui::Point(0, Size.Y-15), ui::Point(Size.X, 15), "Close");
+	ui::Button * closeButton = new ui::Button(ui::Point(0, Size.Y-15), ui::Point(Size.X, 15), ByteString("取消").FromUtf8());
 	closeButton->SetActionCallback({ [this] {
 		Exit();
 	} });
@@ -27,12 +27,12 @@ ProfileActivity::ProfileActivity(ByteString username) :
 	{
 		closeButton->Size.X = (Size.X/2)+1;
 
-		ui::Button * saveButton = new ui::Button(ui::Point(Size.X/2, Size.Y-15), ui::Point(Size.X/2, 15), "Save");
+		ui::Button * saveButton = new ui::Button(ui::Point(Size.X/2, Size.Y-15), ui::Point(Size.X/2, 15), ByteString("保存").FromUtf8());
 		saveButton->SetActionCallback({ [this, saveButton] {
 			if (!loading && !saving && editable)
 			{
 				saveButton->Enabled = false;
-				saveButton->SetText("Saving...");
+				saveButton->SetText(ByteString("保存中...").FromUtf8());
 				saving = true;
 				info.location = location->GetText();
 				info.biography = bio->GetText();
@@ -79,7 +79,7 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 	// edit avatar button
 	if (editable)
 	{
-		ui::Button * editAvatar = new ui::Button(ui::Point(Size.X - (40 + 16 + 75), currentY), ui::Point(75, 15), "Edit Avatar");
+		ui::Button * editAvatar = new ui::Button(ui::Point(Size.X - (40 + 16 + 75), currentY), ui::Point(75, 15), ByteString("编辑").FromUtf8());
 		editAvatar->SetActionCallback({ [] {
 			Platform::OpenURI(ByteString::Build(SCHEME, SERVER, "/Profile/Avatar.html"));
 		} });
@@ -88,19 +88,19 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 	currentY += 23;
 
 	// age
-	ui::Label * ageTitle = new ui::Label(ui::Point(4, currentY), ui::Point(18, 15), "Age:");
+	ui::Label * ageTitle = new ui::Label(ui::Point(4, currentY), ui::Point(18, 15), ByteString("Age: ").FromUtf8());
 	ageTitle->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	ageTitle->SetTextColour(ui::Colour(180, 180, 180));
 	scrollPanel->AddChild(ageTitle);
 
 	// can't figure out how to tell a null from a 0 in the json library we use
-	ui::Label *age = new ui::Label(ui::Point(8+ageTitle->Size.X, currentY), ui::Point(40, 15), info.age ? String::Build(info.age) : "\bgNot Provided");
+	ui::Label *age = new ui::Label(ui::Point(8+ageTitle->Size.X, currentY), ui::Point(40, 15), info.age ? String::Build(info.age) : ByteString("\bg无法提供").FromUtf8());
 	age->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	scrollPanel->AddChild(age);
 	currentY += 2+age->Size.Y;
 
 	// location
-	ui::Label * locationTitle = new ui::Label(ui::Point(4, currentY), ui::Point(45, 15), "Location:");
+	ui::Label * locationTitle = new ui::Label(ui::Point(4, currentY), ui::Point(45, 15), ByteString("位置: ").FromUtf8());
 	locationTitle->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	locationTitle->SetTextColour(ui::Colour(180, 180, 180));
 	scrollPanel->AddChild(locationTitle);
@@ -114,7 +114,7 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 	currentY += 2+location->Size.Y;
 
 	// website
-	ui::Label * websiteTitle = new ui::Label(ui::Point(4, currentY), ui::Point(38, 15), "Website:");
+	ui::Label * websiteTitle = new ui::Label(ui::Point(4, currentY), ui::Point(38, 15), ByteString("网站:").FromUtf8());
 	websiteTitle->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	websiteTitle->SetTextColour(ui::Colour(180, 180, 180));
 	scrollPanel->AddChild(websiteTitle);
@@ -125,14 +125,14 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 	currentY += 2+website->Size.Y;
 
 	// saves
-	ui::Label * savesTitle = new ui::Label(ui::Point(4, currentY), ui::Point(35, 15), "Saves:");
+	ui::Label * savesTitle = new ui::Label(ui::Point(4, currentY), ui::Point(35, 15), ByteString("沙盘").FromUtf8());
 	savesTitle->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	savesTitle->SetTextColour(ui::Colour(180, 180, 180));
 	scrollPanel->AddChild(savesTitle);
 	currentY += savesTitle->Size.Y;
 
 		// saves count
-		ui::Label * saveCountTitle = new ui::Label(ui::Point(12, currentY), ui::Point(30, 15), "Count:");
+		ui::Label * saveCountTitle = new ui::Label(ui::Point(12, currentY), ui::Point(30, 15), ByteString("数量:").FromUtf8());
 		saveCountTitle->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 		saveCountTitle->SetTextColour(ui::Colour(180, 180, 180));
 		scrollPanel->AddChild(saveCountTitle);
@@ -143,7 +143,7 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 		currentY += savesCount->Size.Y;
 
 		// average score
-		ui::Label * averageScoreTitle = new ui::Label(ui::Point(12, currentY), ui::Point(70, 15), "Average Score:");
+		ui::Label * averageScoreTitle = new ui::Label(ui::Point(12, currentY), ui::Point(70, 15), ByteString("平均评分:").FromUtf8());
 		averageScoreTitle->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 		averageScoreTitle->SetTextColour(ui::Colour(180, 180, 180));
 		scrollPanel->AddChild(averageScoreTitle);
@@ -154,7 +154,7 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 		currentY += averageScore->Size.Y;
 
 		// highest score
-		ui::Label * highestScoreTitle = new ui::Label(ui::Point(12, currentY), ui::Point(69, 15), "Highest Score:");
+		ui::Label * highestScoreTitle = new ui::Label(ui::Point(12, currentY), ui::Point(69, 15), ByteString("最高评分:").FromUtf8());
 		highestScoreTitle->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 		highestScoreTitle->SetTextColour(ui::Colour(180, 180, 180));
 		scrollPanel->AddChild(highestScoreTitle);
@@ -165,7 +165,7 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 		currentY += 2+highestScore->Size.Y;
 
 	// biograhy
-	ui::Label * bioTitle = new ui::Label(ui::Point(4, currentY), ui::Point(50, 15), "Biography:");
+	ui::Label * bioTitle = new ui::Label(ui::Point(4, currentY), ui::Point(50, 15), ByteString("个人档案:").FromUtf8());
 	bioTitle->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	bioTitle->SetTextColour(ui::Colour(180, 180, 180));
 	scrollPanel->AddChild(bioTitle);
@@ -208,7 +208,7 @@ void ProfileActivity::OnTick(float dt)
 		else
 		{
 			doError = true;
-			doErrorMessage = "Could not save user info: " + Client::Ref().GetLastError();
+			doErrorMessage = ByteString("无法保存用户信息: ").FromUtf8() + Client::Ref().GetLastError();
 		}
 		saveUserInfoRequest.reset();
 	}
@@ -223,7 +223,7 @@ void ProfileActivity::OnTick(float dt)
 		else
 		{
 			doError = true;
-			doErrorMessage = "Could not load user info: " + Client::Ref().GetLastError();
+			doErrorMessage = ByteString("无法保存用户信息: ").FromUtf8() + Client::Ref().GetLastError();
 		}
 		getUserInfoRequest.reset();
 	}

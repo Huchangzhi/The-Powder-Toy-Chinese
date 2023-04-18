@@ -199,12 +199,12 @@ void Graphics::draw_icon(int x, int y, Icon icon, unsigned char alpha, bool inve
 		if(invert)
 		{
 			drawchar(x-11, y+1, 0xE04B, 0, 100, 0, alpha);
-			drawtext(x+2, y+1, "Vote", 0, 100, 0, alpha);
+			drawtext(x+2, y+1, ByteString(" 赞").FromUtf8(), 0, 100, 0, alpha);
 		}
 		else
 		{
 			drawchar(x-11, y+1, 0xE04B, 0, 187, 18, alpha);
-			drawtext(x+2, y+1, "Vote", 0, 187, 18, alpha);
+			drawtext(x+2, y+1, ByteString(" 赞").FromUtf8(), 0, 187, 18, alpha);
 		}
 		break;
 	case IconVoteDown:

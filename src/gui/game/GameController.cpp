@@ -1191,7 +1191,7 @@ void GameController::OpenLocalSaveWindow(bool asCurrent)
 			else if (!Platform::WriteFile(saveData, gameModel->GetSaveFile()->GetName()))
 				new ErrorMessage("Error", "Unable to write save file.");
 			else
-				gameModel->SetInfoTip("Saved Successfully");
+				gameModel->SetInfoTip(ByteString("保存成功!").FromUtf8());
 		}
 	}
 }

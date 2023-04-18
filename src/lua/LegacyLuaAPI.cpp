@@ -1044,7 +1044,7 @@ int luatpt_confirm(lua_State *l)
 {
 	String title = tpt_lua_optString(l, 1, "Title");
 	String message = tpt_lua_optString(l, 2, "Message");
-	String buttonText = tpt_lua_optString(l, 3, "Confirm");
+	String buttonText = tpt_lua_optString(l, 3, ByteString("继续").FromUtf8());
 	bool ret = ConfirmPrompt::Blocking(title, message, buttonText);
 	lua_pushboolean(l, ret ? 1 : 0);
 	return 1;
