@@ -77,7 +77,7 @@ PreviewView::PreviewView():
 	openButton->SetActionCallback({ [this] { c->DoOpen(); } });
 	AddComponent(openButton);
 
-	browserOpenButton = new ui::Button(ui::Point((XRES/2)-107, Size.Y-19), ui::Point(108, 19), ByteString("在浏览器中打开").FromUtf8());
+	browserOpenButton = new ui::Button(ui::Point((XRES/2)-112, Size.Y-19), ui::Point(113, 19), ByteString("在浏览器中打开").FromUtf8());
 	browserOpenButton->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	browserOpenButton->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	browserOpenButton->SetIcon(IconOpen);
@@ -544,7 +544,7 @@ void PreviewView::NotifyCommentBoxEnabledChanged(PreviewModel * sender)
 	}
 	else
 	{
-		submitCommentButton = new ui::Button(ui::Point(XRES/2, Size.Y-19), ui::Point(Size.X-(XRES/2), 19), "Login to comment");
+		submitCommentButton = new ui::Button(ui::Point(XRES/2, Size.Y-19), ui::Point(Size.X-(XRES/2), 19),  ByteString("登陆后评论").FromUtf8());
 		submitCommentButton->SetActionCallback({ [this] { c->ShowLogin(); } });
 		AddComponent(submitCommentButton);
 	}
