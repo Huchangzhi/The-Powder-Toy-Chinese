@@ -1280,16 +1280,15 @@ int luatpt_getscript(lua_State* l)
 
 	// ByteString url = ByteString::Build(SCHEME, "pan.dragonrster.top/Game/ThePowderToy/scripts/", scriptID,".html");
 	// if (confirmPrompt && !ConfirmPrompt::Blocking(ByteString("确定要安装此脚本吗?").FromUtf8(), url.FromUtf8(), ByteString("安装").FromUtf8()))
+
 	ByteString url;
 	if (scriptID == 1) {
 	url = ByteString::Build(SCHEME, "pan.dragonrster.top/Game/ThePowderToy/scripts/", scriptID, ".html");
 	} else if (scriptID > 1) {
 	url = ByteString::Build(SCHEME, "starcatcher.us/scripts/main.lua?get=", scriptID);
 	}
-	if (confirmPrompt && !ConfirmPrompt::Blocking(ByteString("确定要安装此脚本吗?").FromUtf8(), url.FromUtf8(), ByteString("安装").FromUtf8())) {
+	if (confirmPrompt && !ConfirmPrompt::Blocking(ByteString("确定要安装此脚本吗?").FromUtf8(), url.FromUtf8(), ByteString("安装").FromUtf8())) 
 	// handle installation confirmation
-	}
-
 		return 0;
 
 	auto [ ret, scriptData ] = http::Request::Simple(url);
