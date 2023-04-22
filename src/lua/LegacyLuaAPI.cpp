@@ -1306,7 +1306,7 @@ int luatpt_getscript(lua_State* l)
 		return luaL_error(l, "Invalid Script ID");
 	}
 
-	if (Platform::FileExists(filename) && confirmPrompt && !ConfirmPrompt::Blocking("File already exists, overwrite?", filename.FromUtf8(), "Overwrite"))
+	if (Platform::FileExists(filename) && confirmPrompt && !ConfirmPrompt::Blocking( ByteString("文件已存在,是否覆盖").FromUtf8(), filename.FromUtf8(), ByteString("覆盖").FromUtf8() ))
 	{
 		return 0;
 	}
