@@ -17,7 +17,7 @@ inline ByteString IntroText()
 		"Ctrl+Shift+单击填充封闭区域\n"//Ctrl+Shift+click will flood-fill a closed area.
 		"使用鼠标滚轮或'['and']'调整笔刷大小\n"
 		"使用鼠标中键或按住Alt使用吸管工具\n"
-		"C使用trl+Z 撤销\n"
+		"使用Ctrl+Z 撤销\n"
 		"\n\bo按住'Z'键打开放大镜,使用鼠标滚轮调整倍数,鼠标左键固定放大区域,固定后可直接在放大区域绘制\n"
 		"按下空格键以暂停,按下'F'可以帧进\n"
 		"按下'S'键选择区域保存到剪贴板,按下'L'键加载最近保存的对象,按下'K'键浏览剪贴板\n"//Use 'S' to save parts of the window as 'stamps'. 'L' loads the most recent stamp, 'K' shows a library of stamps you saved
