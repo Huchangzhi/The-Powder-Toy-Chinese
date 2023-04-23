@@ -141,7 +141,7 @@ OptionsView::OptionsView():
 	currentY+=20;
 	gravityMode = new ui::DropDown(ui::Point(Size.X-95, currentY), ui::Point(80, 16));
 	scrollPanel->AddChild(gravityMode);
-	gravityMode->AddOption(std::pair<String, int>(ByteString("数值").FromUtf8(), 0));
+	gravityMode->AddOption(std::pair<String, int>(ByteString("竖直").FromUtf8(), 0));
 	gravityMode->AddOption(std::pair<String, int>(ByteString("关闭").FromUtf8(), 1));
 	gravityMode->AddOption(std::pair<String, int>(ByteString("中心").FromUtf8(), 2));
 	gravityMode->AddOption(std::pair<String, int>(ByteString("自定义").FromUtf8(), 3));
@@ -173,7 +173,7 @@ OptionsView::OptionsView():
 			gravityDirection(new ui::DirectionSelector(ui::Point(10, 32), scale, radius, radius / 4, 2, 5)),
 			c(c_)
 			{
-				ui::Label * tempLabel = new ui::Label(ui::Point(4, 1), ui::Point(Size.X - 8, 22), "Custom Gravity");
+				ui::Label * tempLabel = new ui::Label(ui::Point(4, 1), ui::Point(Size.X - 8, 22),  ByteString("自定义重力").FromUtf8());
 				tempLabel->SetTextColour(style::Colour::InformationTitle);
 				tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 				tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -344,7 +344,7 @@ OptionsView::OptionsView():
 	scrollPanel->AddChild(showAvatars);
 
 	currentY += 20;
-	momentumScroll = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("动力/旧版滚动").FromUtf8(), "");
+	momentumScroll = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("加速/旧版滚动").FromUtf8(), "");
 	autowidth(momentumScroll);
 	momentumScroll->SetActionCallback({ [this] { c->SetMomentumScroll(momentumScroll->GetChecked()); } });
 	tempLabel = new ui::Label(ui::Point(momentumScroll->Position.X + Graphics::textwidth(momentumScroll->GetText()) + 20, currentY), ui::Point(1, 16), ByteString("\bg - 启用此项时将步进滚动改为加速").FromUtf8());

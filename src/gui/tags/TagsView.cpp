@@ -26,7 +26,7 @@ TagsView::TagsView():
 	AddComponent(closeButton);
 	SetCancelButton(closeButton);
 
-	tagInput = new ui::Textbox(ui::Point(8, Size.Y-40), ui::Point(Size.X-60, 16), "", "[new tag]");
+	tagInput = new ui::Textbox(ui::Point(8, Size.Y-40), ui::Point(Size.X-60, 16), "",  ByteString("[新标签]").FromUtf8());
 	tagInput->Appearance.icon = IconTag;
 	tagInput->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tagInput->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -42,7 +42,7 @@ TagsView::TagsView():
 	if (!Client::Ref().GetAuthUser().UserID)
 		addButton->Enabled = false;
 
-	title = new ui::Label(ui::Point(5, 5), ui::Point(185, 28), "Manage tags:    \bgTags are only to \nbe used to improve search results");
+	title = new ui::Label(ui::Point(5, 5), ui::Point(185, 28),  ByteString("管理标签:\n\bg标签仅用于提升搜索效率").FromUtf8());
 	title->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	title->Appearance.VerticalAlign = ui::Appearance::AlignTop;
 	title->SetMultiline(true);
@@ -91,7 +91,7 @@ void TagsView::NotifyTagsChanged(TagsModel * sender)
 					}
 					catch(TagsModelException & ex)
 					{
-						new ErrorMessage("Could not remove tag", ByteString(ex.what()).FromUtf8());
+						new ErrorMessage(ByteString("无法移除标签").FromUtf8(), ByteString(ex.what()).FromUtf8());
 					}
 				} });
 				tags.push_back(tempButton);
@@ -122,7 +122,7 @@ void TagsView::addTag()
 {
 	if (tagInput->GetText().length() < 4)
 	{
-		new ErrorMessage("Tag not long enough", "Must be at least 4 letters");
+		new ErrorMessage( ByteString("标签长度过短").FromUtf8(), ByteString("标签长度至少为4字节").FromUtf8());
 		return;
 	}
 	try
@@ -131,7 +131,7 @@ void TagsView::addTag()
 	}
 	catch(TagsModelException & ex)
 	{
-		new ErrorMessage("Could not add tag", ByteString(ex.what()).FromUtf8());
+		new ErrorMessage(ByteString("无法添加标签").FromUtf8(), ByteString(ex.what()).FromUtf8());
 	}
 	tagInput->SetText("");
 }

@@ -439,7 +439,7 @@ int main(int argc, char * argv[])
 		{
 			engine.g->Clear();
 			engine.g->DrawRect(RectSized(engine.g->Size() / 2 - Vec2(100, 25), Vec2(200, 50)), 0xB4B4B4_rgb);
-			String loadingText = "Loading save...";
+			String loadingText = ByteString("加载沙盘中...").FromUtf8();
 			engine.g->BlendText(engine.g->Size() / 2 - Vec2(Graphics::textwidth(loadingText) / 2, 5), loadingText, style::Colour::InformationTitle);
 
 			blit(engine.g->Data());
