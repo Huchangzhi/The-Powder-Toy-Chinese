@@ -6,5 +6,5 @@ cd .\build-release-static
 ninja
 powder.exe
 cd..
-TIMEOUT /T 10
+TIMEOUT /T 8
 exit
