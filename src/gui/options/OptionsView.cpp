@@ -110,7 +110,7 @@ OptionsView::OptionsView():
 	scrollPanel->AddChild(airMode);
 	airMode->AddOption(std::pair<String, int>(ByteString("开启").FromUtf8(), 0));
 	airMode->AddOption(std::pair<String, int>(ByteString("关闭压力").FromUtf8(), 1));
-	airMode->AddOption(std::pair<String, int>(ByteString("关闭温度").FromUtf8(), 2));
+	airMode->AddOption(std::pair<String, int>(ByteString("关闭速度").FromUtf8(), 2));
 	airMode->AddOption(std::pair<String, int>(ByteString("关闭").FromUtf8(), 3));
 	airMode->AddOption(std::pair<String, int>(ByteString("更新停止").FromUtf8(), 4));
 	airMode->SetActionCallback({ [this] { c->SetAirMode(airMode->GetOption().second); } });
@@ -173,7 +173,7 @@ OptionsView::OptionsView():
 			gravityDirection(new ui::DirectionSelector(ui::Point(10, 32), scale, radius, radius / 4, 2, 5)),
 			c(c_)
 			{
-				ui::Label * tempLabel = new ui::Label(ui::Point(4, 1), ui::Point(Size.X - 8, 22),  ByteString("自定义重力").FromUtf8());
+				ui::Label * tempLabel = new ui::Label(ui::Point(4, 1), ui::Point(Size.X - 8, 22),  ByteString("自定义引力").FromUtf8());
 				tempLabel->SetTextColour(style::Colour::InformationTitle);
 				tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 				tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -217,7 +217,7 @@ OptionsView::OptionsView():
 			new GravityWindow(ui::Point(-1, -1), 0.05f, 40, customGravityX, customGravityY, c);
 	} });
 
-	tempLabel = new ui::Label(ui::Point(8, currentY), ui::Point(Size.X-96, 16), ByteString("重力模拟模式").FromUtf8());
+	tempLabel = new ui::Label(ui::Point(8, currentY), ui::Point(Size.X-96, 16), ByteString("引力模拟模式").FromUtf8());
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	scrollPanel->AddChild(tempLabel);
@@ -267,7 +267,7 @@ OptionsView::OptionsView():
 		}
 		while (desktopWidth >= GetGraphics()->Size().X * ix_scale && desktopHeight >= GetGraphics()->Size().Y * ix_scale);
 		if (!current_scale_valid)
-			scale->AddOption(std::pair<String, int>("current", current_scale));
+			scale->AddOption(std::pair<String, int>(ByteString("当前").FromUtf8(), current_scale));
 	}
 	scale->SetActionCallback({ [this] { c->SetScale(scale->GetOption().second); } });
 	scrollPanel->AddChild(scale);
@@ -416,10 +416,10 @@ OptionsView::OptionsView():
 	migrationButton->SetActionCallback({ [] {
 		ByteString from = Platform::originalCwd;
 		ByteString to = Platform::sharedCwd;
-		new ConfirmPrompt("Do Migration?", "This will migrate all stamps, saves, and scripts from\n\bt" + from.FromUtf8() + "\bw\nto the shared data directory at\n\bt" + to.FromUtf8() + "\bw\n\n" +
-			 "Files that already exist will not be overwritten.", { [=] () {
+		new ConfirmPrompt(ByteString("是否迁移").FromUtf8(), ByteString("\n所有所有Stamp、保存和脚本\n\bt->").FromUtf8() + from.FromUtf8() + ByteString("\bw\n迁移到共享数据目录\n\bt->").FromUtf8() + to.FromUtf8() + "\bw\n\n" +
+			 ByteString("已存在的文件不会被覆盖").FromUtf8(), { [=] () {
 				 String ret = Client::Ref().DoMigration(from, to);
-				new InformationMessage("Migration Complete", ret, false);
+				new InformationMessage(ByteString("迁移完成").FromUtf8(), ret, false);
 			 } });
 	} });
 	scrollPanel->AddChild(migrationButton);

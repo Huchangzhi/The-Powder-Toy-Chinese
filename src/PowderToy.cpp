@@ -78,15 +78,16 @@ void SaveWindowPosition()
 void LargeScreenDialog()
 {
 	StringBuilder message;
-	message << "Switching to " << scale << "x size mode since your screen was determined to be large enough: ";
-	message << desktopWidth << "x" << desktopHeight << " detected, " << WINDOWW*scale << "x" << WINDOWH*scale << " required";
-	message << "\nTo undo this, hit Cancel. You can change this in settings at any time.";
-	if (!ConfirmPrompt::Blocking("Large screen detected", message.Build()))
+	message <<  ByteString("切换到 ").FromUtf8() << scale <<  ByteString("x 模式，因为你的屏幕已经够大了:").FromUtf8();
+	message << desktopWidth << "x" << desktopHeight <<  ByteString("<-检测到 ,").FromUtf8() << WINDOWW*scale << "x" << WINDOWH*scale <<  ByteString("<-要求").FromUtf8();
+	message <<  ByteString("\n要撤销此操作，请点击\"取消\"。可以随时在设置中更改它。”").FromUtf8();
+	if (!ConfirmPrompt::Blocking(ByteString("检测到大屏幕").FromUtf8(), message.Build()))
 	{
 		GlobalPrefs::Ref().Set("Scale", 1);
 		ui::Engine::Ref().SetScale(1);
 	}
 }
+
 
 void TickClient()
 {

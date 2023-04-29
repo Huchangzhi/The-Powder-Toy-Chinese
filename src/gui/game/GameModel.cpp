@@ -1259,9 +1259,9 @@ void GameModel::SetDecoration(bool decorationState)
 		notifyDecorationChanged();
 		UpdateQuickOptions();
 		if (decorationState)
-			SetInfoTip("Decorations Layer: On");
+			SetInfoTip(ByteString("装饰图层:开启").FromUtf8());
 		else
-			SetInfoTip("Decorations Layer: Off");
+			SetInfoTip(ByteString("装饰图层:关闭").FromUtf8());
 	}
 }
 
@@ -1275,9 +1275,9 @@ void GameModel::SetAHeatEnable(bool aHeat)
 	sim->aheat_enable = aHeat;
 	UpdateQuickOptions();
 	if (aHeat)
-		SetInfoTip("Ambient Heat: On");
+		SetInfoTip(ByteString("环境热模拟:开启").FromUtf8());
 	else
-		SetInfoTip("Ambient Heat: Off");
+		SetInfoTip(ByteString("环境热模拟:关闭").FromUtf8());
 }
 
 bool GameModel::GetAHeatEnable()
@@ -1295,12 +1295,12 @@ void GameModel::SetNewtonianGravity(bool newtonainGravity)
     if (newtonainGravity)
     {
         sim->grav->start_grav_async();
-        SetInfoTip("Newtonian Gravity: On");
+        SetInfoTip(ByteString("牛顿引力:开启").FromUtf8());
     }
     else
     {
         sim->grav->stop_grav_async();
-        SetInfoTip("Newtonian Gravity: Off");
+        SetInfoTip(ByteString("牛顿引力:关闭").FromUtf8());
     }
     UpdateQuickOptions();
 }
@@ -1314,9 +1314,9 @@ void GameModel::ShowGravityGrid(bool showGrid)
 {
 	ren->gravityFieldEnabled = showGrid;
 	if (showGrid)
-		SetInfoTip("Gravity Grid: On");
+		SetInfoTip(ByteString("引力网格:开启").FromUtf8());
 	else
-		SetInfoTip("Gravity Grid: Off");
+		SetInfoTip(ByteString("引力网格:关闭").FromUtf8());
 }
 
 bool GameModel::GetGravityGrid()
