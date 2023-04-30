@@ -153,7 +153,7 @@ public:
 		drawn = true;
 
 		if(showSplit)
-			g->draw_line(splitPosition+screenPos.X, screenPos.Y+1, splitPosition+screenPos.X, screenPos.Y+Size.Y-2, 180, 180, 180, 255);
+			g->DrawLine(screenPos + Vec2{ splitPosition, 1 }, screenPos + Vec2{ splitPosition, Size.Y-2 }, 0xB4B4B4_rgb);
 	}
 };
 
@@ -1838,10 +1838,10 @@ void GameView::DoDraw()
 		255, 195, 145, 103, 69, 42, 23, 10, 3
 	} };
 	auto *g = GetGraphics();
-	for (auto x = 0U; x < fadeout.size(); ++x)
+	for (auto x = 0; x < int(fadeout.size()); ++x)
 	{
-		g->draw_line(x, YRES + 1, x, YRES + 18, 0, 0, 0, fadeout[x]);
-		g->draw_line(XRES - x, YRES + 1, XRES - x, YRES + 18, 0, 0, 0, fadeout[x]);
+		g->BlendLine({ x, YRES + 1 }, { x, YRES + 18 }, 0x000000_rgb .WithAlpha(fadeout[x]));
+		g->BlendLine({ XRES - x, YRES + 1 }, { XRES - x, YRES + 18 }, 0x000000_rgb .WithAlpha(fadeout[x]));
 	}
 
 	c->Tick();
@@ -2140,7 +2140,7 @@ void GameView::OnDraw()
 			{
 				if(selectPoint1.X==-1)
 				{
-					ren->fillrect(0, 0, XRES, YRES, 0, 0, 0, 100);
+					ren->BlendFilledRect(RectSized(Vec2{ 0, 0 }, Vec2{ XRES, YRES }), 0x000000_rgb .WithAlpha(100));
 				}
 				else
 				{
@@ -2154,11 +2154,11 @@ void GameView::OnDraw()
 					if(y2>YRES-1)
 						y2 = YRES-1;
 
-					ren->fillrect(0, 0, XRES, y1, 0, 0, 0, 100);
-					ren->fillrect(0, y2+1, XRES, YRES-y2-1, 0, 0, 0, 100);
+					ren->BlendFilledRect(RectSized(Vec2{ 0, 0 }, Vec2{ XRES, y1 }), 0x000000_rgb .WithAlpha(100));
+					ren->BlendFilledRect(RectSized(Vec2{ 0, y2+1 }, Vec2{ XRES, YRES-y2-1 }), 0x000000_rgb .WithAlpha(100));
 
-					ren->fillrect(0, y1, x1, (y2-y1)+1, 0, 0, 0, 100);
-					ren->fillrect(x2+1, y1, XRES-x2-1, (y2-y1)+1, 0, 0, 0, 100);
+					ren->BlendFilledRect(RectSized(Vec2{ 0, y1 }, Vec2{ x1, (y2-y1)+1 }), 0x000000_rgb .WithAlpha(100));
+					ren->BlendFilledRect(RectSized(Vec2{ x2+1, y1 }, Vec2{ XRES-x2-1, (y2-y1)+1 }), 0x000000_rgb .WithAlpha(100));
 
 					ren->XorDottedRect(RectBetween(Vec2{ x1, y1 }, Vec2{ x2, y2 }));
 				}
@@ -2199,8 +2199,8 @@ void GameView::OnDraw()
 					break;
 				}
 				startY -= 14;
-				g->fillrect(startX-3, startY-3, Graphics::TextSize(message).X + 5, 14, 0, 0, 0, std::min(100, alpha));
-				g->BlendText({ startX, startY }, message, RGBA<uint8_t>(255, 255, 255, alpha));
+				g->BlendFilledRect(RectSized(Vec2{ startX-3, startY-3 }, Vec2{ Graphics::TextSize(message).X + 5, 14 }), 0x000000_rgb .WithAlpha(std::min(100, alpha)));
+				g->BlendText({ startX, startY }, message, 0xFFFFFF_rgb .WithAlpha(alpha));
 				(*iter).second -= 3;
 			}
 		}
@@ -2211,8 +2211,8 @@ void GameView::OnDraw()
 		String sampleInfo = String::Build("#", screenshotIndex, " ", String(0xE00E), " REC");
 
 		int textWidth = Graphics::TextSize(sampleInfo).X - 1;
-		g->fillrect(XRES-20-textWidth, 12, textWidth+8, 15, 0, 0, 0, 127);
-		g->BlendText({ XRES-16-textWidth, 16 }, sampleInfo, RGBA<uint8_t>(255, 50, 20, 255));
+		g->BlendFilledRect(RectSized(Vec2{ XRES-20-textWidth, 12 }, Vec2{ textWidth+8, 15 }), 0x000000_rgb .WithAlpha(127));
+		g->BlendText({ XRES-16-textWidth, 16 }, sampleInfo, 0xFF3214_rgb .WithAlpha(255));
 	}
 	else if(showHud)
 	{
@@ -2332,14 +2332,14 @@ void GameView::OnDraw()
 		}
 
 		int textWidth = Graphics::TextSize(sampleInfo.Build()).X - 1;
-		g->fillrect(XRES-20-textWidth, 12, textWidth+8, 15, 0, 0, 0, int(alpha*0.5f));
-		g->BlendText({ XRES-16-textWidth, 16 }, sampleInfo.Build(), RGBA<uint8_t>(255, 255, 255, int(alpha*0.75f)));
+		g->BlendFilledRect(RectSized(Vec2{ XRES-20-textWidth, 12 }, Vec2{ textWidth+8, 15 }), 0x000000_rgb .WithAlpha(int(alpha*0.5f)));
+		g->BlendText({ XRES-16-textWidth, 16 }, sampleInfo.Build(), 0xFFFFFF_rgb .WithAlpha(int(alpha*0.75f)));
 
 		if (wavelengthGfx)
 		{
 			int i, cr, cg, cb, j, h = 3, x = XRES-19-textWidth, y = 10;
 			int tmp;
-			g->fillrect(x, y, 30, h, 64, 64, 64, alpha); // coords -1 size +1 to work around bug in fillrect - TODO: fix fillrect
+			g->BlendFilledRect(RectSized(Vec2{ x, y }, Vec2{ 30, h }), 0x404040_rgb .WithAlpha(alpha));
 			for (i = 0; i < 30; i++)
 			{
 				if ((wavelengthGfx >> i)&1)
@@ -2365,7 +2365,7 @@ void GameView::OnDraw()
 					cg *= tmp;
 					cb *= tmp;
 					for (j=0; j<h; j++)
-						g->blendpixel(x+29-i, y+j, cr>255?255:cr, cg>255?255:cg, cb>255?255:cb, alpha);
+						g->BlendPixel({ x+29-i, y+j }, RGBA<uint8_t>(cr>255?255:cr, cg>255?255:cg, cb>255?255:cb, alpha));
 				}
 			}
 		}
@@ -2390,8 +2390,8 @@ void GameView::OnDraw()
 			}
 
 			auto textWidth = Graphics::TextSize(sampleInfo.Build()).X - 1;
-			g->fillrect(XRES-20-textWidth, 27, textWidth+8, 14, 0, 0, 0, int(alpha*0.5f));
-			g->BlendText({ XRES-16-textWidth, 30 }, sampleInfo.Build(), RGBA<uint8_t>(255, 255, 255, int(alpha*0.75f)));
+			g->BlendFilledRect(RectSized(Vec2{ XRES-20-textWidth, 27 }, Vec2{ textWidth+8, 14 }), 0x000000_rgb .WithAlpha(int(alpha*0.5f)));
+			g->BlendText({ XRES-16-textWidth, 30 }, sampleInfo.Build(), 0xFFFFFF_rgb .WithAlpha(int(alpha*0.75f)));
 		}
 	}
 
@@ -2419,35 +2419,35 @@ void GameView::OnDraw()
 
 		int textWidth = Graphics::TextSize(fpsInfo.Build()).X - 1;
 		int alpha = 255-introText*5;
-		g->fillrect(12, 12, textWidth+8, 15, 0, 0, 0, int(alpha*0.5));
-		g->BlendText({ 16, 16 }, fpsInfo.Build(), RGBA<uint8_t>(32, 216, 255, int(alpha*0.75)));
+		g->BlendFilledRect(RectSized(Vec2{ 12, 12 }, Vec2{ textWidth+8, 15 }), 0x000000_rgb .WithAlpha(int(alpha*0.5)));
+		g->BlendText({ 16, 16 }, fpsInfo.Build(), 0x20D8FF_rgb .WithAlpha(int(alpha*0.75)));
 	}
 
 	//Tooltips
 	if(infoTipPresence)
 	{
 		int infoTipAlpha = (infoTipPresence>50?50:infoTipPresence)*5;
-		g->BlendTextOutline({ (XRES - (Graphics::TextSize(infoTip).X - 1)) / 2, YRES / 2 - 2 }, infoTip, RGBA<uint8_t>(255, 255, 255, infoTipAlpha));
+		g->BlendTextOutline({ (XRES - (Graphics::TextSize(infoTip).X - 1)) / 2, YRES / 2 - 2 }, infoTip, 0xFFFFFF_rgb .WithAlpha(infoTipAlpha));
 	}
 
 	if(toolTipPresence && toolTipPosition.X!=-1 && toolTipPosition.Y!=-1 && toolTip.length())
 	{
 		if (toolTipPosition.Y == Size.Y-MENUSIZE-10)
-			g->BlendTextOutline(toolTipPosition, toolTip, RGBA<uint8_t>(255, 255, 255, toolTipPresence>51?255:toolTipPresence*5));
+			g->BlendTextOutline(toolTipPosition, toolTip, 0xFFFFFF_rgb .WithAlpha(toolTipPresence>51?255:toolTipPresence*5));
 		else
-			g->BlendText(toolTipPosition, toolTip, RGBA<uint8_t>(255, 255, 255, toolTipPresence>51?255:toolTipPresence*5));
+			g->BlendText(toolTipPosition, toolTip, 0xFFFFFF_rgb .WithAlpha(toolTipPresence>51?255:toolTipPresence*5));
 	}
 
 	if(buttonTipShow > 0)
 	{
-		g->BlendText({ 16, Size.Y-MENUSIZE-24 }, buttonTip, RGBA<uint8_t>(255, 255, 255, buttonTipShow>51?255:buttonTipShow*5));
+		g->BlendText({ 16, Size.Y-MENUSIZE-24 }, buttonTip, 0xFFFFFF_rgb .WithAlpha(buttonTipShow>51?255:buttonTipShow*5));
 	}
 
 	//Introduction text
 	if(introText && showHud)
 	{
-		g->fillrect(0, 0, WINDOWW, WINDOWH, 0, 0, 0, introText>51?102:introText*2);
-		g->BlendText({ 16, 16 }, introTextMessage, RGBA<uint8_t>(255, 255, 255, introText>51?255:introText*5));
+		g->BlendFilledRect(RectSized(Vec2{ 0, 0 }, WINDOW), 0x000000_rgb .WithAlpha(introText>51?102:introText*2));
+		g->BlendText({ 16, 16 }, introTextMessage, 0xFFFFFF_rgb .WithAlpha(introText>51?255:introText*5));
 	}
 }
 

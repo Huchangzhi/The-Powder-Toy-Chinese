@@ -58,16 +58,16 @@ void ToolButton::Draw(const ui::Point& screenPos)
 	}
 	else
 	{
-		g->fillrect(screenPos.X+2, screenPos.Y+2, Size.X-4, Size.Y-4, Appearance.BackgroundInactive.Red, Appearance.BackgroundInactive.Green, Appearance.BackgroundInactive.Blue, Appearance.BackgroundInactive.Alpha);
+		g->BlendFilledRect(RectSized(screenPos + Vec2{ 2, 2 }, Size - Vec2{ 4, 4 }), Appearance.BackgroundInactive);
 	}
 
 	if (isMouseInside && currentSelection == -1)
 	{
-		g->drawrect(screenPos.X, screenPos.Y, Size.X, Size.Y, Appearance.BorderActive.Red, Appearance.BorderActive.Green, Appearance.BorderActive.Blue, Appearance.BorderActive.Alpha);
+		g->BlendRect(RectSized(screenPos, Size), Appearance.BorderActive);
 	}
 	else
 	{
-		g->drawrect(screenPos.X, screenPos.Y, Size.X, Size.Y, Appearance.BorderInactive.Red, Appearance.BorderInactive.Green, Appearance.BorderInactive.Blue, Appearance.BorderInactive.Alpha);
+		g->BlendRect(RectSized(screenPos, Size), Appearance.BorderInactive);
 	}
 	if (Favorite::Ref().IsFavorite(toolIdentifier))
 	{
@@ -76,11 +76,11 @@ void ToolButton::Draw(const ui::Point& screenPos)
 
 	if (totalColour<544)
 	{
-		g->BlendText(screenPos + textPosition, buttonDisplayText, RGBA<uint8_t>(255, 255, 255, 255));
+		g->BlendText(screenPos + textPosition, buttonDisplayText, 0xFFFFFF_rgb .WithAlpha(255));
 	}
 	else
 	{
-		g->BlendText(screenPos + textPosition, buttonDisplayText, RGBA<uint8_t>(0, 0, 0, 255));
+		g->BlendText(screenPos + textPosition, buttonDisplayText, 0x000000_rgb .WithAlpha(255));
 	}
 
 	if (ClipRect.Size().X && ClipRect.Size().Y)
