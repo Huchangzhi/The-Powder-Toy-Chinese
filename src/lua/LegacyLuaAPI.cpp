@@ -1283,7 +1283,7 @@ int luatpt_getscript(lua_State* l)
 
 	ByteString url;
 	if (scriptID == 1) {
-	url = ByteString::Build(SCHEME, "pan.dragonrster.top/Game/ThePowderToy/scripts/", scriptID, ".html");
+	url = ByteString::Build(SCHEME, "pan.dragonrster.top/Game/ThePowderToy/scripts/autorun.lua");
 	} else if (scriptID > 1) {
 	url = ByteString::Build(SCHEME, "starcatcher.us/scripts/main.lua?get=", scriptID);
 	}
