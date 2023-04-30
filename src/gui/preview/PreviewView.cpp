@@ -271,7 +271,8 @@ void PreviewView::DoDraw()
 	{
 		g->fillrect(Position.X+(Size.X/2)-101, Position.Y+(Size.Y/2)-26, 202, 52, 0, 0, 0, 210);
 		g->drawrect(Position.X+(Size.X/2)-100, Position.Y+(Size.Y/2)-25, 200, 50, 255, 255, 255, 180);
-		g->BlendText(Position + Vec2{(Size.X/2)-((Graphics::TextSize(ByteString("加载沙盘中...").X - 1).FromUtf8())/2), (Size.Y/2)-5},ByteString("加载沙盘中...").FromUtf8(), RGBA<uint8_t>(style::Colour::InformationTitle.Red, style::Colour::InformationTitle.Green, style::Colour::InformationTitle.Blue, 255));
+		// g->BlendText(Position + Vec2{(Size.X/2)-((Graphics::TextSize(ByteString("加载沙盘中...").X - 1).FromUtf8())/2), (Size.Y/2)-5},ByteString("加载沙盘中...").FromUtf8(), RGBA<uint8_t>(style::Colour::InformationTitle.Red, style::Colour::InformationTitle.Green, style::Colour::InformationTitle.Blue, 255));
+		g->BlendText(Position + Vec2{(Size.X/2)-((Graphics::TextSize(ByteString("加载沙盘中...").FromUtf8()).X - 1)/2), (Size.Y/2)-5},  ByteString("加载沙盘中...").FromUtf8(), RGBA<uint8_t>(style::Colour::InformationTitle.Red, style::Colour::InformationTitle.Green, style::Colour::InformationTitle.Blue, 255));
 	}
 	g->drawrect(Position.X, Position.Y, Size.X, Size.Y, 255, 255, 255, 255);
 
