@@ -161,9 +161,9 @@ void RenderView::NotifyColourChanged(RenderModel *sender)
 
 void RenderView::OnDraw()
 {
-	Graphics *g = GetGraphics();
-	g->clearrect(-1, -1, WINDOWW + 1, WINDOWH + 1);
-	if (ren)
+	Graphics * g = GetGraphics();
+	g->DrawFilledRect(RectSized({ 0, 0 }, WINDOW), 0x000000_rgb);
+	if(ren)
 	{
 		ren->clearScreen();
 		ren->RenderBegin();
@@ -177,7 +177,7 @@ void RenderView::OnDraw()
 	g->draw_line(XRES, 0, XRES, WINDOWH, 255, 255, 255, 255);
 	if (toolTipPresence && toolTip.length())
 	{
-		g->drawtext(6, Size.Y - MENUSIZE - 12, toolTip, 255, 255, 255, toolTipPresence > 51 ? 255 : toolTipPresence * 5);
+		g->BlendText({ 6, Size.Y-MENUSIZE-12 }, toolTip, RGBA<uint8_t>(255, 255, 255, toolTipPresence>51?255:toolTipPresence*5));
 	}
 }
 

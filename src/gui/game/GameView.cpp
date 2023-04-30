@@ -1279,16 +1279,16 @@ void GameView::ToolTip(ui::Point senderPosition, String toolTip)
 	else if(senderPosition.X > Size.X-BARSIZE)// < Size.Y-(quickOptionButtons.size()+1)*16)
 	{
 		this->toolTip = toolTip;
-		toolTipPosition = ui::Point(Size.X-27-Graphics::textwidth(toolTip), senderPosition.Y+3);
+		toolTipPosition = ui::Point(Size.X-27-(Graphics::TextSize(toolTip).X - 1), senderPosition.Y+3);
 		if(toolTipPosition.Y+10 > Size.Y-MENUSIZE)
-			toolTipPosition = ui::Point(Size.X-27-Graphics::textwidth(toolTip), Size.Y-MENUSIZE-10);
+			toolTipPosition = ui::Point(Size.X-27-(Graphics::TextSize(toolTip).X - 1), Size.Y-MENUSIZE-10);
 		isToolTipFadingIn = true;
 	}
 	// element tooltips
 	else
 	{
 		this->toolTip = toolTip;
-		toolTipPosition = ui::Point(Size.X-27-Graphics::textwidth(toolTip), Size.Y-MENUSIZE-10);
+		toolTipPosition = ui::Point(Size.X-27-(Graphics::TextSize(toolTip).X - 1), Size.Y-MENUSIZE-10);
 		isToolTipFadingIn = true;
 	}
 }
@@ -1865,7 +1865,7 @@ void GameView::NotifyNotificationsChanged(GameModel * sender)
 	int currentY = YRES-23;
 	for (auto *notification : notifications)
 	{
-		int width = (Graphics::textwidth(notification->Message))+8;
+		int width = Graphics::TextSize(notification->Message).X + 7;
 		ui::Button * tempButton = new ui::Button(ui::Point(XRES-width-22, currentY), ui::Point(width, 15), notification->Message);
 		tempButton->SetActionCallback({ [notification] {
 			notification->Action();
@@ -2059,7 +2059,7 @@ void GameView::OnDraw()
 	{
 		ren->clearScreen();
 		ren->RenderBegin();
-		ren->SetSample(c->PointTranslate(currentMouse).X, c->PointTranslate(currentMouse).Y);
+		ren->SetSample(c->PointTranslate(currentMouse));
 		if (showBrush && selectMode == SelectNone && (!zoomEnabled || zoomCursorFixed) && activeBrush && (isMouseDown || (currentMouse.X >= 0 && currentMouse.X < XRES && currentMouse.Y >= 0 && currentMouse.Y < YRES)))
 		{
 			ui::Point finalCurrentMouse = windTool ? c->PointTranslateNoClamp(currentMouse) : c->PointTranslate(currentMouse);
@@ -2109,11 +2109,12 @@ void GameView::OnDraw()
 				if (wallBrush)
 				{
 					ui::Point finalBrushRadius = c->NormaliseBlockCoord(activeBrush->GetRadius());
-					ren->xor_line(finalCurrentMouse.X-finalBrushRadius.X, finalCurrentMouse.Y-finalBrushRadius.Y, finalCurrentMouse.X+finalBrushRadius.X+CELL-1, finalCurrentMouse.Y-finalBrushRadius.Y);
-					ren->xor_line(finalCurrentMouse.X-finalBrushRadius.X, finalCurrentMouse.Y+finalBrushRadius.Y+CELL-1, finalCurrentMouse.X+finalBrushRadius.X+CELL-1, finalCurrentMouse.Y+finalBrushRadius.Y+CELL-1);
-
-					ren->xor_line(finalCurrentMouse.X-finalBrushRadius.X, finalCurrentMouse.Y-finalBrushRadius.Y+1, finalCurrentMouse.X-finalBrushRadius.X, finalCurrentMouse.Y+finalBrushRadius.Y+CELL-2);
-					ren->xor_line(finalCurrentMouse.X+finalBrushRadius.X+CELL-1, finalCurrentMouse.Y-finalBrushRadius.Y+1, finalCurrentMouse.X+finalBrushRadius.X+CELL-1, finalCurrentMouse.Y+finalBrushRadius.Y+CELL-2);
+					auto topLeft     = finalCurrentMouse - finalBrushRadius;
+					auto bottomRight = finalCurrentMouse + finalBrushRadius + Vec2{ CELL - 1, CELL - 1 };
+					ren->XorLine({     topLeft.X,     topLeft.Y     }, { bottomRight.X,     topLeft.Y     });
+					ren->XorLine({     topLeft.X, bottomRight.Y     }, { bottomRight.X, bottomRight.Y     });
+					ren->XorLine({     topLeft.X,     topLeft.Y + 1 }, {     topLeft.X, bottomRight.Y - 1 }); // offset by 1 so the corners don't get xor'd twice
+					ren->XorLine({ bottomRight.X,     topLeft.Y + 1 }, { bottomRight.X, bottomRight.Y - 1 }); // offset by 1 so the corners don't get xor'd twice
 				}
 				else
 				{
@@ -2159,7 +2160,7 @@ void GameView::OnDraw()
 					ren->fillrect(0, y1, x1, (y2-y1)+1, 0, 0, 0, 100);
 					ren->fillrect(x2+1, y1, XRES-x2-1, (y2-y1)+1, 0, 0, 0, 100);
 
-					ren->xor_rect(x1, y1, (x2-x1)+1, (y2-y1)+1);
+					ren->XorDottedRect(RectBetween(Vec2{ x1, y1 }, Vec2{ x2, y2 }));
 				}
 			}
 		}
@@ -2198,8 +2199,8 @@ void GameView::OnDraw()
 					break;
 				}
 				startY -= 14;
-				g->fillrect(startX-3, startY-3, Graphics::textwidth(message)+6, 14, 0, 0, 0, std::min(100, alpha));
-				g->drawtext(startX, startY, message, 255, 255, 255, alpha);
+				g->fillrect(startX-3, startY-3, Graphics::TextSize(message).X + 5, 14, 0, 0, 0, std::min(100, alpha));
+				g->BlendText({ startX, startY }, message, RGBA<uint8_t>(255, 255, 255, alpha));
 				(*iter).second -= 3;
 			}
 		}
@@ -2209,9 +2210,9 @@ void GameView::OnDraw()
 	{
 		String sampleInfo = String::Build("#", screenshotIndex, " ", String(0xE00E), " REC");
 
-		int textWidth = Graphics::textwidth(sampleInfo);
+		int textWidth = Graphics::TextSize(sampleInfo).X - 1;
 		g->fillrect(XRES-20-textWidth, 12, textWidth+8, 15, 0, 0, 0, 127);
-		g->drawtext(XRES-16-textWidth, 16, sampleInfo, 255, 50, 20, 255);
+		g->BlendText({ XRES-16-textWidth, 16 }, sampleInfo, RGBA<uint8_t>(255, 50, 20, 255));
 	}
 	else if(showHud)
 	{
@@ -2330,9 +2331,9 @@ void GameView::OnDraw()
 			sampleInfo << ByteString("空").FromUtf8();
 		}
 
-		int textWidth = Graphics::textwidth(sampleInfo.Build());
+		int textWidth = Graphics::TextSize(sampleInfo.Build()).X - 1;
 		g->fillrect(XRES-20-textWidth, 12, textWidth+8, 15, 0, 0, 0, int(alpha*0.5f));
-		g->drawtext(XRES-16-textWidth, 16, sampleInfo.Build(), 255, 255, 255, int(alpha*0.75f));
+		g->BlendText({ XRES-16-textWidth, 16 }, sampleInfo.Build(), RGBA<uint8_t>(255, 255, 255, int(alpha*0.75f)));
 
 		if (wavelengthGfx)
 		{
@@ -2388,9 +2389,9 @@ void GameView::OnDraw()
 				format::RenderTemperature(sampleInfo, sample.AirTemperature, c->GetTemperatureScale());
 			}
 
-			textWidth = Graphics::textwidth(sampleInfo.Build());
+			auto textWidth = Graphics::TextSize(sampleInfo.Build()).X - 1;
 			g->fillrect(XRES-20-textWidth, 27, textWidth+8, 14, 0, 0, 0, int(alpha*0.5f));
-			g->drawtext(XRES-16-textWidth, 30, sampleInfo.Build(), 255, 255, 255, int(alpha*0.75f));
+			g->BlendText({ XRES-16-textWidth, 30 }, sampleInfo.Build(), RGBA<uint8_t>(255, 255, 255, int(alpha*0.75f)));
 		}
 	}
 
@@ -2416,37 +2417,37 @@ void GameView::OnDraw()
 		if (ren && ren->findingElement)
 			fpsInfo << " [FIND]";
 
-		int textWidth = Graphics::textwidth(fpsInfo.Build());
+		int textWidth = Graphics::TextSize(fpsInfo.Build()).X - 1;
 		int alpha = 255-introText*5;
 		g->fillrect(12, 12, textWidth+8, 15, 0, 0, 0, int(alpha*0.5));
-		g->drawtext(16, 16, fpsInfo.Build(), 32, 216, 255, int(alpha*0.75));
+		g->BlendText({ 16, 16 }, fpsInfo.Build(), RGBA<uint8_t>(32, 216, 255, int(alpha*0.75)));
 	}
 
 	//Tooltips
 	if(infoTipPresence)
 	{
 		int infoTipAlpha = (infoTipPresence>50?50:infoTipPresence)*5;
-		g->drawtext_outline((XRES-Graphics::textwidth(infoTip))/2, (YRES/2)-2, infoTip, 255, 255, 255, infoTipAlpha);
+		g->BlendTextOutline({ (XRES - (Graphics::TextSize(infoTip).X - 1)) / 2, YRES / 2 - 2 }, infoTip, RGBA<uint8_t>(255, 255, 255, infoTipAlpha));
 	}
 
 	if(toolTipPresence && toolTipPosition.X!=-1 && toolTipPosition.Y!=-1 && toolTip.length())
 	{
 		if (toolTipPosition.Y == Size.Y-MENUSIZE-10)
-			g->drawtext_outline(toolTipPosition.X, toolTipPosition.Y, toolTip, 255, 255, 255, toolTipPresence>51?255:toolTipPresence*5);
+			g->BlendTextOutline(toolTipPosition, toolTip, RGBA<uint8_t>(255, 255, 255, toolTipPresence>51?255:toolTipPresence*5));
 		else
-			g->drawtext(toolTipPosition.X, toolTipPosition.Y, toolTip, 255, 255, 255, toolTipPresence>51?255:toolTipPresence*5);
+			g->BlendText(toolTipPosition, toolTip, RGBA<uint8_t>(255, 255, 255, toolTipPresence>51?255:toolTipPresence*5));
 	}
 
 	if(buttonTipShow > 0)
 	{
-		g->drawtext(16, Size.Y-MENUSIZE-24, buttonTip, 255, 255, 255, buttonTipShow>51?255:buttonTipShow*5);
+		g->BlendText({ 16, Size.Y-MENUSIZE-24 }, buttonTip, RGBA<uint8_t>(255, 255, 255, buttonTipShow>51?255:buttonTipShow*5));
 	}
 
 	//Introduction text
 	if(introText && showHud)
 	{
 		g->fillrect(0, 0, WINDOWW, WINDOWH, 0, 0, 0, introText>51?102:introText*2);
-		g->drawtext(16, 16, introTextMessage, 255, 255, 255, introText>51?255:introText*5);
+		g->BlendText({ 16, 16 }, introTextMessage, RGBA<uint8_t>(255, 255, 255, introText>51?255:introText*5));
 	}
 }
 

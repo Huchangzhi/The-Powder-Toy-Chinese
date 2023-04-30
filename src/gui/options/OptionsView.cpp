@@ -158,7 +158,7 @@ OptionsView::OptionsView():
 		{
 			Graphics * g = GetGraphics();
 
-			g->clearrect(Position.X-2, Position.Y-2, Size.X+3, Size.Y+3);
+			g->DrawFilledRect(RectSized(Position - Vec2{ 1, 1 }, Size + Vec2{ 2, 2 }), 0x000000_rgb);
 			g->drawrect(Position.X, Position.Y, Size.X, Size.Y, 200, 200, 200, 255);
 		}
 
@@ -281,7 +281,7 @@ OptionsView::OptionsView():
 	resizable = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("可调整大小").FromUtf8(), "");
 	autowidth(resizable);
 	resizable->SetActionCallback({ [this] { c->SetResizable(resizable->GetChecked()); } });
-	tempLabel = new ui::Label(ui::Point(resizable->Position.X+Graphics::textwidth(resizable->GetText())+20, currentY), ui::Point(1, 16), ByteString("\bg - 允许调整大小和最大化窗口").FromUtf8());
+	tempLabel = new ui::Label(ui::Point(resizable->Position.X+Graphics::TextSize(resizable->GetText()).X+19, currentY), ui::Point(1, 16), ByteString("\bg - 允许调整大小和最大化窗口").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -292,7 +292,7 @@ OptionsView::OptionsView():
 	fullscreen = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("全屏").FromUtf8(), "");
 	autowidth(fullscreen);
 	fullscreen->SetActionCallback({ [this] { c->SetFullscreen(fullscreen->GetChecked()); } });
-	tempLabel = new ui::Label(ui::Point(fullscreen->Position.X+Graphics::textwidth(fullscreen->GetText())+20, currentY), ui::Point(1, 16), ByteString("\bg - 进入全屏模式").FromUtf8());
+	tempLabel = new ui::Label(ui::Point(fullscreen->Position.X+Graphics::TextSize(fullscreen->GetText()).X+19, currentY), ui::Point(1, 16), ByteString("\bg - 进入全屏模式").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -303,7 +303,7 @@ OptionsView::OptionsView():
 	altFullscreen = new ui::Checkbox(ui::Point(23, currentY), ui::Point(1, 16), ByteString("更改分辨率").FromUtf8(), "");
 	autowidth(altFullscreen);
 	altFullscreen->SetActionCallback({ [this] { c->SetAltFullscreen(altFullscreen->GetChecked()); } });
-	tempLabel = new ui::Label(ui::Point(altFullscreen->Position.X+Graphics::textwidth(altFullscreen->GetText())+20, currentY), ui::Point(1, 16), ByteString("\bg - 设置最佳屏幕分辨率").FromUtf8());
+	tempLabel = new ui::Label(ui::Point(altFullscreen->Position.X+Graphics::TextSize(altFullscreen->GetText()).X+19, currentY), ui::Point(1, 16), ByteString("\bg - 设置最佳屏幕分辨率").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -314,7 +314,7 @@ OptionsView::OptionsView():
 	forceIntegerScaling = new ui::Checkbox(ui::Point(23, currentY), ui::Point(1, 16), ByteString("强制整数缩放").FromUtf8(), "");
 	autowidth(forceIntegerScaling);
 	forceIntegerScaling->SetActionCallback({ [this] { c->SetForceIntegerScaling(forceIntegerScaling->GetChecked()); } });
-	tempLabel = new ui::Label(ui::Point(altFullscreen->Position.X+Graphics::textwidth(forceIntegerScaling->GetText())+20, currentY), ui::Point(1, 16), ByteString("\bg - 不再那么模糊").FromUtf8());
+	tempLabel = new ui::Label(ui::Point(altFullscreen->Position.X+Graphics::TextSize(forceIntegerScaling->GetText()).X+19, currentY), ui::Point(1, 16), ByteString("\bg - 不再那么模糊").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -325,7 +325,7 @@ OptionsView::OptionsView():
 	fastquit = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("快速退出").FromUtf8(), "");
 	autowidth(fastquit);
 	fastquit->SetActionCallback({ [this] { c->SetFastQuit(fastquit->GetChecked()); } });
-	tempLabel = new ui::Label(ui::Point(fastquit->Position.X+Graphics::textwidth(fastquit->GetText())+20, currentY), ui::Point(1, 16), ByteString("\bg - 点击关闭按钮时总是完全退出游戏").FromUtf8());
+	tempLabel = new ui::Label(ui::Point(fastquit->Position.X+Graphics::TextSize(fastquit->GetText()).X+19, currentY), ui::Point(1, 16), ByteString("\bg - 点击关闭按钮时总是完全退出游戏").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -336,7 +336,7 @@ OptionsView::OptionsView():
 	showAvatars = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("显示头像").FromUtf8(), "");
 	autowidth(showAvatars);
 	showAvatars->SetActionCallback({ [this] { c->SetShowAvatars(showAvatars->GetChecked()); } });
-	tempLabel = new ui::Label(ui::Point(showAvatars->Position.X+Graphics::textwidth(showAvatars->GetText())+20, currentY), ui::Point(1, 16), ByteString("\bg - 禁用此项可减少网络带宽").FromUtf8());
+	tempLabel = new ui::Label(ui::Point(showAvatars->Position.X+Graphics::TextSize(showAvatars->GetText()).X+19, currentY), ui::Point(1, 16), ByteString("\bg - 禁用此项可减少网络带宽").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -347,7 +347,7 @@ OptionsView::OptionsView():
 	momentumScroll = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("加速/旧版滚动").FromUtf8(), "");
 	autowidth(momentumScroll);
 	momentumScroll->SetActionCallback({ [this] { c->SetMomentumScroll(momentumScroll->GetChecked()); } });
-	tempLabel = new ui::Label(ui::Point(momentumScroll->Position.X + Graphics::textwidth(momentumScroll->GetText()) + 20, currentY), ui::Point(1, 16), ByteString("\bg - 启用此项时将步进滚动改为加速").FromUtf8());
+	tempLabel = new ui::Label(ui::Point(momentumScroll->Position.X + Graphics::TextSize(momentumScroll->GetText()).X+19, currentY), ui::Point(1, 16), ByteString("\bg - 启用此项时将步进滚动改为加速").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -358,7 +358,7 @@ OptionsView::OptionsView():
 	mouseClickRequired = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("置顶类别").FromUtf8(), "");
 	autowidth(mouseClickRequired);
 	mouseClickRequired->SetActionCallback({ [this] { c->SetMouseClickrequired(mouseClickRequired->GetChecked()); } });
-	tempLabel = new ui::Label(ui::Point(mouseClickRequired->Position.X+Graphics::textwidth(mouseClickRequired->GetText())+20, currentY), ui::Point(1, 16), ByteString("\bg - 启用此项时将滑动切换类别改为点击").FromUtf8());
+	tempLabel = new ui::Label(ui::Point(mouseClickRequired->Position.X+Graphics::TextSize(mouseClickRequired->GetText()).X+19, currentY), ui::Point(1, 16), ByteString("\bg - 启用此项时将滑动切换类别改为点击").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -369,7 +369,7 @@ OptionsView::OptionsView():
 	includePressure = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("包括压力").FromUtf8(), "");
 	autowidth(includePressure);
 	includePressure->SetActionCallback({ [this] { c->SetIncludePressure(includePressure->GetChecked()); } });
-	tempLabel = new ui::Label(ui::Point(includePressure->Position.X+Graphics::textwidth(includePressure->GetText())+20, currentY), ui::Point(1, 16), ByteString("\bg - 沙盘,复制,Stamps保存压力数据").FromUtf8());
+	tempLabel = new ui::Label(ui::Point(includePressure->Position.X+Graphics::TextSize(includePressure->GetText()).X+19, currentY), ui::Point(1, 16), ByteString("\bg - 沙盘,复制,Stamps保存压力数据").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -380,7 +380,7 @@ OptionsView::OptionsView():
 	perfectCirclePressure = new ui::Checkbox(ui::Point(8, currentY), ui::Point(1, 16), ByteString("完美的圆").FromUtf8(), "");
 	autowidth(perfectCirclePressure);
 	perfectCirclePressure->SetActionCallback({ [this] { c->SetPerfectCircle(perfectCirclePressure->GetChecked()); } });
-	tempLabel = new ui::Label(ui::Point(perfectCirclePressure->Position.X+Graphics::textwidth(perfectCirclePressure->GetText())+20, currentY), ui::Point(1, 16), ByteString("\bg - 由Notch创造的最完美的圆").FromUtf8());
+	tempLabel = new ui::Label(ui::Point(perfectCirclePressure->Position.X+Graphics::TextSize(perfectCirclePressure->GetText()).X+19, currentY), ui::Point(1, 16), ByteString("\bg - 由Notch创造的最完美的圆").FromUtf8());
 	autowidth(tempLabel);
 	tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -540,7 +540,7 @@ void OptionsView::AttachController(OptionsController * c_)
 void OptionsView::OnDraw()
 {
 	Graphics * g = GetGraphics();
-	g->clearrect(Position.X-2, Position.Y-2, Size.X+3, Size.Y+3);
+	g->DrawFilledRect(RectSized(Position - Vec2{ 1, 1 }, Size + Vec2{ 2, 2 }), 0x000000_rgb);
 	g->drawrect(Position.X, Position.Y, Size.X, Size.Y, 255, 255, 255, 255);
 }
 

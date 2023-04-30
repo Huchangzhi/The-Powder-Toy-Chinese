@@ -25,7 +25,7 @@ void Button::TextPosition(String ButtonText)
 	buttonDisplayText = ButtonText;
 	if(buttonDisplayText.length())
 	{
-		if (Graphics::TextSize(buttonDisplayText).X > Size.X - (Appearance.icon ? 22 : 0))
+		if (Graphics::TextSize(buttonDisplayText).X - 1 > Size.X - (Appearance.icon ? 22 : 0))
 		{
 			auto it = Graphics::TextFit(buttonDisplayText, Size.X - (Appearance.icon ? 38 : 22));
 			buttonDisplayText.erase(it, buttonDisplayText.end());
@@ -127,7 +127,7 @@ void Button::Draw(const Point& screenPos)
 		if(Appearance.Border.Right)
 			g->draw_line(Position.X+Size.X-1, Position.Y, Position.X+Size.X-1, Position.Y+Size.Y-1, borderColour.Red, borderColour.Green, borderColour.Blue, borderColour.Alpha);
 	}
-	g->drawtext(Position.X+textPosition.X, Position.Y+textPosition.Y, buttonDisplayText, textColour.Red, textColour.Green, textColour.Blue, textColour.Alpha);
+	g->BlendText(Position + textPosition, buttonDisplayText, textColour);
 
 	bool iconInvert = (backgroundColour.Blue + (3*backgroundColour.Green) + (2*backgroundColour.Red))>544?true:false;
 

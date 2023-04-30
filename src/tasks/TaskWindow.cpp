@@ -86,7 +86,7 @@ void TaskWindow::OnTick(float dt)
 void TaskWindow::OnDraw()
 {
 	Graphics * g = GetGraphics();
-	g->clearrect(Position.X-2, Position.Y-2, Size.X+3, Size.Y+3);
+	g->DrawFilledRect(RectSized(Position - Vec2{ 1, 1 }, Size + Vec2{ 2, 2 }), 0x000000_rgb);
 	g->drawrect(Position.X, Position.Y, Size.X, Size.Y, 255, 255, 255, 255);
 
 	g->draw_line(Position.X, Position.Y + Size.Y-17, Position.X + Size.X - 1, Position.Y + Size.Y-17, 255, 255, 255, 255);
@@ -117,10 +117,7 @@ void TaskWindow::OnDraw()
 			g->fillrect(Position.X + 2, Position.Y + Size.Y-15, rsize, 13, progressBarColour.Red, progressBarColour.Green, progressBarColour.Blue, 255);
 		}
 	}
-	if(progress<50)
-		g->drawtext(Position.X + ((Size.X-Graphics::textwidth(progressStatus))/2), Position.Y + Size.Y-13, progressStatus, 255, 255, 255, 255);
-	else
-		g->drawtext(Position.X + ((Size.X-Graphics::textwidth(progressStatus))/2), Position.Y + Size.Y-13, progressStatus, 0, 0, 0, 255);
+	g->BlendText(Position + Vec2{ ((Size.X-(Graphics::TextSize(progressStatus).X - 1))/2), Size.Y-13 }, progressStatus, progress<50 ? RGBA<uint8_t>(255, 255, 255, 255) : RGBA<uint8_t>(0, 0, 0, 255));
 }
 
 TaskWindow::~TaskWindow() {

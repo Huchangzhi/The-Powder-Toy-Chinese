@@ -1885,7 +1885,7 @@ int LuaScriptInterface::simulation_floodDeco(lua_State * l)
 		return luaL_error(l, "coordinates out of range (%d,%d)", x, y);
 
 	// hilariously broken, intersects with console and all Lua graphics
-	auto loc = RGB<uint8_t>::Unpack(luacon_ren->vid[x + y * WINDOWW]);
+	auto loc = RGB<uint8_t>::Unpack(luacon_ren->GetPixel({ x, y }));
 	luacon_sim->ApplyDecorationFill(luacon_ren, x, y, r, g, b, a, loc.Red, loc.Green, loc.Blue);
 	return 0;
 }
@@ -3785,7 +3785,6 @@ void LuaScriptInterface::initGraphicsAPI()
 
 int LuaScriptInterface::graphics_textSize(lua_State * l)
 {
-	int width, height;
 	auto text = tpt_lua_optString(l, 1, "");
 	auto size = Graphics::TextSize(text);
 
@@ -3813,7 +3812,7 @@ int LuaScriptInterface::graphics_drawText(lua_State * l)
 	if (a<0) a = 0;
 	else if (a>255) a = 255;
 
-	luacon_g->drawtext(x, y, text, r, g, b, a);
+	luacon_g->BlendText({ x, y }, text, RGBA<uint8_t>(r, g, b, a));
 	return 0;
 }
 
@@ -3909,7 +3908,7 @@ int LuaScriptInterface::graphics_drawCircle(lua_State * l)
 	if (a<0) a = 0;
 	else if (a>255) a = 255;
 
-	luacon_g->drawcircle(x, y, abs(rx), abs(ry), r, g, b, a);
+	luacon_g->BlendEllipse({ x, y }, { abs(rx), abs(ry) }, RGBA<uint8_t>(r, g, b, a));
 	return 0;
 }
 
@@ -3933,7 +3932,7 @@ int LuaScriptInterface::graphics_fillCircle(lua_State * l)
 	if (a<0) a = 0;
 	else if (a>255) a = 255;
 
-	luacon_g->fillcircle(x, y, abs(rx), abs(ry), r, g, b, a);
+	luacon_g->BlendFilledEllipse({ x, y }, { abs(rx), abs(ry) }, RGBA<uint8_t>(r, g, b, a));
 	return 0;
 }
 

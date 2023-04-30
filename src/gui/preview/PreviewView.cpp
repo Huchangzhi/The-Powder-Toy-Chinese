@@ -149,13 +149,13 @@ void PreviewView::AttachController(PreviewController * controller)
 {
 	c = controller;
 
-	int textWidth = Graphics::textwidth(ByteString("单击此框复制沙盘ID").FromUtf8());
+	int textWidth = Graphics::TextSize(ByteString("单击此框复制沙盘ID").FromUtf8()).X - 1;
 	saveIDLabel = new ui::Label(ui::Point((Size.X-textWidth-20)/2, Size.Y+5), ui::Point(textWidth+20, 16), ByteString("单击此框复制沙盘ID").FromUtf8());
 	saveIDLabel->SetTextColour(ui::Colour(150, 150, 150));
 	saveIDLabel->Appearance.HorizontalAlign = ui::Appearance::AlignCentre;
 	AddComponent(saveIDLabel);
 
-	textWidth = Graphics::textwidth(String::Build(c->SaveID()));
+	textWidth = Graphics::TextSize(String::Build(c->SaveID())).X - 1;
 	saveIDLabel2 = new ui::Label(ui::Point((Size.X-textWidth-20)/2-37, Size.Y+22), ui::Point(40, 16), ByteString("沙盘ID:").FromUtf8());
 	AddComponent(saveIDLabel2);
 
@@ -167,7 +167,7 @@ void PreviewView::commentBoxAutoHeight()
 {
 	if(!addCommentBox)
 		return;
-	int textWidth = Graphics::textwidth(addCommentBox->GetText().c_str());
+	int textWidth = Graphics::TextSize(addCommentBox->GetText().c_str()).X - 1;
 	if (commentHelpText || textWidth+15 > Size.X-(XRES/2)-48)
 	{
 		addCommentBox->Appearance.VerticalAlign = ui::Appearance::AlignTop;
@@ -271,7 +271,7 @@ void PreviewView::DoDraw()
 	{
 		g->fillrect(Position.X+(Size.X/2)-101, Position.Y+(Size.Y/2)-26, 202, 52, 0, 0, 0, 210);
 		g->drawrect(Position.X+(Size.X/2)-100, Position.Y+(Size.Y/2)-25, 200, 50, 255, 255, 255, 180);
-		g->drawtext(Position.X+(Size.X/2)-(Graphics::textwidth(ByteString("加载沙盘中...").FromUtf8())/2), Position.Y+(Size.Y/2)-5,ByteString("加载沙盘中...").FromUtf8(), style::Colour::InformationTitle.Red, style::Colour::InformationTitle.Green, style::Colour::InformationTitle.Blue, 255);
+		g->BlendText(Position + Vec2{(Size.X/2)-((Graphics::TextSize(ByteString("加载沙盘中...").X - 1).FromUtf8())/2), (Size.Y/2)-5},ByteString("加载沙盘中...").FromUtf8(), RGBA<uint8_t>(style::Colour::InformationTitle.Red, style::Colour::InformationTitle.Green, style::Colour::InformationTitle.Blue, 255));
 	}
 	g->drawrect(Position.X, Position.Y, Size.X, Size.Y, 255, 255, 255, 255);
 
@@ -282,7 +282,7 @@ void PreviewView::OnDraw()
 	Graphics * g = GetGraphics();
 
 	//Window Background+Outline
-	g->clearrect(Position.X-2, Position.Y-2, Size.X+4, Size.Y+4);
+	g->DrawFilledRect(RectSized(Position - Vec2{ 1, 1 }, Size + Vec2{ 2, 2 }), 0x000000_rgb);
 
 	//Save preview (top-left)
 	if (savePreview)
