@@ -25,7 +25,7 @@ inline ByteString IntroText()
 		"按下'H'打开/关闭HUD.按下'D'在HUD打开/关闭调试模式.\n"
 		"\n"
 		"贡献者: \bgStanislaw K Skowronek (最初设计者),\n"
-		"\bgSimon Robertshaw, Skresanov Savely, cracker64, Catelite, Bryan Hoyle, Nathan Cousins, jacksonmj,\n"
+		"\bgSimon Robertshaw, Skresanov Savely, cracker64, Catelite, Victoria Hoyle, Nathan Cousins, jacksonmj,\n"
 		"\bgFelix Wallin, Lieuwe Mosch, Anthony Boot, Me4502, MaksProg, jacob1, mniip, LBPHacker\n"
 		"\n"
 		"\bo汉化: \bgDragonRSTER\n"

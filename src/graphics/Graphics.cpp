@@ -36,15 +36,15 @@ void VideoBuffer::Crop(Rect<int> rect)
 	if (rect == Size().OriginRect())
 		return;
 
-	PlaneAdapter<std::vector<pixel> &> newVideo(rect.Size(), video.Base);
+	PlaneAdapter<std::vector<pixel> &> newVideo(rect.Size(), std::in_place, video.Base);
 	for (auto y = 0; y < newVideo.Size().Y; y++)
 		std::copy_n(
 			video.RowIterator(rect.TopLeft + Vec2(0, y)),
 			newVideo.Size().X,
 			newVideo.RowIterator(Vec2(0, y))
 		);
-	newVideo.Base.resize(newVideo.Size().X * newVideo.Size().Y);
-	newVideo.Base.shrink_to_fit();
+	video.Base.resize(newVideo.Size().X * newVideo.Size().Y);
+	video.Base.shrink_to_fit();
 	video.SetSize(newVideo.Size());
 }
 
@@ -131,10 +131,13 @@ void VideoBuffer::ResizeToFit(Vec2<int> bound, bool resample)
 	Vec2<int> size = Size();
 	if (size.X > bound.X || size.Y > bound.Y)
 	{
+		auto ceilDiv = [](int a, int b) {
+			return a / b + ((a % b) ? 1 : 0);
+		};
 		if (bound.X * size.Y < bound.Y * size.X)
-			size = size * bound.X / size.X;
+			size = { ceilDiv(size.X * bound.X, size.X), ceilDiv(size.Y * bound.X, size.X) };
 		else
-			size = size * bound.Y / size.Y;
+			size = { ceilDiv(size.X * bound.Y, size.Y), ceilDiv(size.Y * bound.Y, size.Y) };
 	}
 	Resize(size, resample);
 }

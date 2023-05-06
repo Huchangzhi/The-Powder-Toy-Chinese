@@ -29,7 +29,7 @@ Powder Toy 是一款免费的物理沙盒游戏，它模拟气压和速度、热
 * Skresanov Savely
 * cracker64
 * Catelite
-* Bryan Hoyle
+* Victoria Hoyle
 * Nathan Cousins
 * jacksonmj
 * Felix Wallin
