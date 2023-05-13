@@ -1638,7 +1638,7 @@ void GameView::OnFileDrop(ByteString filename)
 {
 	if (!(filename.EndsWith(".cps") || filename.EndsWith(".stm")))
 	{
-		new ErrorMessage("Error loading save", "Dropped file is not a TPT save file (.cps or .stm format)");
+		new ErrorMessage( ByteString("加载沙盘错误").FromUtf8(), ByteString("删除的文件不是TPT沙盘文件(.cps或.stm格式)").FromUtf8());
 		return;
 	}
 
@@ -1647,7 +1647,7 @@ void GameView::OnFileDrop(ByteString filename)
 		return;
 	if (saveFile->GetError().length())
 	{
-		new ErrorMessage("Error loading save", "Dropped save file could not be loaded: " + saveFile->GetError());
+		new ErrorMessage(ByteString("加载沙盘错误").FromUtf8(), ByteString("无法加载已删除的沙盘文件: ").FromUtf8() + saveFile->GetError());
 		return;
 	}
 	c->LoadSaveFile(saveFile);
@@ -2324,7 +2324,7 @@ void GameView::OnDraw()
 		}
 		else if (sample.isMouseInSim)
 		{
-			sampleInfo << ByteString("空,压力: ").FromUtf8() << sample.AirPressure;
+			sampleInfo << ByteString("空, 压力: ").FromUtf8() << sample.AirPressure;
 		}
 		else
 		{
@@ -2409,13 +2409,13 @@ void GameView::OnDraw()
 				fpsInfo << ByteString(" 元素数目: ").FromUtf8() << sample.NumParts;
 		}
 		if (c->GetReplaceModeFlags()&REPLACE_MODE)
-			fpsInfo << " [REPLACE MODE]";
+			fpsInfo <<  ByteString(" [替换模式]").FromUtf8();
 		if (c->GetReplaceModeFlags()&SPECIFIC_DELETE)
-			fpsInfo << " [SPECIFIC DELETE]";
+			fpsInfo <<  ByteString(" [具体删除]").FromUtf8();
 		if (ren && ren->GetGridSize())
-			fpsInfo << " [GRID: " << ren->GetGridSize() << "]";
+			fpsInfo <<  ByteString(" [网格: ").FromUtf8()<< ren->GetGridSize() <<  ByteString("]").FromUtf8();
 		if (ren && ren->findingElement)
-			fpsInfo << " [FIND]";
+			fpsInfo <<  ByteString(" [寻找]").FromUtf8();
 
 		int textWidth = Graphics::TextSize(fpsInfo.Build()).X - 1;
 		int alpha = 255-introText*5;
