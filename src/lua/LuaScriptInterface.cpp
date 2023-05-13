@@ -1966,7 +1966,7 @@ int LuaScriptInterface::simulation_loadStamp(lua_State * l)
 	auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
 	int i = -1;
 	int pushed = 1;
-	SaveFile * tempfile = NULL;
+	std::unique_ptr<SaveFile> tempfile;
 	int x = luaL_optint(l,2,0);
 	int y = luaL_optint(l,3,0);
 	auto &client = Client::Ref();
@@ -1993,8 +1993,10 @@ int LuaScriptInterface::simulation_loadStamp(lua_State * l)
 
 			if (tempfile->GetGameSave()->authors.size())
 			{
-				tempfile->GetGameSave()->authors["type"] = "luastamp";
-				client.MergeStampAuthorInfo(tempfile->GetGameSave()->authors);
+				auto gameSave = tempfile->TakeGameSave();
+				gameSave->authors["type"] = "luastamp";
+				client.MergeStampAuthorInfo(gameSave->authors);
+				tempfile->SetGameSave(std::move(gameSave));
 			}
 		}
 		else
@@ -2003,7 +2005,6 @@ int LuaScriptInterface::simulation_loadStamp(lua_State * l)
 			lua_pushnil(l);
 			tpt_lua_pushString(l, luacon_ci->GetLastError());
 		}
-		delete tempfile;
 	}
 	else
 	{
@@ -2060,7 +2061,7 @@ int LuaScriptInterface::simulation_reloadSave(lua_State * l)
 
 int LuaScriptInterface::simulation_getSaveID(lua_State *l)
 {
-	SaveInfo *tempSave = luacon_model->GetSave();
+	auto *tempSave = luacon_model->GetSave();
 	if (tempSave)
 	{
 		lua_pushinteger(l, tempSave->GetID());
@@ -4002,6 +4003,14 @@ int LuaScriptInterface::graphics_setClipRect(lua_State * l)
 	return 4;
 }
 
+static int fsIsLink(lua_State * l)
+{
+	auto dirname = tpt_lua_checkByteString(l, 1);
+	bool ret = Platform::IsLink(dirname);
+	lua_pushboolean(l, ret);
+	return 1;
+}
+
 void LuaScriptInterface::initFileSystemAPI()
 {
 	//Methods
@@ -4010,6 +4019,7 @@ void LuaScriptInterface::initFileSystemAPI()
 		{"exists", fileSystem_exists},
 		{"isFile", fileSystem_isFile},
 		{"isDirectory", fileSystem_isDirectory},
+		{"isLink", fsIsLink},
 		{"makeDirectory", fileSystem_makeDirectory},
 		{"removeDirectory", fileSystem_removeDirectory},
 		{"removeFile", fileSystem_removeFile},
