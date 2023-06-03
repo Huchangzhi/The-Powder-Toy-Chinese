@@ -1182,7 +1182,7 @@ void GameView::OnMouseDown(int x, int y, unsigned button)
 
 Vec2<int> GameView::PlaceSavePos() const
 {
-	return c->NormaliseBlockCoord(selectPoint2 + placeSaveOffset * CELL + Vec2(1, 1) * CELL / 2).Clamp(RectBetween(Vec2<int>::Zero, RES - placeSaveThumb->Size()));
+	return c->NormaliseBlockCoord(selectPoint2 + placeSaveOffset * CELL + Vec2(1, 1) * CELL / 2);
 }
 
 void GameView::OnMouseUp(int x, int y, unsigned button)
@@ -1929,19 +1929,6 @@ void GameView::TransformSave(Mat2<int> mulToTransform)
 	placeSaveTranslate = Vec2<int>::Zero; // reset offset
 	placeSaveTransform = mulToTransform * placeSaveTransform;
 	ApplyTransformPlaceSave();
-}
-
-template<class Signed>
-static std::pair<Signed, Signed> floorDiv(Signed a, Signed b)
-{
-	auto quo = a / b;
-	auto rem = a % b;
-	if (a < Signed(0) && rem)
-	{
-		quo -= Signed(1);
-		rem += b;
-	}
-	return { quo, rem };
 }
 
 void GameView::ApplyTransformPlaceSave()
