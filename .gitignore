@@ -93,3 +93,5 @@ screenshot_*
 compile_commands.json
 ignore/
 Downloads/zpix.bdf
+resources/cmex16m.bdf
+resources/cnxt.bdf
