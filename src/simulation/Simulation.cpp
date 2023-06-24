@@ -19,22 +19,11 @@ extern int Element_LOLZ_lolz[XRES/9][YRES/9];
 extern int Element_LOVE_RuleTable[9][9];
 extern int Element_LOVE_love[XRES/9][YRES/9];
 
-int Simulation::Load(const GameSave * save, bool includePressure)
+void Simulation::Load(const GameSave *originalSave, bool includePressure, Vec2<int> blockP) // block coordinates
 {
-	return Load(save, includePressure, 0, 0);
-}
-
-int Simulation::Load(const GameSave * originalSave, bool includePressure, int fullX, int fullY)
-{
-	if (!originalSave)
-		return 1;
 	auto save = std::unique_ptr<GameSave>(new GameSave(*originalSave));
 
-	//Align to blockMap
-	int blockX = (fullX + CELL/2)/CELL;
-	int blockY = (fullY + CELL/2)/CELL;
-	fullX = blockX*CELL;
-	fullY = blockY*CELL;
+	auto partP = blockP * CELL;
 	unsigned int pmapmask = (1<<save->pmapbits)-1;
 
 	int partMap[PT_NUM];
@@ -72,12 +61,17 @@ int Simulation::Load(const GameSave * originalSave, bool includePressure, int fu
 	for (int n = 0; n < NPART && n < save->particlesCount; n++)
 	{
 		Particle *tempPart = &save->particles[n];
-		tempPart->x += (float)fullX;
-		tempPart->y += (float)fullY;
+		auto &type = tempPart->type;
+		if (!type)
+		{
+			continue;
+		}
+
+		tempPart->x += (float)partP.X;
+		tempPart->y += (float)partP.Y;
 		int x = int(tempPart->x + 0.5f);
 		int y = int(tempPart->y + 0.5f);
 
-		auto &type = tempPart->type;
 
 		// Check various scenarios where we are unable to spawn the element, and set type to 0 to block spawning later
 		if (!InBounds(x, y))
@@ -171,6 +165,18 @@ int Simulation::Load(const GameSave * originalSave, bool includePressure, int fu
 	for (int n = 0; n < NPART && n < save->particlesCount; n++)
 	{
 		Particle tempPart = save->particles[n];
+		if (!tempPart.type)
+		{
+			continue;
+		}
+
+		if (elements[tempPart.type].CreateAllowed)
+		{
+			if (!(*(elements[tempPart.type].CreateAllowed))(this, -3, int(tempPart.x + 0.5f), int(tempPart.y + 0.5f), tempPart.type))
+			{
+				continue;
+			}
+		}
 
 		// Allocate particle (this location is guaranteed to be empty due to "full scan" logic above)
 		if (pfree == -1)
@@ -297,39 +303,43 @@ int Simulation::Load(const GameSave * originalSave, bool includePressure, int fu
 
 	for (size_t i = 0; i < save->signs.size() && signs.size() < MAXSIGNS; i++)
 	{
-		if (save->signs[i].text[0])
+		if (save->signs[i].text.length())
 		{
 			sign tempSign = save->signs[i];
-			tempSign.x += fullX;
-			tempSign.y += fullY;
+			tempSign.x += partP.X;
+			tempSign.y += partP.Y;
+			if (!InBounds(tempSign.x, tempSign.y))
+			{
+				continue;
+			}
 			signs.push_back(tempSign);
 		}
 	}
-	for(int saveBlockX = 0; saveBlockX < save->blockWidth; saveBlockX++)
+	for (auto bpos : RectSized(blockP, save->blockSize) & CELLS.OriginRect())
 	{
-		for(int saveBlockY = 0; saveBlockY < save->blockHeight; saveBlockY++)
+		auto spos = bpos - blockP;
+		if (save->blockMap[spos])
 		{
-			if(save->blockMap[saveBlockY][saveBlockX])
+			bmap[bpos.Y][bpos.X] = save->blockMap[spos];
+			fvx[bpos.Y][bpos.X] = save->fanVelX[spos];
+			fvy[bpos.Y][bpos.X] = save->fanVelY[spos];
+		}
+		if (includePressure)
+		{
+			if (save->hasPressure)
 			{
-				bmap[saveBlockY+blockY][saveBlockX+blockX] = save->blockMap[saveBlockY][saveBlockX];
-				fvx[saveBlockY+blockY][saveBlockX+blockX] = save->fanVelX[saveBlockY][saveBlockX];
-				fvy[saveBlockY+blockY][saveBlockX+blockX] = save->fanVelY[saveBlockY][saveBlockX];
+				pv[bpos.Y][bpos.X] = save->pressure[spos];
+				vx[bpos.Y][bpos.X] = save->velocityX[spos];
+				vy[bpos.Y][bpos.X] = save->velocityY[spos];
 			}
-			if (includePressure)
+			if (save->hasAmbientHeat)
 			{
-				if (save->hasPressure)
-				{
-					pv[saveBlockY+blockY][saveBlockX+blockX] = save->pressure[saveBlockY][saveBlockX];
-					vx[saveBlockY+blockY][saveBlockX+blockX] = save->velocityX[saveBlockY][saveBlockX];
-					vy[saveBlockY+blockY][saveBlockX+blockX] = save->velocityY[saveBlockY][saveBlockX];
-				}
-				if (save->hasAmbientHeat)
-					hv[saveBlockY+blockY][saveBlockX+blockX] = save->ambientHeat[saveBlockY][saveBlockX];
-				if (save->hasBlockAirMaps)
-				{
-					air->bmap_blockair[saveBlockY+blockY][saveBlockX+blockX] = save->blockAir[saveBlockY][saveBlockX];
-					air->bmap_blockairh[saveBlockY+blockY][saveBlockX+blockX] = save->blockAirh[saveBlockY][saveBlockX];
-				}
+				hv[bpos.Y][bpos.X] = save->ambientHeat[spos];
+			}
+			if (save->hasBlockAirMaps)
+			{
+				air->bmap_blockair[bpos.Y][bpos.X] = save->blockAir[spos];
+				air->bmap_blockairh[bpos.Y][bpos.X] = save->blockAirh[spos];
 			}
 		}
 	}
@@ -339,44 +349,14 @@ int Simulation::Load(const GameSave * originalSave, bool includePressure, int fu
 	{
 		air->ApproximateBlockAirMaps();
 	}
-
-	return 0;
 }
 
-GameSave * Simulation::Save(bool includePressure)
+std::unique_ptr<GameSave> Simulation::Save(bool includePressure, Rect<int> partR) // particle coordinates
 {
-	return Save(includePressure, 0, 0, XRES-1, YRES-1);
-}
+	auto blockR = RectBetween(partR.TopLeft / CELL, partR.BottomRight / CELL);
+	auto blockP = blockR.TopLeft;
 
-GameSave * Simulation::Save(bool includePressure, int fullX, int fullY, int fullX2, int fullY2)
-{
-	int blockX, blockY, blockX2, blockY2, blockW, blockH;
-	//Normalise incoming coords
-	int swapTemp;
-	if(fullY>fullY2)
-	{
-		swapTemp = fullY;
-		fullY = fullY2;
-		fullY2 = swapTemp;
-	}
-	if(fullX>fullX2)
-	{
-		swapTemp = fullX;
-		fullX = fullX2;
-		fullX2 = swapTemp;
-	}
-
-	//Align coords to blockMap
-	blockX = fullX/CELL;
-	blockY = fullY/CELL;
-
-	blockX2 = (fullX2+CELL)/CELL;
-	blockY2 = (fullY2+CELL)/CELL;
-
-	blockW = blockX2-blockX;
-	blockH = blockY2-blockY;
-
-	GameSave * newSave = new GameSave(blockW, blockH);
+	auto newSave = std::make_unique<GameSave>(blockR.Size());
 	auto &possiblyCarriesType = Particle::PossiblyCarriesType();
 	auto &properties = Particle::GetProperties();
 	newSave->frameCount = frameCount;
@@ -394,11 +374,11 @@ GameSave * Simulation::Save(bool includePressure, int fullX, int fullY, int full
 		int x, y;
 		x = int(parts[i].x + 0.5f);
 		y = int(parts[i].y + 0.5f);
-		if (parts[i].type && x >= fullX && y >= fullY && x <= fullX2 && y <= fullY2)
+		if (parts[i].type && partR.Contains({ x, y }))
 		{
 			Particle tempPart = parts[i];
-			tempPart.x -= blockX*CELL;
-			tempPart.y -= blockY*CELL;
+			tempPart.x -= blockP.X * CELL;
+			tempPart.y -= blockP.Y * CELL;
 			if (elements[tempPart.type].Enabled)
 			{
 				particleMap.insert(std::pair<unsigned int, unsigned int>(i, storedParts));
@@ -458,34 +438,31 @@ GameSave * Simulation::Save(bool includePressure, int fullX, int fullY, int full
 
 	for (size_t i = 0; i < MAXSIGNS && i < signs.size(); i++)
 	{
-		if(signs[i].text.length() && signs[i].x >= fullX && signs[i].y >= fullY && signs[i].x <= fullX2 && signs[i].y <= fullY2)
+		if (signs[i].text.length() && partR.Contains({ signs[i].x, signs[i].y }))
 		{
 			sign tempSign = signs[i];
-			tempSign.x -= blockX*CELL;
-			tempSign.y -= blockY*CELL;
+			tempSign.x -= blockP.X * CELL;
+			tempSign.y -= blockP.Y * CELL;
 			*newSave << tempSign;
 		}
 	}
 
-	for(int saveBlockX = 0; saveBlockX < newSave->blockWidth; saveBlockX++)
+	for (auto bpos : newSave->blockSize.OriginRect())
 	{
-		for(int saveBlockY = 0; saveBlockY < newSave->blockHeight; saveBlockY++)
+		if(bmap[bpos.Y + blockP.Y][bpos.X + blockP.X])
 		{
-			if(bmap[saveBlockY+blockY][saveBlockX+blockX])
-			{
-				newSave->blockMap[saveBlockY][saveBlockX] = bmap[saveBlockY+blockY][saveBlockX+blockX];
-				newSave->fanVelX[saveBlockY][saveBlockX] = fvx[saveBlockY+blockY][saveBlockX+blockX];
-				newSave->fanVelY[saveBlockY][saveBlockX] = fvy[saveBlockY+blockY][saveBlockX+blockX];
-			}
-			if (includePressure)
-			{
-				newSave->pressure[saveBlockY][saveBlockX] = pv[saveBlockY+blockY][saveBlockX+blockX];
-				newSave->velocityX[saveBlockY][saveBlockX] = vx[saveBlockY+blockY][saveBlockX+blockX];
-				newSave->velocityY[saveBlockY][saveBlockX] = vy[saveBlockY+blockY][saveBlockX+blockX];
-				newSave->ambientHeat[saveBlockY][saveBlockX] = hv[saveBlockY+blockY][saveBlockX+blockX];
-				newSave->blockAir[saveBlockY][saveBlockX] = air->bmap_blockair[saveBlockY+blockY][saveBlockX+blockX];
-				newSave->blockAirh[saveBlockY][saveBlockX] = air->bmap_blockairh[saveBlockY+blockY][saveBlockX+blockX];
-			}
+			newSave->blockMap[bpos] = bmap[bpos.Y + blockP.Y][bpos.X + blockP.X];
+			newSave->fanVelX[bpos] = fvx[bpos.Y + blockP.Y][bpos.X + blockP.X];
+			newSave->fanVelY[bpos] = fvy[bpos.Y + blockP.Y][bpos.X + blockP.X];
+		}
+		if (includePressure)
+		{
+			newSave->pressure[bpos] = pv[bpos.Y + blockP.Y][bpos.X + blockP.X];
+			newSave->velocityX[bpos] = vx[bpos.Y + blockP.Y][bpos.X + blockP.X];
+			newSave->velocityY[bpos] = vy[bpos.Y + blockP.Y][bpos.X + blockP.X];
+			newSave->ambientHeat[bpos] = hv[bpos.Y + blockP.Y][bpos.X + blockP.X];
+			newSave->blockAir[bpos] = air->bmap_blockair[bpos.Y + blockP.Y][bpos.X + blockP.X];
+			newSave->blockAirh[bpos] = air->bmap_blockairh[bpos.Y + blockP.Y][bpos.X + blockP.X];
 		}
 	}
 	if (includePressure || ensureDeterminism)
@@ -507,25 +484,23 @@ GameSave * Simulation::Save(bool includePressure, int fullX, int fullY, int full
 			newSave->stkm.fanFigh.push_back(i);
 	}
 
-	SaveSimOptions(newSave);
+	SaveSimOptions(*newSave);
 	newSave->pmapbits = PMAPBITS;
 	return newSave;
 }
 
-void Simulation::SaveSimOptions(GameSave * gameSave)
+void Simulation::SaveSimOptions(GameSave &gameSave)
 {
-	if (!gameSave)
-		return;
-	gameSave->gravityMode = gravityMode;
-	gameSave->customGravityX = customGravityX;
-	gameSave->customGravityY = customGravityY;
-	gameSave->airMode = air->airMode;
-	gameSave->ambientAirTemp = air->ambientAirTemp;
-	gameSave->edgeMode = edgeMode;
-	gameSave->legacyEnable = legacy_enable;
-	gameSave->waterEEnabled = water_equal_test;
-	gameSave->gravityEnable = grav->IsEnabled();
-	gameSave->aheatEnable = aheat_enable;
+	gameSave.gravityMode = gravityMode;
+	gameSave.customGravityX = customGravityX;
+	gameSave.customGravityY = customGravityY;
+	gameSave.airMode = air->airMode;
+	gameSave.ambientAirTemp = air->ambientAirTemp;
+	gameSave.edgeMode = edgeMode;
+	gameSave.legacyEnable = legacy_enable;
+	gameSave.waterEEnabled = water_equal_test;
+	gameSave.gravityEnable = grav->IsEnabled();
+	gameSave.aheatEnable = aheat_enable;
 }
 
 bool Simulation::FloodFillPmapCheck(int x, int y, int type)
@@ -780,7 +755,7 @@ bool Simulation::flood_water(int x, int y, int i)
 					else if (!eval_move(parts[i].type, x, y - 1, nullptr))
 						continue;
 
-					move(i, originalX, originalY, x, y - 1);
+					move(i, originalX, originalY, float(x), float(y - 1));
 					return true;
 				}
 
@@ -1776,35 +1751,6 @@ void Simulation::photoelectric_effect(int nx, int ny)//create sparks from PHOT w
 	}
 }
 
-unsigned Simulation::direction_to_map(float dx, float dy, int t)
-{
-	// TODO:
-	// Adding extra directions causes some inaccuracies.
-	// Not adding them causes problems with some diagonal surfaces (photons absorbed instead of reflected).
-	// For now, don't add them.
-	// Solution may involve more intelligent setting of initial i0 value in find_next_boundary?
-	// or rewriting normal/boundary finding code
-
-	return (dx >= 0) |
-	       (((dx + dy) >= 0) << 1) |     /*  567  */
-	       ((dy >= 0) << 2) |            /*  4+0  */
-	       (((dy - dx) >= 0) << 3) |     /*  321  */
-	       ((dx <= 0) << 4) |
-	       (((dx + dy) <= 0) << 5) |
-	       ((dy <= 0) << 6) |
-	       (((dy - dx) <= 0) << 7);
-	/*
-	return (dx >= -0.001) |
-	       (((dx + dy) >= -0.001) << 1) |     //  567
-	       ((dy >= -0.001) << 2) |            //  4+0
-	       (((dy - dx) >= -0.001) << 3) |     //  321
-	       ((dx <= 0.001) << 4) |
-	       (((dx + dy) <= 0.001) << 5) |
-	       ((dy <= 0.001) << 6) |
-	       (((dy - dx) <= 0.001) << 7);
-	}*/
-}
-
 int Simulation::is_blocking(int t, int x, int y)
 {
 	if (t & REFRACT) {
@@ -1846,7 +1792,7 @@ int Simulation::find_next_boundary(int pt, int *x, int *y, int dm, int *em, bool
 	unsigned int mask = 0;
 	for (int i = 0; i < 8; ++i)
 	{
-		if ((dm & (1U << i)) && is_blocking(pt, *x + dx[i], *y + dy[i]))
+		if (is_blocking(pt, *x + dx[i], *y + dy[i]))
 		{
 			mask |= (1U << i);
 		}
@@ -1854,7 +1800,7 @@ int Simulation::find_next_boundary(int pt, int *x, int *y, int dm, int *em, bool
 	for (int i = 0; i < 8; ++i)
 	{
 		int n = (i + (reverse ? 1 : -1)) & 7;
-		if (((mask & (1U << i))) && !(mask & (1U << n)))
+		if (((dm & mask & (1U << i))) && !(mask & (1U << n)))
 		{
 			*x += dx[i];
 			*y += dy[i];
@@ -1879,8 +1825,8 @@ int Simulation::get_normal(int pt, int x, int y, float dx, float dy, float *nx, 
 	if (!is_boundary(pt, x, y))
 		return 0;
 
-	ldm = direction_to_map(-dy, dx, pt);
-	rdm = direction_to_map(dy, -dx, pt);
+	ldm = 0xFF;
+	rdm = 0xFF;
 	lx = rx = x;
 	ly = ry = y;
 	lv = rv = 1;
@@ -2302,7 +2248,7 @@ void Simulation::delete_part(int x, int y)//calls kill_part with the particle lo
 
 void Simulation::UpdateParticles(int start, int end)
 {
-	int i, j, x, y, t, nx, ny, r, surround_space, s, rt, nt;
+	int i, j, x, y, t, r, surround_space, s, rt, nt;
 	float mv, dx, dy, nrx, nry, dp, ctemph, ctempl, gravtot;
 	int fin_x, fin_y, clear_x, clear_y, stagnant;
 	float fin_xf, fin_yf, clear_xf, clear_yf;
@@ -2421,8 +2367,8 @@ void Simulation::UpdateParticles(int start, int end)
 			transitionOccurred = false;
 
 			j = surround_space = nt = 0;//if nt is greater than 1 after this, then there is a particle around the current particle, that is NOT the current particle's type, for water movement.
-			for (nx=-1; nx<2; nx++)
-				for (ny=-1; ny<2; ny++) {
+			for (auto nx=-1; nx<2; nx++)
+				for (auto ny=-1; ny<2; ny++) {
 					if (nx||ny) {
 						surround[j] = r = pmap[y+ny][x+nx];
 						j++;
@@ -2819,14 +2765,14 @@ void Simulation::UpdateParticles(int start, int end)
 			//spark updates from walls
 			if ((elements[t].Properties&PROP_CONDUCTS) || t==PT_SPRK)
 			{
-				nx = x % CELL;
+				auto nx = x % CELL;
 				if (nx == 0)
 					nx = x/CELL - 1;
 				else if (nx == CELL-1)
 					nx = x/CELL + 1;
 				else
 					nx = x/CELL;
-				ny = y % CELL;
+				auto ny = y % CELL;
 				if (ny == 0)
 					ny = y/CELL - 1;
 				else if (ny == CELL-1)
@@ -3117,10 +3063,10 @@ killed:
 							}
 							nn = GLASS_IOR - GLASS_DISP*(r-30)/30.0f;
 							nn *= nn;
-							nrx = -nrx;
-							nry = -nry;
-							if (rt_glas && !lt_glas)
-								nn = 1.0f/nn;
+							auto enter = rt_glas && !lt_glas;
+							nrx = enter ? -nrx : nrx;
+							nry = enter ? -nry : nry;
+							nn = enter ? 1.0f/nn : nn;
 							ct1 = parts[i].vx*nrx + parts[i].vy*nry;
 							ct2 = 1.0f - (nn*nn)*(1.0f-(ct1*ct1));
 							if (ct2 < 0.0f) {
@@ -3315,6 +3261,7 @@ killed:
 							if (t==PT_GEL)
 								rt = int(parts[i].tmp*0.20f+5.0f);
 
+							auto nx = -1, ny = -1;
 							for (j=clear_x+r; j>=0 && j>=clear_x-rt && j<clear_x+rt && j<XRES; j+=r)
 							{
 								if ((TYP(pmap[fin_y][j])!=t || bmap[fin_y/CELL][j/CELL])
@@ -3363,8 +3310,8 @@ killed:
 							// clear_xf, clear_yf is the last known position that the particle should almost certainly be able to move to
 							nxf = clear_xf;
 							nyf = clear_yf;
-							nx = clear_x;
-							ny = clear_y;
+							auto nx = clear_x;
+							auto ny = clear_y;
 							// Look for spaces to move horizontally (perpendicular to gravity direction), keep going until a space is found or the number of positions examined = rt
 							for (j=0;j<rt;j++)
 							{
@@ -4152,11 +4099,6 @@ String Simulation::BasicParticleInfo(Particle const &sample_part) const
 		sampleInfo << ElementResolve(type, ctype);
 	}
 	return sampleInfo.Build();
-}
-
-bool Simulation::InBounds(int x, int y)
-{
-	return (x>=0 && y>=0 && x<XRES && y<YRES);
 }
 
 int Simulation::remainder_p(int x, int y)

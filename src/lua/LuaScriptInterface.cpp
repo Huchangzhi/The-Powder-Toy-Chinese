@@ -1860,7 +1860,7 @@ int LuaScriptInterface::simulation_decoColor(lua_State * l)
 		return 1;
 	}
 	else if (acount == 1)
-		color = RGBA<uint8_t>::Unpack(luaL_optnumber(l, 1, 0xFFFF0000));
+		color = RGBA<uint8_t>::Unpack(pixel_rgba(luaL_optnumber(l, 1, 0xFFFF0000)));
 	else
 	{
 		color.Red   = std::clamp(luaL_optint(l, 1, 255), 0, 255);
@@ -1966,9 +1966,13 @@ int LuaScriptInterface::simulation_loadStamp(lua_State * l)
 	auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
 	int i = -1;
 	int pushed = 1;
-	SaveFile * tempfile = NULL;
-	int x = luaL_optint(l,2,0);
-	int y = luaL_optint(l,3,0);
+	std::unique_ptr<SaveFile> tempfile;
+	Vec2<int> partP = {
+		luaL_optint(l, 2, 0),
+		luaL_optint(l, 3, 0),
+	};
+	auto hflip = lua_toboolean(l, 4);
+	auto rotation = luaL_optint(l, 5, 0) & 3; // [0, 3] rotations
 	auto &client = Client::Ref();
 	if (lua_isstring(l, 1)) //Load from 10 char name, or full filename
 	{
@@ -1984,32 +1988,38 @@ int LuaScriptInterface::simulation_loadStamp(lua_State * l)
 		tempfile = client.GetStamp(stampIDs[i]);
 	}
 
-	if (tempfile)
+	if (tempfile && tempfile->GetGameSave())
 	{
-		if (!luacon_sim->Load(tempfile->GetGameSave(), !luacon_controller->GetView()->ShiftBehaviour(), x, y))
+		auto gameSave = tempfile->TakeGameSave();
+		auto [ quoX, remX ] = floorDiv(partP.X, CELL);
+		auto [ quoY, remY ] = floorDiv(partP.Y, CELL);
+		if (remX || remY || hflip || rotation)
 		{
-			//luacon_sim->sys_pause = (tempfile->GetGameSave()->paused | luacon_model->GetPaused())?1:0;
-			lua_pushinteger(l, 1);
-
-			if (tempfile->GetGameSave()->authors.size())
+			auto transform = Mat2<int>::Identity;
+			if (hflip)
 			{
-				tempfile->GetGameSave()->authors["type"] = "luastamp";
-				client.MergeStampAuthorInfo(tempfile->GetGameSave()->authors);
+				transform = Mat2<int>::MirrorX * transform;
 			}
+			for (auto i = 0; i < rotation; ++i)
+			{
+				transform = Mat2<int>::CCW * transform;
+			}
+			gameSave->Transform(transform, { remX, remY });
 		}
-		else
+		luacon_sim->Load(gameSave.get(), !luacon_controller->GetView()->ShiftBehaviour(), { quoX, quoY });
+		lua_pushinteger(l, 1);
+
+		if (gameSave->authors.size())
 		{
-			pushed = 2;
-			lua_pushnil(l);
-			tpt_lua_pushString(l, luacon_ci->GetLastError());
+			gameSave->authors["type"] = "luastamp";
+			client.MergeStampAuthorInfo(gameSave->authors);
 		}
-		delete tempfile;
 	}
 	else
 	{
 		pushed = 2;
 		lua_pushnil(l);
-		lua_pushliteral(l, "Failed to read file");
+		tpt_lua_pushString(l, luacon_ci->GetLastError());
 	}
 	return pushed;
 }
@@ -2060,7 +2070,7 @@ int LuaScriptInterface::simulation_reloadSave(lua_State * l)
 
 int LuaScriptInterface::simulation_getSaveID(lua_State *l)
 {
-	SaveInfo *tempSave = luacon_model->GetSave();
+	auto *tempSave = luacon_model->GetSave();
 	if (tempSave)
 	{
 		lua_pushinteger(l, tempSave->GetID());
@@ -2276,7 +2286,7 @@ int LuaScriptInterface::simulation_brush(lua_State * l)
 	std::vector<ui::Point> points;
 	std::copy(newBrush->begin(), newBrush->end(), std::back_inserter(points));
 	lua_pushnumber(l, 0); // index
-	lua_pushnumber(l, points.size());
+	lua_pushnumber(l, int(points.size()));
 	auto points_ud = reinterpret_cast<ui::Point *>(lua_newuserdata(l, points.size() * sizeof(ui::Point)));
 	std::copy(points.begin(), points.end(), points_ud);
 
@@ -4002,6 +4012,14 @@ int LuaScriptInterface::graphics_setClipRect(lua_State * l)
 	return 4;
 }
 
+static int fsIsLink(lua_State * l)
+{
+	auto dirname = tpt_lua_checkByteString(l, 1);
+	bool ret = Platform::IsLink(dirname);
+	lua_pushboolean(l, ret);
+	return 1;
+}
+
 void LuaScriptInterface::initFileSystemAPI()
 {
 	//Methods
@@ -4010,6 +4028,7 @@ void LuaScriptInterface::initFileSystemAPI()
 		{"exists", fileSystem_exists},
 		{"isFile", fileSystem_isFile},
 		{"isDirectory", fileSystem_isDirectory},
+		{"isLink", fsIsLink},
 		{"makeDirectory", fileSystem_makeDirectory},
 		{"removeDirectory", fileSystem_removeDirectory},
 		{"removeFile", fileSystem_removeFile},

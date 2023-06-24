@@ -1065,7 +1065,7 @@ int luatpt_confirm(lua_State *l)
 {
 	String title = tpt_lua_optString(l, 1, "Title");
 	String message = tpt_lua_optString(l, 2, "Message");
-	String buttonText = tpt_lua_optString(l, 3, "Confirm");
+	String buttonText = tpt_lua_optString(l, 3, ByteString("继续").FromUtf8());
 	bool ret = ConfirmPrompt::Blocking(title, message, buttonText);
 	lua_pushboolean(l, ret ? 1 : 0);
 	return 1;
@@ -1299,8 +1299,17 @@ int luatpt_getscript(lua_State* l)
 	int runScript = luaL_optint(l, 3, 0);
 	int confirmPrompt = luaL_optint(l, 4, 1);
 
-	ByteString url = ByteString::Build(SCHEME, "starcatcher.us/scripts/main.lua?get=", scriptID);
-	if (confirmPrompt && !ConfirmPrompt::Blocking("Do you want to install script?", url.FromUtf8(), "Install"))
+	// ByteString url = ByteString::Build(SCHEME, "pan.dragonrster.top/Game/ThePowderToy/scripts/", scriptID,".html");
+	// if (confirmPrompt && !ConfirmPrompt::Blocking(ByteString("确定要安装此脚本吗?").FromUtf8(), url.FromUtf8(), ByteString("安装").FromUtf8()))
+
+	ByteString url;
+	if (scriptID == 1) {
+	url = ByteString::Build(SCHEME, "pan.dragonrster.top/Game/ThePowderToy/scripts/autorun.lua");
+	} else if (scriptID > 1) {
+	url = ByteString::Build(SCHEME, "starcatcher.us/scripts/main.lua?get=", scriptID);
+	}
+	if (confirmPrompt && !ConfirmPrompt::Blocking(ByteString("确定要安装此脚本吗?").FromUtf8(), url.FromUtf8(), ByteString("安装").FromUtf8())) 
+	// handle installation confirmation
 		return 0;
 
 	auto [ ret, scriptData ] = http::Request::Simple(url);
@@ -1318,7 +1327,7 @@ int luatpt_getscript(lua_State* l)
 		return luaL_error(l, "Invalid Script ID");
 	}
 
-	if (Platform::FileExists(filename) && confirmPrompt && !ConfirmPrompt::Blocking("File already exists, overwrite?", filename.FromUtf8(), "Overwrite"))
+	if (Platform::FileExists(filename) && confirmPrompt && !ConfirmPrompt::Blocking( ByteString("文件已存在,是否覆盖").FromUtf8(), filename.FromUtf8(), ByteString("覆盖").FromUtf8() ))
 	{
 		return 0;
 	}

@@ -18,8 +18,6 @@ namespace ui {
 
 SaveButton::SaveButton(Point position, Point size) :
 	Component(position, size),
-	file(nullptr),
-	save(nullptr),
 	wantsDraw(false),
 	triedThumbnail(false),
 	isMouseInsideAuthor(false),
@@ -33,9 +31,9 @@ SaveButton::SaveButton(Point position, Point size) :
 {
 }
 
-SaveButton::SaveButton(Point position, Point size, SaveInfo * save_) : SaveButton(position, size)
+SaveButton::SaveButton(Point position, Point size, SaveInfo *newSave /* non-owning */) : SaveButton(position, size)
 {
-	save = save_;
+	save = newSave;
 	if(save)
 	{
 		name = save->name;
@@ -94,9 +92,9 @@ SaveButton::SaveButton(Point position, Point size, SaveInfo * save_) : SaveButto
 	}
 }
 
-SaveButton::SaveButton(Point position, Point size, SaveFile * file_) : SaveButton(position, size)
+SaveButton::SaveButton(Point position, Point size, SaveFile *newFile /* non-owning */) : SaveButton(position, size)
 {
-	file = file_;
+	file = newFile;
 	if(file)
 	{
 		name = file->GetDisplayName();
@@ -115,8 +113,6 @@ SaveButton::~SaveButton()
 	{
 		thumbnailRenderer->Abandon();
 	}
-	delete save;
-	delete file;
 }
 
 void SaveButton::Tick(float dt)
@@ -198,7 +194,7 @@ void SaveButton::Draw(const Point& screenPos)
 		auto space = Size - Vec2{ 0, 21 };
 		g->BlendImage(tex->Data(), 255, RectSized(screenPos + ((save && save->id) ? ((space - thumbBoxSize) / 2 - Vec2{ 3, 0 }) : (space - thumbSize) / 2), tex->Size()));
 	}
-	else if (file && !file->GetGameSave())
+	else if (file && !file->LazyGetGameSave())
 		g->BlendText(screenPos + Vec2{ (Size.X-(Graphics::TextSize("Error loading save").X - 1))/2, (Size.Y-28)/2 }, "Error loading save", 0xB4B4B4_rgb .WithAlpha(255));
 	if(save)
 	{
@@ -267,7 +263,7 @@ void SaveButton::OnMouseUnclick(int x, int y, unsigned int button)
 	}
 	if (file && !file->GetGameSave())
 	{
-		new ErrorMessage("Error loading save", file->GetError());
+		new ErrorMessage(ByteString("无法加载此沙盘").FromUtf8(), file->GetError());
 		return;
 	}
 
@@ -295,18 +291,18 @@ void SaveButton::AddContextMenu(int menuType)
 	if (menuType == 0) //Save browser
 	{
 		menu = new ContextMenu(this);
-		menu->AddItem(ContextMenuItem("Open", 0, true));
+		menu->AddItem(ContextMenuItem(ByteString("打开").FromUtf8(), 0, true));
 		if (Client::Ref().GetAuthUser().UserID)
-			menu->AddItem(ContextMenuItem("Select", 1, true));
-		menu->AddItem(ContextMenuItem("View History", 2, true));
-		menu->AddItem(ContextMenuItem("More by this user", 3, true));
+			menu->AddItem(ContextMenuItem(ByteString("选择").FromUtf8(), 1, true));
+		menu->AddItem(ContextMenuItem(ByteString("历史").FromUtf8(), 2, true));
+		menu->AddItem(ContextMenuItem(ByteString("更多此作者的存档").FromUtf8(), 3, true));
 	}
 	else if (menuType == 1) //Local save browser
 	{
 		menu = new ContextMenu(this);
-		menu->AddItem(ContextMenuItem("Open", 0, true));
-		menu->AddItem(ContextMenuItem("Rename", 2, true));
-		menu->AddItem(ContextMenuItem("Delete", 3, true));
+		menu->AddItem(ContextMenuItem(ByteString("打开").FromUtf8(), 0, true));
+		menu->AddItem(ContextMenuItem(ByteString("重命名").FromUtf8(), 2, true));
+		menu->AddItem(ContextMenuItem(ByteString("删除").FromUtf8(), 3, true));
 	}
 }
 
@@ -397,12 +393,21 @@ void SaveButton::DoSelection()
 	if(menu)
 	{
 		if(selected)
-			menu->SetItem(1, "Deselect");
+			menu->SetItem(1, ByteString("取消选择").FromUtf8());
 		else
-			menu->SetItem(1, "Select");
+			menu->SetItem(1, ByteString("选择").FromUtf8());
 	}
 	if (selectable && actionCallback.selected)
 		actionCallback.selected();
+}
+
+std::unique_ptr<VideoBuffer> SaveButton::CloneThumbnail() const
+{
+	if (thumbnail)
+	{
+		return std::make_unique<VideoBuffer>(*thumbnail);
+	}
+	return nullptr;
 }
 
 } /* namespace ui */

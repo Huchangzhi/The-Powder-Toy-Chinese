@@ -30,7 +30,7 @@ void Element::Element_SING()
 	Weight = 86;
 
 	HeatConduct = 70;
-	Description = "Singularity. Creates huge amounts of negative pressure and destroys everything.";
+	Description = ByteString("奇点,会产生超低压的粉末,可以破坏其它物质,本质上是粉末状的黑洞").FromUtf8();
 
 	Properties = TYPE_PART|PROP_LIFE_DEC;
 
@@ -49,7 +49,7 @@ void Element::Element_SING()
 
 static int update(UPDATE_FUNC_ARGS)
 {
-	int r, rx, ry, cry, crx, nb, spawncount;
+	int r, rx, ry, cry, crx, spawncount;
 	int singularity = -parts[i].life;
 	float angle, v;
 
@@ -80,6 +80,7 @@ static int update(UPDATE_FUNC_ARGS)
 		spawncount = (spawncount>255) ? 3019 : int(std::pow((double)(spawncount/8), 2)*TPT_PI_FLT);
 		for (int j = 0;j < spawncount; j++)
 		{
+			auto nb = -1;
 			switch (sim->rng.gen() % 3)
 			{
 				case 0:

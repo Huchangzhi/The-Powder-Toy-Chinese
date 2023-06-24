@@ -33,9 +33,8 @@
 # undef GetUserName // dammit windows
 #endif
 
-PreviewView::PreviewView():
+PreviewView::PreviewView(std::unique_ptr<VideoBuffer> newSavePreview):
 	ui::Window(ui::Point(-1, -1), ui::Point((XRES/2)+210, (YRES/2)+150)),
-	savePreview(nullptr),
 	submitCommentButton(NULL),
 	addCommentBox(NULL),
 	commentWarningLabel(NULL),
@@ -48,9 +47,14 @@ PreviewView::PreviewView():
 	commentBoxHeight(20),
 	commentHelpText(false)
 {
+	if (newSavePreview)
+	{
+		newSavePreview->Resize(RES / 2, true);
+		savePreview = std::move(newSavePreview);
+	}
 	showAvatars = ui::Engine::Ref().ShowAvatars;
 
-	favButton = new ui::Button(ui::Point(50, Size.Y-19), ui::Point(51, 19), "Fav");
+	favButton = new ui::Button(ui::Point(50, Size.Y-19), ui::Point(51, 19), ByteString("收藏").FromUtf8());
 	favButton->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	favButton->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	favButton->SetIcon(IconFavourite);
@@ -58,7 +62,7 @@ PreviewView::PreviewView():
 	favButton->Enabled = Client::Ref().GetAuthUser().UserID?true:false;
 	AddComponent(favButton);
 
-	reportButton = new ui::Button(ui::Point(100, Size.Y-19), ui::Point(51, 19), "Report");
+	reportButton = new ui::Button(ui::Point(100, Size.Y-19), ui::Point(51, 19), ByteString("举报").FromUtf8());
 	reportButton->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	reportButton->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	reportButton->SetIcon(IconReport);
@@ -70,14 +74,14 @@ PreviewView::PreviewView():
 	reportButton->Enabled = Client::Ref().GetAuthUser().UserID?true:false;
 	AddComponent(reportButton);
 
-	openButton = new ui::Button(ui::Point(0, Size.Y-19), ui::Point(51, 19), "Open");
+	openButton = new ui::Button(ui::Point(0, Size.Y-19), ui::Point(51, 19), ByteString("打开").FromUtf8());
 	openButton->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	openButton->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	openButton->SetIcon(IconOpen);
 	openButton->SetActionCallback({ [this] { c->DoOpen(); } });
 	AddComponent(openButton);
 
-	browserOpenButton = new ui::Button(ui::Point((XRES/2)-107, Size.Y-19), ui::Point(108, 19), "Open in browser");
+	browserOpenButton = new ui::Button(ui::Point((XRES/2)-112, Size.Y-19), ui::Point(113, 19), ByteString("在浏览器中打开").FromUtf8());
 	browserOpenButton->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	browserOpenButton->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	browserOpenButton->SetIcon(IconOpen);
@@ -149,14 +153,14 @@ void PreviewView::AttachController(PreviewController * controller)
 {
 	c = controller;
 
-	int textWidth = Graphics::TextSize("Click the box below to copy the save ID").X - 1;
-	saveIDLabel = new ui::Label(ui::Point((Size.X-textWidth-20)/2, Size.Y+5), ui::Point(textWidth+20, 16), "Click the box below to copy the save ID");
+	int textWidth = Graphics::TextSize(ByteString("单击此框复制沙盘ID").FromUtf8()).X - 1;
+	saveIDLabel = new ui::Label(ui::Point((Size.X-textWidth-20)/2, Size.Y+5), ui::Point(textWidth+20, 16), ByteString("单击此框复制沙盘ID").FromUtf8());
 	saveIDLabel->SetTextColour(ui::Colour(150, 150, 150));
 	saveIDLabel->Appearance.HorizontalAlign = ui::Appearance::AlignCentre;
 	AddComponent(saveIDLabel);
 
 	textWidth = Graphics::TextSize(String::Build(c->SaveID())).X - 1;
-	saveIDLabel2 = new ui::Label(ui::Point((Size.X-textWidth-20)/2-37, Size.Y+22), ui::Point(40, 16), "Save ID:");
+	saveIDLabel2 = new ui::Label(ui::Point((Size.X-textWidth-20)/2-37, Size.Y+22), ui::Point(40, 16), ByteString("沙盘ID:").FromUtf8());
 	AddComponent(saveIDLabel2);
 
 	saveIDButton = new ui::CopyTextButton(ui::Point((Size.X-textWidth-10)/2, Size.Y+20), ui::Point(textWidth+10, 18), String::Build(c->SaveID()), saveIDLabel);
@@ -269,7 +273,7 @@ void PreviewView::DoDraw()
 	{
 		g->BlendFilledRect(RectSized(Position + Size / 2 - Vec2{ 101, 26 }, { 202, 52 }), 0x000000_rgb .WithAlpha(210));
 		g->BlendRect(RectSized(Position + Size / 2 - Vec2{ 100, 25 }, Vec2{ 200, 50 }), 0xFFFFFF_rgb .WithAlpha(180));
-		g->BlendText(Position + Vec2{(Size.X/2)-((Graphics::TextSize("Loading save...").X - 1)/2), (Size.Y/2)-5}, "Loading save...", style::Colour::InformationTitle.NoAlpha().WithAlpha(255));
+		g->BlendText(Position + Vec2{(Size.X/2)-((Graphics::TextSize(ByteString("加载沙盘中...").FromUtf8()).X - 1)/2), (Size.Y/2)-5}, ByteString("加载沙盘中...").FromUtf8(), style::Colour::InformationTitle.NoAlpha().WithAlpha(255));
 	}
 	g->DrawRect(RectSized(Position, Size), 0xFFFFFF_rgb);
 
@@ -312,10 +316,10 @@ void PreviewView::OnDraw()
 		nyu = nyu>50?50:nyu;
 		nyd = nyd>50?50:nyd;
 
-		g->DrawFilledRect(RectSized(Position + RES / 2 + Vec2{ -55, 3 }, Vec2{ 53, 7 }), 0x006B0A_rgb);
-		g->DrawFilledRect(RectSized(Position + RES / 2 + Vec2{ -55, 9 }, Vec2{ 53, 7 }), 0x6B0A00_rgb);
-		g->DrawRect(RectSized(Position + Vec2{ (XRES/2)-55, (YRES/2)+3 }, { 53, 7 }), 0x808080_rgb);
-		g->DrawRect(RectSized(Position + Vec2{ (XRES/2)-55, (YRES/2)+9 }, { 53, 7 }), 0x808080_rgb);
+		g->DrawFilledRect(RectSized(Position + RES / 2 + Vec2{ -56, 3 }, Vec2{ 54, 7 }), 0x006B0A_rgb);
+		g->DrawFilledRect(RectSized(Position + RES / 2 + Vec2{ -56, 9 }, Vec2{ 54, 7 }), 0x6B0A00_rgb);
+		g->DrawRect(RectSized(Position + Vec2{ (XRES/2)-56, (YRES/2)+3 }, { 54, 7 }), 0x808080_rgb);
+		g->DrawRect(RectSized(Position + Vec2{ (XRES/2)-56, (YRES/2)+9 }, { 54, 7 }), 0x808080_rgb);
 
 		g->DrawFilledRect(RectSized(Position + RES / 2 + Vec2{ -4-nyu, 5 }, Vec2{ nyu, 3 }), 0x39BB39_rgb);
 		g->DrawFilledRect(RectSized(Position + RES / 2 + Vec2{ -4-nyd, 11 }, Vec2{ nyd, 3 }), 0xBB3939_rgb);
@@ -368,7 +372,7 @@ void PreviewView::OnTick(float dt)
 	c->Update();
 	if (doError)
 	{
-		ErrorMessage::Blocking("Error loading save", doErrorMessage);
+		ErrorMessage::Blocking(ByteString("无法加载沙盘").FromUtf8(), doErrorMessage);
 		c->Exit();
 	}
 }
@@ -415,8 +419,7 @@ void PreviewView::OnKeyPress(int key, int scan, bool repeat, bool shift, bool ct
 
 void PreviewView::NotifySaveChanged(PreviewModel * sender)
 {
-	SaveInfo * save = sender->GetSaveInfo();
-	savePreview = nullptr;
+	auto *save = sender->GetSaveInfo();
 	if(save)
 	{
 		votesUp = save->votesUp;
@@ -445,16 +448,16 @@ void PreviewView::NotifySaveChanged(PreviewModel * sender)
 		if(save->Favourite)
 		{
 			favButton->Enabled = true;
-			favButton->SetText("Unfav");
+			favButton->SetText(ByteString("取消").FromUtf8());
 		}
 		else if(Client::Ref().GetAuthUser().UserID)
 		{
 			favButton->Enabled = true;
-			favButton->SetText("Fav");
+			favButton->SetText(ByteString("收藏").FromUtf8());
 		}
 		else
 		{
-			favButton->SetText("Fav");
+			favButton->SetText(ByteString("收藏").FromUtf8());
 			favButton->Enabled = false;
 		}
 
@@ -521,7 +524,7 @@ void PreviewView::NotifyCommentBoxEnabledChanged(PreviewModel * sender)
 		commentBoxSizeX = float(Size.X-(XRES/2)-48);
 		commentBoxSizeY = 17;
 
-		addCommentBox = new ui::Textbox(ui::Point((XRES/2)+4, Size.Y-19), ui::Point(Size.X-(XRES/2)-48, 17), "", "Add Comment");
+		addCommentBox = new ui::Textbox(ui::Point((XRES/2)+4, Size.Y-19), ui::Point(Size.X-(XRES/2)-48, 17), "", ByteString("评论").FromUtf8());
 		addCommentBox->SetActionCallback({ [this] {
 			CheckComment();
 			commentBoxAutoHeight();
@@ -529,7 +532,7 @@ void PreviewView::NotifyCommentBoxEnabledChanged(PreviewModel * sender)
 		addCommentBox->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 		addCommentBox->SetMultiline(true);
 		AddComponent(addCommentBox);
-		submitCommentButton = new ui::Button(ui::Point(Size.X-40, Size.Y-19), ui::Point(40, 19), "Submit");
+		submitCommentButton = new ui::Button(ui::Point(Size.X-40, Size.Y-19), ui::Point(40, 19), ByteString("发布").FromUtf8());
 		submitCommentButton->SetActionCallback({ [this] { submitComment(); } });
 		//submitCommentButton->Enabled = false;
 		AddComponent(submitCommentButton);
@@ -542,7 +545,7 @@ void PreviewView::NotifyCommentBoxEnabledChanged(PreviewModel * sender)
 	}
 	else
 	{
-		submitCommentButton = new ui::Button(ui::Point(XRES/2, Size.Y-19), ui::Point(Size.X-(XRES/2), 19), "Login to comment");
+		submitCommentButton = new ui::Button(ui::Point(XRES/2, Size.Y-19), ui::Point(Size.X-(XRES/2), 19),  ByteString("登陆后评论").FromUtf8());
 		submitCommentButton->SetActionCallback({ [this] { c->ShowLogin(); } });
 		AddComponent(submitCommentButton);
 	}

@@ -92,3 +92,6 @@ screenshot_*
 /font/
 compile_commands.json
 ignore/
+Downloads/zpix.bdf
+resources/cmex16m.bdf
+resources/cnxt.bdf

@@ -15,25 +15,25 @@
 
 #include "Config.h"
 
-LocalSaveActivity::LocalSaveActivity(SaveFile save, OnSaved onSaved_) :
+LocalSaveActivity::LocalSaveActivity(std::unique_ptr<SaveFile> newSave, OnSaved onSaved_) :
 	WindowActivity(ui::Point(-1, -1), ui::Point(220, 200)),
-	save(save),
+	save(std::move(newSave)),
 	thumbnailRenderer(nullptr),
 	onSaved(onSaved_)
 {
-	ui::Label * titleLabel = new ui::Label(ui::Point(4, 5), ui::Point(Size.X-8, 16), "Save to computer:");
+	ui::Label * titleLabel = new ui::Label(ui::Point(4, 5), ui::Point(Size.X-8, 16), ByteString("保存到本地:").FromUtf8());
 	titleLabel->SetTextColour(style::Colour::InformationTitle);
 	titleLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	titleLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	AddComponent(titleLabel);
 
-	filenameField = new ui::Textbox(ui::Point(8, 25), ui::Point(Size.X-16, 16), save.GetDisplayName(), "[filename]");
+	filenameField = new ui::Textbox(ui::Point(8, 25), ui::Point(Size.X-16, 16), save->GetDisplayName(), ByteString("[文件名]").FromUtf8());
 	filenameField->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	filenameField->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	AddComponent(filenameField);
 	FocusComponent(filenameField);
 
-	ui::Button * cancelButton = new ui::Button(ui::Point(0, Size.Y-16), ui::Point(Size.X-75, 16), "Cancel");
+	ui::Button * cancelButton = new ui::Button(ui::Point(0, Size.Y-16), ui::Point(Size.X-75, 16), ByteString("取消").FromUtf8());
 	cancelButton->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	cancelButton->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	cancelButton->Appearance.BorderInactive = ui::Colour(200, 200, 200);
@@ -43,7 +43,7 @@ LocalSaveActivity::LocalSaveActivity(SaveFile save, OnSaved onSaved_) :
 	AddComponent(cancelButton);
 	SetCancelButton(cancelButton);
 
-	ui::Button * okayButton = new ui::Button(ui::Point(Size.X-76, Size.Y-16), ui::Point(76, 16), "Save");
+	ui::Button * okayButton = new ui::Button(ui::Point(Size.X-76, Size.Y-16), ui::Point(76, 16), ByteString("保存").FromUtf8());
 	okayButton->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	okayButton->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	okayButton->Appearance.TextInactive = style::Colour::InformationTitle;
@@ -53,9 +53,9 @@ LocalSaveActivity::LocalSaveActivity(SaveFile save, OnSaved onSaved_) :
 	AddComponent(okayButton);
 	SetOkayButton(okayButton);
 
-	if(save.GetGameSave())
+	if(save->GetGameSave())
 	{
-		thumbnailRenderer = new ThumbnailRendererTask(*save.GetGameSave(), Size - Vec2(16, 16), true, false);
+		thumbnailRenderer = new ThumbnailRendererTask(*save->GetGameSave(), Size - Vec2(16, 16), true, false);
 		thumbnailRenderer->Start();
 	}
 }
@@ -77,16 +77,16 @@ void LocalSaveActivity::Save()
 {
 	if (filenameField->GetText().Contains('/') || filenameField->GetText().BeginsWith("."))
 	{
-		new ErrorMessage("Error", "Invalid filename.");
+		new ErrorMessage(ByteString("错误").FromUtf8(), ByteString("无效的文件名").FromUtf8());
 	}
 	else if (filenameField->GetText().length())
 	{
 		ByteString finalFilename = ByteString::Build(LOCAL_SAVE_DIR, PATH_SEP_CHAR, filenameField->GetText().ToUtf8(), ".cps");
-		save.SetDisplayName(filenameField->GetText());
-		save.SetFileName(finalFilename);
+		save->SetDisplayName(filenameField->GetText());
+		save->SetFileName(finalFilename);
 		if (Platform::FileExists(finalFilename))
 		{
-			new ConfirmPrompt("Overwrite file", "Are you sure you wish to overwrite\n"+finalFilename.FromUtf8(), { [this, finalFilename] {
+			new ConfirmPrompt(ByteString("覆盖文件").FromUtf8(), ByteString("确定要覆盖吗?\n").FromUtf8()+finalFilename.FromUtf8(), { [this, finalFilename] {
 				saveWrite(finalFilename);
 			} });
 		}
@@ -97,22 +97,25 @@ void LocalSaveActivity::Save()
 	}
 	else
 	{
-		new ErrorMessage("Error", "You must specify a filename.");
+		new ErrorMessage(ByteString("错误").FromUtf8(), ByteString("文件名不能为空").FromUtf8());
 	}
 }
 
 void LocalSaveActivity::saveWrite(ByteString finalFilename)
 {
 	Platform::MakeDirectory(LOCAL_SAVE_DIR);
-	GameSave *gameSave = save.GetGameSave();
 	Json::Value localSaveInfo;
 	localSaveInfo["type"] = "localsave";
 	localSaveInfo["username"] = Client::Ref().GetAuthUser().Username;
 	localSaveInfo["title"] = finalFilename;
 	localSaveInfo["date"] = (Json::Value::UInt64)time(NULL);
 	Client::Ref().SaveAuthorInfo(&localSaveInfo);
-	gameSave->authors = localSaveInfo;
-	auto [ fromNewerVersion, saveData ] = gameSave->Serialise();
+	{
+		auto gameSave = save->TakeGameSave();
+		gameSave->authors = localSaveInfo;
+		save->SetGameSave(std::move(gameSave));
+	}
+	auto [ fromNewerVersion, saveData ] = save->GetGameSave()->Serialise();
 	(void)fromNewerVersion;
 	if (saveData.size() == 0)
 		new ErrorMessage("Error", "Unable to serialize game data.");
@@ -122,7 +125,7 @@ void LocalSaveActivity::saveWrite(ByteString finalFilename)
 	{
 		if (onSaved)
 		{
-			onSaved(&save);
+			onSaved(std::move(save));
 		}
 		Exit();
 	}

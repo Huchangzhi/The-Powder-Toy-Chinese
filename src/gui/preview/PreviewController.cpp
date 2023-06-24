@@ -5,20 +5,22 @@
 #include "PreviewView.h"
 #include "client/Client.h"
 #include "client/SaveInfo.h"
+#include "client/GameSave.h"
 #include "common/platform/Platform.h"
+#include "graphics/Graphics.h"
 #include "gui/dialogues/ErrorMessage.h"
 #include "gui/dialogues/InformationMessage.h"
 #include "gui/login/LoginController.h"
 #include "gui/login/LoginView.h"
 #include "Config.h"
 
-PreviewController::PreviewController(int saveID, int saveDate, bool instant, std::function<void ()> onDone_):
+PreviewController::PreviewController(int saveID, int saveDate, bool instant, std::function<void ()> onDone_, std::unique_ptr<VideoBuffer> thumbnail):
 	saveId(saveID),
 	loginWindow(NULL),
 	HasExited(false)
 {
 	previewModel = new PreviewModel();
-	previewView = new PreviewView();
+	previewView = new PreviewView(std::move(thumbnail));
 	previewModel->AddObserver(previewView);
 	previewView->AttachController(this);
 	previewModel->SetDoOpen(instant);
@@ -84,9 +86,14 @@ void PreviewController::NotifyAuthUserChanged(Client * sender)
 	previewModel->SetCommentBoxEnabled(sender->GetAuthUser().UserID);
 }
 
-SaveInfo * PreviewController::GetSaveInfo()
+const SaveInfo *PreviewController::GetSaveInfo() const
 {
 	return previewModel->GetSaveInfo();
+}
+
+std::unique_ptr<SaveInfo> PreviewController::TakeSaveInfo()
+{
+	return previewModel->TakeSaveInfo();
 }
 
 bool PreviewController::GetDoOpen()

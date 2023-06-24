@@ -121,11 +121,9 @@ public:
 	uint64_t frameCount;
 	bool ensureDeterminism;
 
-	int Load(const GameSave * save, bool includePressure);
-	int Load(const GameSave * save, bool includePressure, int x, int y);
-	GameSave * Save(bool includePressure);
-	GameSave * Save(bool includePressure, int x1, int y1, int x2, int y2);
-	void SaveSimOptions(GameSave * gameSave);
+	void Load(const GameSave *save, bool includePressure, Vec2<int> blockP); // block coordinates
+	std::unique_ptr<GameSave> Save(bool includePressure, Rect<int> partR); // particle coordinates
+	void SaveSimOptions(GameSave &gameSave);
 	SimulationSample GetSample(int x, int y);
 
 	std::unique_ptr<Snapshot> CreateSnapshot();
@@ -135,7 +133,6 @@ public:
 	int is_boundary(int pt, int x, int y);
 	int find_next_boundary(int pt, int *x, int *y, int dm, int *em, bool reverse);
 	void photoelectric_effect(int nx, int ny);
-	unsigned direction_to_map(float dx, float dy, int t);
 	int do_move(int i, int x, int y, float nxf, float nyf);
 	bool move(int i, int x, int y, float nxf, float nyf);
 	int try_move(int i, int x, int y, int nx, int ny);
@@ -221,7 +218,10 @@ public:
 	Simulation();
 	~Simulation();
 
-	bool InBounds(int x, int y);
+	static bool InBounds(int x, int y)
+	{
+		return RES.OriginRect().Contains({ x, y });
+	}
 
 	// These don't really belong anywhere at the moment, so go here for loop edge mode
 	static int remainder_p(int x, int y);

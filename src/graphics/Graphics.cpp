@@ -36,15 +36,15 @@ void VideoBuffer::Crop(Rect<int> rect)
 	if (rect == Size().OriginRect())
 		return;
 
-	PlaneAdapter<std::vector<pixel> &> newVideo(rect.Size(), video.Base);
+	PlaneAdapter<std::vector<pixel> &> newVideo(rect.Size(), std::in_place, video.Base);
 	for (auto y = 0; y < newVideo.Size().Y; y++)
 		std::copy_n(
 			video.RowIterator(rect.TopLeft + Vec2(0, y)),
 			newVideo.Size().X,
 			newVideo.RowIterator(Vec2(0, y))
 		);
-	newVideo.Base.resize(newVideo.Size().X * newVideo.Size().Y);
-	newVideo.Base.shrink_to_fit();
+	video.Base.resize(newVideo.Size().X * newVideo.Size().Y);
+	video.Base.shrink_to_fit();
 	video.SetSize(newVideo.Size());
 }
 
@@ -123,7 +123,7 @@ void VideoBuffer::Resize(Vec2<int> size, bool resample)
 
 void VideoBuffer::Resize(float factor, bool resample)
 {
-	Resize(Vec2<int>(Size() * factor), resample);
+	Resize(Vec2{ int(Size().X * factor), int(Size().Y * factor) }, resample);
 }
 
 void VideoBuffer::ResizeToFit(Vec2<int> bound, bool resample)
@@ -131,10 +131,13 @@ void VideoBuffer::ResizeToFit(Vec2<int> bound, bool resample)
 	Vec2<int> size = Size();
 	if (size.X > bound.X || size.Y > bound.Y)
 	{
+		auto ceilDiv = [](int a, int b) {
+			return a / b + ((a % b) ? 1 : 0);
+		};
 		if (bound.X * size.Y < bound.Y * size.X)
-			size = size * bound.X / size.X;
+			size = { bound.X, ceilDiv(size.Y * bound.X, size.X) };
 		else
-			size = size * bound.Y / size.Y;
+			size = { ceilDiv(size.X * bound.Y, size.Y), bound.Y };
 	}
 	Resize(size, resample);
 }
@@ -162,7 +165,7 @@ std::vector<char> VideoBuffer::ToPPM() const
 	return format::PixelsToPPM(video);
 }
 
-template class RasterDrawMethods<VideoBuffer>;
+template struct RasterDrawMethods<VideoBuffer>;
 
 Graphics::Graphics()
 {}
@@ -194,12 +197,12 @@ void Graphics::draw_icon(int x, int y, Icon icon, unsigned char alpha, bool inve
 		if(invert)
 		{
 			BlendChar({ x-11, y+1 }, 0xE04B, 0x006400_rgb .WithAlpha(alpha));
-			BlendText({ x+2, y+1 }, "Vote", 0x006400_rgb .WithAlpha(alpha));
+			BlendText({ x+2, y+1 }, ByteString(" 赞").FromUtf8(), 0x006400_rgb .WithAlpha(alpha));
 		}
 		else
 		{
 			BlendChar({ x-11, y+1 }, 0xE04B, 0x00BB12_rgb .WithAlpha(alpha));
-			BlendText({ x+2, y+1 }, "Vote", 0x00BB12_rgb .WithAlpha(alpha));
+			BlendText({ x+2, y+1 }, ByteString(" 赞").FromUtf8(), 0x00BB12_rgb .WithAlpha(alpha));
 		}
 		break;
 	case IconVoteDown:
@@ -480,7 +483,7 @@ std::vector<RGB<uint8_t>> Graphics::Gradient(std::vector<GradientStop> stops, in
 			auto &left = stops[stop];
 			auto &right = stops[stop + 1];
 			auto f = (point - left.point) / (right.point - left.point);
-			table[i] = left.color.Blend(right.color.WithAlpha(f * 0xFF));
+			table[i] = left.color.Blend(right.color.WithAlpha(uint8_t(f * 0xFF)));
 		}
 	}
 	return table;

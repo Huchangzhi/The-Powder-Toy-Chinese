@@ -17,9 +17,9 @@ LocalBrowserView::LocalBrowserView():
 	lastChanged(0),
 	pageCount(0)
 {
-	nextButton = new ui::Button(ui::Point(WINDOWW-52, WINDOWH-18), ui::Point(50, 16), String("Next ") + 0xE015);
-	previousButton = new ui::Button(ui::Point(2, WINDOWH-18), ui::Point(50, 16), 0xE016 + String(" Prev"));
-	undeleteButton = new ui::Button(ui::Point(WINDOWW-122, WINDOWH-18), ui::Point(60, 16), "Rescan");
+	nextButton = new ui::Button(ui::Point(WINDOWW-62, WINDOWH-18), ui::Point(60, 16), String(ByteString("下一页").FromUtf8()) + 0xE015);
+	previousButton = new ui::Button(ui::Point(2, WINDOWH-18), ui::Point(60, 16), 0xE016 + String(ByteString("上一页").FromUtf8()));
+	undeleteButton = new ui::Button(ui::Point(WINDOWW-122, WINDOWH-18), ui::Point(60, 16), ByteString("刷新").FromUtf8());
 	AddComponent(nextButton);
 	AddComponent(previousButton);
 	AddComponent(undeleteButton);
@@ -45,7 +45,7 @@ LocalBrowserView::LocalBrowserView():
 
 	undeleteButton->SetActionCallback({ [this] { c->RescanStamps(); } });
 
-	removeSelected = new ui::Button(ui::Point(((WINDOWW-100)/2), WINDOWH-18), ui::Point(100, 16), "Delete");
+	removeSelected = new ui::Button(ui::Point(((WINDOWW-100)/2), WINDOWH-18), ui::Point(100, 16), ByteString("删除").FromUtf8());
 	removeSelected->Visible = false;
 	removeSelected->SetActionCallback({ [this] { c->RemoveSelected(); } });
 	AddComponent(removeSelected);
@@ -118,7 +118,7 @@ void LocalBrowserView::NotifySavesListChanged(LocalBrowserModel * sender)
 	int buttonWidth, buttonHeight, saveX = 0, saveY = 0, savesX = 5, savesY = 4, buttonPadding = 2;
 	int buttonAreaWidth, buttonAreaHeight, buttonXOffset, buttonYOffset;
 
-	std::vector<SaveFile*> saves = sender->GetSavesList();
+	auto saves = sender->GetSavesList(); // non-owning
 	for (size_t i = 0; i < stampButtons.size(); i++)
 	{
 		RemoveComponent(stampButtons[i]);
@@ -131,7 +131,7 @@ void LocalBrowserView::NotifySavesListChanged(LocalBrowserModel * sender)
 	buttonAreaHeight = Size.Y - buttonYOffset - 18;
 	buttonWidth = (buttonAreaWidth/savesX) - buttonPadding*2;
 	buttonHeight = (buttonAreaHeight/savesY) - buttonPadding*2;
-	for (size_t i = 0; i < saves.size(); i++)
+	for (auto i = 0; i < int(saves.size()); i++)
 	{
 		if(saveX == savesX)
 		{
@@ -150,9 +150,9 @@ void LocalBrowserView::NotifySavesListChanged(LocalBrowserModel * sender)
 					saves[i]);
 		saveButton->SetSelectable(true);
 		saveButton->SetActionCallback({
-			[this, saveButton] {
+			[this, saveButton, i] {
 				if (saveButton->GetSaveFile())
-					c->OpenSave(saveButton->GetSaveFile());
+					c->OpenSave(i);
 			},
 			nullptr,
 			nullptr,

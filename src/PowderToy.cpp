@@ -78,15 +78,16 @@ void SaveWindowPosition()
 void LargeScreenDialog()
 {
 	StringBuilder message;
-	message << "Switching to " << scale << "x size mode since your screen was determined to be large enough: ";
-	message << desktopWidth << "x" << desktopHeight << " detected, " << WINDOWW*scale << "x" << WINDOWH*scale << " required";
-	message << "\nTo undo this, hit Cancel. You can change this in settings at any time.";
-	if (!ConfirmPrompt::Blocking("Large screen detected", message.Build()))
+	message <<  ByteString("切换到 ").FromUtf8() << scale <<  ByteString("x 模式，因为你的屏幕已经够大了:").FromUtf8();
+	message << desktopWidth << "x" << desktopHeight <<  ByteString("<-检测到 ,").FromUtf8() << WINDOWW*scale << "x" << WINDOWH*scale <<  ByteString("<-要求").FromUtf8();
+	message <<  ByteString("\n要撤销此操作，请点击\"取消\"。可以随时在设置中更改它。”").FromUtf8();
+	if (!ConfirmPrompt::Blocking(ByteString("检测到大屏幕").FromUtf8(), message.Build()))
 	{
 		GlobalPrefs::Ref().Set("Scale", 1);
 		ui::Engine::Ref().SetScale(1);
 	}
 }
+
 
 void TickClient()
 {
@@ -415,11 +416,10 @@ int main(int argc, char * argv[])
 					}
 					else
 					{
-						SaveFile * newFile = new SaveFile(openArg.value());
-						GameSave * newSave = new GameSave(std::move(gameSaveData));
-						newFile->SetGameSave(newSave);
-						gameController->LoadSaveFile(newFile);
-						delete newFile;
+						auto newFile = std::make_unique<SaveFile>(openArg.value());
+						auto newSave = std::make_unique<GameSave>(std::move(gameSaveData));
+						newFile->SetGameSave(std::move(newSave));
+						gameController->LoadSaveFile(std::move(newFile));
 					}
 
 				}
@@ -439,7 +439,7 @@ int main(int argc, char * argv[])
 		{
 			engine.g->Clear();
 			engine.g->DrawRect(RectSized(engine.g->Size() / 2 - Vec2(100, 25), Vec2(200, 50)), 0xB4B4B4_rgb);
-			String loadingText = "Loading save...";
+			String loadingText = ByteString("加载沙盘中...").FromUtf8();
 			engine.g->BlendText(engine.g->Size() / 2 - Vec2((Graphics::TextSize(loadingText).X - 1) / 2, 5), loadingText, style::Colour::InformationTitle);
 
 			blit(engine.g->Data());
@@ -463,17 +463,16 @@ int main(int argc, char * argv[])
 				}
 				int saveId = saveIdPart.ToNumber<int>();
 
-				SaveInfo * newSave = Client::Ref().GetSave(saveId, 0);
+				auto newSave = Client::Ref().GetSave(saveId, 0);
 				if (!newSave)
 					throw std::runtime_error("Could not load save info");
 				auto saveData = Client::Ref().GetSaveData(saveId, 0);
 				if (!saveData.size())
 					throw std::runtime_error(("Could not load save\n" + Client::Ref().GetLastError()).ToUtf8());
-				GameSave * newGameSave = new GameSave(std::move(saveData));
-				newSave->SetGameSave(newGameSave);
+				auto newGameSave = std::make_unique<GameSave>(std::move(saveData));
+				newSave->SetGameSave(std::move(newGameSave));
 
-				gameController->LoadSave(newSave);
-				delete newSave;
+				gameController->LoadSave(std::move(newSave));
 			}
 			catch (std::exception & e)
 			{

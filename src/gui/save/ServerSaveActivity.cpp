@@ -21,7 +21,7 @@
 
 class SaveUploadTask: public Task
 {
-	SaveInfo save;
+	SaveInfo &save;
 
 	void before() override
 	{
@@ -40,22 +40,17 @@ class SaveUploadTask: public Task
 	}
 
 public:
-	SaveInfo GetSave()
-	{
-		return save;
-	}
-
-	SaveUploadTask(SaveInfo save):
-		save(save)
+	SaveUploadTask(SaveInfo &newSave):
+		save(newSave)
 	{
 
 	}
 };
 
-ServerSaveActivity::ServerSaveActivity(SaveInfo save, OnUploaded onUploaded_) :
+ServerSaveActivity::ServerSaveActivity(std::unique_ptr<SaveInfo> newSave, OnUploaded onUploaded_) :
 	WindowActivity(ui::Point(-1, -1), ui::Point(440, 200)),
 	thumbnailRenderer(nullptr),
-	save(save),
+	save(std::move(newSave)),
 	onUploaded(onUploaded_),
 	saveUploadTask(NULL)
 {
@@ -64,30 +59,30 @@ ServerSaveActivity::ServerSaveActivity(SaveInfo save, OnUploaded onUploaded_) :
 	titleLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	titleLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	AddComponent(titleLabel);
-	CheckName(save.GetName()); //set titleLabel text
+	CheckName(save->GetName()); //set titleLabel text
 
-	ui::Label * previewLabel = new ui::Label(ui::Point((Size.X/2)+4, 5), ui::Point((Size.X/2)-8, 16), "Preview:");
+	ui::Label * previewLabel = new ui::Label(ui::Point((Size.X/2)+4, 5), ui::Point((Size.X/2)-8, 16), ByteString("预览").FromUtf8());
 	previewLabel->SetTextColour(style::Colour::InformationTitle);
 	previewLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	previewLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	AddComponent(previewLabel);
 
-	nameField = new ui::Textbox(ui::Point(8, 25), ui::Point((Size.X/2)-16, 16), save.GetName(), "[save name]");
+	nameField = new ui::Textbox(ui::Point(8, 25), ui::Point((Size.X/2)-16, 16), save->GetName(), ByteString("[沙盘名]").FromUtf8());
 	nameField->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	nameField->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	nameField->SetActionCallback({ [this] { CheckName(nameField->GetText()); } });
 	AddComponent(nameField);
 	FocusComponent(nameField);
 
-	descriptionField = new ui::Textbox(ui::Point(8, 65), ui::Point((Size.X/2)-16, Size.Y-(65+16+4)), save.GetDescription(), "[save description]");
+	descriptionField = new ui::Textbox(ui::Point(8, 65), ui::Point((Size.X/2)-16, Size.Y-(65+16+4)), save->GetDescription(), ByteString("[沙盘描述]").FromUtf8());
 	descriptionField->SetMultiline(true);
 	descriptionField->SetLimit(254);
 	descriptionField->Appearance.VerticalAlign = ui::Appearance::AlignTop;
 	descriptionField->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	AddComponent(descriptionField);
 
-	publishedCheckbox = new ui::Checkbox(ui::Point(8, 45), ui::Point((Size.X/2)-80, 16), "Publish", "");
-	if(Client::Ref().GetAuthUser().Username != save.GetUserName())
+	publishedCheckbox = new ui::Checkbox(ui::Point(8, 45), ui::Point((Size.X/2)-80, 16), ByteString("公开").FromUtf8(), "");
+	if(Client::Ref().GetAuthUser().Username != save->GetUserName())
 	{
 		//Save is not owned by the user, disable by default
 		publishedCheckbox->SetChecked(false);
@@ -95,15 +90,15 @@ ServerSaveActivity::ServerSaveActivity(SaveInfo save, OnUploaded onUploaded_) :
 	else
 	{
 		//Save belongs to the current user, use published state already set
-		publishedCheckbox->SetChecked(save.GetPublished());
+		publishedCheckbox->SetChecked(save->GetPublished());
 	}
 	AddComponent(publishedCheckbox);
 
-	pausedCheckbox = new ui::Checkbox(ui::Point(160, 45), ui::Point(55, 16), "Paused", "");
-	pausedCheckbox->SetChecked(save.GetGameSave()->paused);
+	pausedCheckbox = new ui::Checkbox(ui::Point(130, 45), ui::Point(55, 16), ByteString("启动时暂停").FromUtf8(), "");
+	pausedCheckbox->SetChecked(save->GetGameSave()->paused);
 	AddComponent(pausedCheckbox);
 
-	ui::Button * cancelButton = new ui::Button(ui::Point(0, Size.Y-16), ui::Point((Size.X/2)-75, 16), "Cancel");
+	ui::Button * cancelButton = new ui::Button(ui::Point(0, Size.Y-16), ui::Point((Size.X/2)-75, 16), ByteString("取消").FromUtf8());
 	cancelButton->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	cancelButton->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	cancelButton->Appearance.BorderInactive = ui::Colour(200, 200, 200);
@@ -113,7 +108,7 @@ ServerSaveActivity::ServerSaveActivity(SaveInfo save, OnUploaded onUploaded_) :
 	AddComponent(cancelButton);
 	SetCancelButton(cancelButton);
 
-	ui::Button * okayButton = new ui::Button(ui::Point((Size.X/2)-76, Size.Y-16), ui::Point(76, 16), "Save");
+	ui::Button * okayButton = new ui::Button(ui::Point((Size.X/2)-76, Size.Y-16), ui::Point(76, 16), ByteString("保存").FromUtf8());
 	okayButton->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	okayButton->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	okayButton->Appearance.TextInactive = style::Colour::InformationTitle;
@@ -123,7 +118,7 @@ ServerSaveActivity::ServerSaveActivity(SaveInfo save, OnUploaded onUploaded_) :
 	AddComponent(okayButton);
 	SetOkayButton(okayButton);
 
-	ui::Button * PublishingInfoButton = new ui::Button(ui::Point((Size.X*3/4)-75, Size.Y-42), ui::Point(150, 16), "Publishing Info");
+	ui::Button * PublishingInfoButton = new ui::Button(ui::Point((Size.X*3/4)-75, Size.Y-42), ui::Point(150, 16), ByteString("发布须知").FromUtf8());
 	PublishingInfoButton->Appearance.HorizontalAlign = ui::Appearance::AlignCentre;
 	PublishingInfoButton->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	PublishingInfoButton->Appearance.TextInactive = style::Colour::InformationTitle;
@@ -132,7 +127,7 @@ ServerSaveActivity::ServerSaveActivity(SaveInfo save, OnUploaded onUploaded_) :
 	} });
 	AddComponent(PublishingInfoButton);
 
-	ui::Button * RulesButton = new ui::Button(ui::Point((Size.X*3/4)-75, Size.Y-22), ui::Point(150, 16), "Save Uploading Rules");
+	ui::Button * RulesButton = new ui::Button(ui::Point((Size.X*3/4)-75, Size.Y-22), ui::Point(150, 16), ByteString("沙盘上传须知").FromUtf8());
 	RulesButton->Appearance.HorizontalAlign = ui::Appearance::AlignCentre;
 	RulesButton->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	RulesButton->Appearance.TextInactive = style::Colour::InformationTitle;
@@ -141,21 +136,21 @@ ServerSaveActivity::ServerSaveActivity(SaveInfo save, OnUploaded onUploaded_) :
 	} });
 	AddComponent(RulesButton);
 
-	if (save.GetGameSave())
+	if (save->GetGameSave())
 	{
-		thumbnailRenderer = new ThumbnailRendererTask(*save.GetGameSave(), Size / 2 - Vec2(16, 16), false, true);
+		thumbnailRenderer = new ThumbnailRendererTask(*save->GetGameSave(), Size / 2 - Vec2(16, 16), false, true);
 		thumbnailRenderer->Start();
 	}
 }
 
-ServerSaveActivity::ServerSaveActivity(SaveInfo save, bool saveNow, OnUploaded onUploaded_) :
+ServerSaveActivity::ServerSaveActivity(std::unique_ptr<SaveInfo> newSave, bool saveNow, OnUploaded onUploaded_) :
 	WindowActivity(ui::Point(-1, -1), ui::Point(200, 50)),
 	thumbnailRenderer(nullptr),
-	save(save),
+	save(std::move(newSave)),
 	onUploaded(onUploaded_),
 	saveUploadTask(NULL)
 {
-	ui::Label * titleLabel = new ui::Label(ui::Point(0, 0), Size, "Saving to server...");
+	ui::Label * titleLabel = new ui::Label(ui::Point(0, 0), Size, ByteString("正在保存到云端...").FromUtf8());
 	titleLabel->SetTextColour(style::Colour::InformationTitle);
 	titleLabel->Appearance.HorizontalAlign = ui::Appearance::AlignCentre;
 	titleLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -163,7 +158,7 @@ ServerSaveActivity::ServerSaveActivity(SaveInfo save, bool saveNow, OnUploaded o
 
 	AddAuthorInfo();
 
-	saveUploadTask = new SaveUploadTask(this->save);
+	saveUploadTask = new SaveUploadTask(*this->save);
 	saveUploadTask->AddTaskListener(this);
 	saveUploadTask->Start();
 }
@@ -179,7 +174,7 @@ void ServerSaveActivity::NotifyDone(Task * task)
 	{
 		if (onUploaded)
 		{
-			onUploaded(save);
+			onUploaded(std::move(save));
 		}
 		Exit();
 	}
@@ -189,9 +184,9 @@ void ServerSaveActivity::Save()
 {
 	if(nameField->GetText().length())
 	{
-		if(Client::Ref().GetAuthUser().Username != save.GetUserName() && publishedCheckbox->GetChecked())
+		if(Client::Ref().GetAuthUser().Username != save->GetUserName() && publishedCheckbox->GetChecked())
 		{
-			new ConfirmPrompt("Publish", "This save was created by " + save.GetUserName().FromUtf8() + ", you're about to publish this under your own name; If you haven't been given permission by the author to do so, please uncheck the publish box, otherwise continue", { [this] {
+			new ConfirmPrompt("Publish", "This save was created by " + save->GetUserName().FromUtf8() + ", you're about to publish this under your own name; If you haven't been given permission by the author to do so, please uncheck the publish box, otherwise continue", { [this] {
 				Exit();
 				saveUpload();
 			} });
@@ -204,7 +199,7 @@ void ServerSaveActivity::Save()
 	}
 	else
 	{
-		new ErrorMessage("Error", "You must specify a save name.");
+		new ErrorMessage(ByteString("错误").FromUtf8(), ByteString("文件名不能为空").FromUtf8());
 	}
 }
 
@@ -212,34 +207,42 @@ void ServerSaveActivity::AddAuthorInfo()
 {
 	Json::Value serverSaveInfo;
 	serverSaveInfo["type"] = "save";
-	serverSaveInfo["id"] = save.GetID();
+	serverSaveInfo["id"] = save->GetID();
 	serverSaveInfo["username"] = Client::Ref().GetAuthUser().Username;
-	serverSaveInfo["title"] = save.GetName().ToUtf8();
-	serverSaveInfo["description"] = save.GetDescription().ToUtf8();
-	serverSaveInfo["published"] = (int)save.GetPublished();
+	serverSaveInfo["title"] = save->GetName().ToUtf8();
+	serverSaveInfo["description"] = save->GetDescription().ToUtf8();
+	serverSaveInfo["published"] = (int)save->GetPublished();
 	serverSaveInfo["date"] = (Json::Value::UInt64)time(NULL);
 	Client::Ref().SaveAuthorInfo(&serverSaveInfo);
-	save.GetGameSave()->authors = serverSaveInfo;
+	{
+		auto gameSave = save->TakeGameSave();
+		gameSave->authors = serverSaveInfo;
+		save->SetGameSave(std::move(gameSave));
+	}
 }
 
 void ServerSaveActivity::saveUpload()
 {
-	save.SetName(nameField->GetText());
-	save.SetDescription(descriptionField->GetText());
-	save.SetPublished(publishedCheckbox->GetChecked());
-	save.SetUserName(Client::Ref().GetAuthUser().Username);
-	save.SetID(0);
-	save.GetGameSave()->paused = pausedCheckbox->GetChecked();
+	save->SetName(nameField->GetText());
+	save->SetDescription(descriptionField->GetText());
+	save->SetPublished(publishedCheckbox->GetChecked());
+	save->SetUserName(Client::Ref().GetAuthUser().Username);
+	save->SetID(0);
+	{
+		auto gameSave = save->TakeGameSave();
+		gameSave->paused = pausedCheckbox->GetChecked();
+		save->SetGameSave(std::move(gameSave));
+	}
 	AddAuthorInfo();
 
-	if(Client::Ref().UploadSave(save) != RequestOkay)
+	if(Client::Ref().UploadSave(*save) != RequestOkay)
 	{
 		new ErrorMessage("Error", "Upload failed with error:\n"+Client::Ref().GetLastError());
 	}
 	else if (onUploaded)
 	{
-		new SaveIDMessage(save.GetID());
-		onUploaded(save);
+		new SaveIDMessage(save->GetID());
+		onUploaded(std::move(save));
 	}
 }
 
@@ -343,10 +346,10 @@ void ServerSaveActivity::ShowRules()
 
 void ServerSaveActivity::CheckName(String newname)
 {
-	if (newname.length() && newname == save.GetName() && save.GetUserName() == Client::Ref().GetAuthUser().Username)
+	if (newname.length() && newname == save->GetName() && save->GetUserName() == Client::Ref().GetAuthUser().Username)
 		titleLabel->SetText("Modify simulation properties:");
 	else
-		titleLabel->SetText("Upload new simulation:");
+		titleLabel->SetText(ByteString("保存到云端").FromUtf8());
 }
 
 void ServerSaveActivity::OnTick(float dt)

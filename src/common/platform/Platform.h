@@ -17,6 +17,7 @@ namespace Platform
 	bool Stat(ByteString filename);
 	bool FileExists(ByteString filename);
 	bool DirectoryExists(ByteString directory);
+	bool IsLink(ByteString path);
 	/**
 	 * @return true on success
 	 */
@@ -38,6 +39,8 @@ namespace Platform
 	bool ReadFile(std::vector<char> &fileData, ByteString filename);
 	bool WriteFile(const std::vector<char> &fileData, ByteString filename);
 
+	// TODO: Remove these and switch to *A Win32 API variants when we stop fully supporting windows
+	//       versions older than win10 1903, for example when win10 reaches EOL, see 18084d5aa0e5.
 	ByteString WinNarrow(const std::wstring &source);
 	std::wstring WinWiden(const ByteString &source);
 

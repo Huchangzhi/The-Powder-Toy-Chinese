@@ -1,12 +1,14 @@
 #pragma once
 #include "common/String.h"
 #include <functional>
+#include <memory>
 
 class SaveInfo;
 class PreviewController;
 class PreviewController;
 class SearchView;
 class SearchModel;
+class VideoBuffer;
 class SearchController
 {
 private:
@@ -41,13 +43,12 @@ public:
 	void Selected(int saveID, bool selected);
 	void SelectAllSaves();
 	void InstantOpen(bool instant);
-	void OpenSave(int saveID);
-	void OpenSave(int saveID, int saveDate);
+	void OpenSave(int saveID, int saveDate, std::unique_ptr<VideoBuffer> thumbnail);
 	void Update();
 	void ClearSelection();
 	void RemoveSelected();
 	void UnpublishSelected(bool publish);
 	void FavouriteSelected();
-	void ReleaseLoadedSave();
-	SaveInfo * GetLoadedSave();
+	const SaveInfo *GetLoadedSave() const;
+	std::unique_ptr<SaveInfo> TakeLoadedSave();
 };
