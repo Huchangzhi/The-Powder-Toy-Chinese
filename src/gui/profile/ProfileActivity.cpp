@@ -1,5 +1,7 @@
 #include "ProfileActivity.h"
 #include "client/Client.h"
+#include "client/http/SaveUserInfoRequest.h"
+#include "client/http/GetUserInfoRequest.h"
 #include "common/platform/Platform.h"
 #include "gui/Style.h"
 #include "gui/interface/AvatarButton.h"
@@ -200,30 +202,30 @@ void ProfileActivity::OnTick(float dt)
 
 	if (saveUserInfoRequest && saveUserInfoRequest->CheckDone())
 	{
-		auto SaveUserInfoStatus = saveUserInfoRequest->Finish();
-		if (SaveUserInfoStatus)
+		try
 		{
+			saveUserInfoRequest->Finish();
 			Exit();
 		}
-		else
+		catch (const http::RequestError &ex)
 		{
 			doError = true;
-			doErrorMessage = ByteString("无法保存用户信息: ").FromUtf8() + Client::Ref().GetLastError();
+			doErrorMessage = ByteString("无法保存用户信息: ").FromUtf8() + ByteString(ex.what()).FromUtf8();
 		}
 		saveUserInfoRequest.reset();
 	}
 	if (getUserInfoRequest && getUserInfoRequest->CheckDone())
 	{
-		auto getUserInfoResult = getUserInfoRequest->Finish();
-		if (getUserInfoResult)
+		try
 		{
+			auto userInfo = getUserInfoRequest->Finish();
 			loading = false;
-			setUserInfo(*getUserInfoResult);
+			setUserInfo(userInfo);
 		}
-		else
+		catch (const http::RequestError &ex)
 		{
 			doError = true;
-			doErrorMessage = ByteString("无法保存用户信息: ").FromUtf8() + Client::Ref().GetLastError();
+			doErrorMessage = ByteString("无法保存用户信息: ").FromUtf8()  + ByteString(ex.what()).FromUtf8();
 		}
 		getUserInfoRequest.reset();
 	}

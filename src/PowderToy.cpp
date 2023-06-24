@@ -7,6 +7,8 @@
 #include "client/SaveFile.h"
 #include "client/SaveInfo.h"
 #include "client/http/requestmanager/RequestManager.h"
+#include "client/http/GetSaveRequest.h"
+#include "client/http/GetSaveDataRequest.h"
 #include "common/platform/Platform.h"
 #include "graphics/Graphics.h"
 #include "simulation/SaveRenderer.h"
@@ -81,7 +83,7 @@ void LargeScreenDialog()
 	message <<  ByteString("切换到 ").FromUtf8() << scale <<  ByteString("x 模式，因为你的屏幕已经够大了:").FromUtf8();
 	message << desktopWidth << "x" << desktopHeight <<  ByteString("<-检测到 ,").FromUtf8() << WINDOWW*scale << "x" << WINDOWH*scale <<  ByteString("<-要求").FromUtf8();
 	message <<  ByteString("\n要撤销此操作，请点击\"取消\"。可以随时在设置中更改它。”").FromUtf8();
-	if (!ConfirmPrompt::Blocking(ByteString("检测到大屏幕").FromUtf8(), message.Build()))
+	if (!ConfirmPrompt::Blocking(ByteString("检测到可缩放屏幕").FromUtf8(), message.Build()))
 	{
 		GlobalPrefs::Ref().Set("Scale", 1);
 		ui::Engine::Ref().SetScale(1);
@@ -122,22 +124,30 @@ void BlueScreen(String detailMessage)
 	}
 }
 
+struct
+{
+	int sig;
+	const char *message;
+} signalMessages[] = {
+	{ SIGSEGV, "Memory read/write error" },
+	{ SIGFPE, "Floating point exception" },
+	{ SIGILL, "Program execution exception" },
+	{ SIGABRT, "Unexpected program abort" },
+	{ 0, nullptr },
+};
+
 void SigHandler(int signal)
 {
-	switch(signal){
-	case SIGSEGV:
-		BlueScreen("Memory read/write error");
-		break;
-	case SIGFPE:
-		BlueScreen("Floating point exception");
-		break;
-	case SIGILL:
-		BlueScreen("Program execution exception");
-		break;
-	case SIGABRT:
-		BlueScreen("Unexpected program abort");
-		break;
+	const char *message = "Unknown signal";
+	for (auto *msg = signalMessages; msg->message; ++msg)
+	{
+		if (msg->sig == signal)
+		{
+			message = msg->message;
+			break;
+		}
 	}
+	BlueScreen(ByteString(message).FromUtf8());
 }
 
 constexpr int SCALE_MAXIMUM = 10;
@@ -175,6 +185,11 @@ int main(int argc, char * argv[])
 {
 	Platform::SetupCrt();
 	Platform::Atexit([]() {
+		// Unregister dodgy error handlers so they don't try to show the blue screen when the window is closed
+		for (auto *msg = signalMessages; msg->message; ++msg)
+		{
+			signal(msg->sig, SIG_DFL);
+		}
 		SDLClose();
 		explicitSingletons.reset();
 	});
@@ -240,24 +255,22 @@ int main(int argc, char * argv[])
 	}
 	else
 	{
-		char *ddir = SDL_GetPrefPath(NULL, APPDATA);
+		auto ddir = std::unique_ptr<char, decltype(&SDL_free)>(SDL_GetPrefPath(NULL, APPDATA), SDL_free);
 		if (!Platform::FileExists("powder.pref"))
 		{
 			if (ddir)
 			{
-				if (!Platform::ChangeDir(ddir))
+				if (!Platform::ChangeDir(ddir.get()))
 				{
 					perror("failed to chdir to default ddir");
-					SDL_free(ddir);
-					ddir = nullptr;
+					ddir.reset();
 				}
 			}
 		}
 
 		if (ddir)
 		{
-			Platform::sharedCwd = ddir;
-			SDL_free(ddir);
+			Platform::sharedCwd = ddir.get();
 		}
 	}
 	// We're now in the correct directory, time to get prefs.
@@ -265,6 +278,7 @@ int main(int argc, char * argv[])
 
 	auto &prefs = GlobalPrefs::Ref();
 	scale = prefs.Get("Scale", 1);
+	auto graveExitsConsole = prefs.Get("GraveExitsConsole", true);
 	resizable = prefs.Get("Resizable", false);
 	fullscreen = prefs.Get("Fullscreen", false);
 	altFullscreen = prefs.Get("AltFullscreen", false);
@@ -369,6 +383,7 @@ int main(int argc, char * argv[])
 	auto &engine = ui::Engine::Ref();
 	engine.g = new Graphics();
 	engine.Scale = scale;
+	engine.GraveExitsConsole = graveExitsConsole;
 	engine.SetResizable(resizable);
 	engine.Fullscreen = fullscreen;
 	engine.SetAltFullscreen(altFullscreen);
@@ -382,10 +397,10 @@ int main(int argc, char * argv[])
 	if (enableBluescreen)
 	{
 		//Get ready to catch any dodgy errors
-		signal(SIGSEGV, SigHandler);
-		signal(SIGFPE, SigHandler);
-		signal(SIGILL, SigHandler);
-		signal(SIGABRT, SigHandler);
+		for (auto *msg = signalMessages; msg->message; ++msg)
+		{
+			signal(msg->sig, SigHandler);
+		}
 	}
 
 	if constexpr (X86)
@@ -463,15 +478,31 @@ int main(int argc, char * argv[])
 				}
 				int saveId = saveIdPart.ToNumber<int>();
 
-				auto newSave = Client::Ref().GetSave(saveId, 0);
-				if (!newSave)
-					throw std::runtime_error("Could not load save info");
-				auto saveData = Client::Ref().GetSaveData(saveId, 0);
-				if (!saveData.size())
-					throw std::runtime_error(("Could not load save\n" + Client::Ref().GetLastError()).ToUtf8());
-				auto newGameSave = std::make_unique<GameSave>(std::move(saveData));
-				newSave->SetGameSave(std::move(newGameSave));
-
+				auto getSave = std::make_unique<http::GetSaveRequest>(saveId, 0);
+				getSave->Start();
+				getSave->Wait();
+				std::unique_ptr<SaveInfo> newSave;
+				try
+				{
+					newSave = getSave->Finish();
+				}
+				catch (const http::RequestError &ex)
+				{
+					throw std::runtime_error("Could not load save info\n" + ByteString(ex.what()));
+				}
+				auto getSaveData = std::make_unique<http::GetSaveDataRequest>(saveId, 0);
+				getSaveData->Start();
+				getSaveData->Wait();
+				std::unique_ptr<GameSave> saveData;
+				try
+				{
+					saveData = std::make_unique<GameSave>(getSaveData->Finish());
+				}
+				catch (const http::RequestError &ex)
+				{
+					throw std::runtime_error("Could not load save\n" + ByteString(ex.what()));
+				}
+				newSave->SetGameSave(std::move(saveData));
 				gameController->LoadSave(std::move(newSave));
 			}
 			catch (std::exception & e)

@@ -18,7 +18,6 @@
 #include "gui/game/GameController.h"
 #include "gui/game/GameModel.h"
 #include "gui/interface/Engine.h"
-#include "client/http/Request.h"
 #include <iomanip>
 #include <vector>
 #include <algorithm>
@@ -1289,57 +1288,6 @@ int luatpt_setdrawcap(lua_State* l)
 	if(drawcap < 0)
 		return luaL_error(l, "draw cap too small");
 	ui::Engine::Ref().SetDrawingFrequencyLimit(drawcap);
-	return 0;
-}
-
-int luatpt_getscript(lua_State* l)
-{
-	int scriptID = luaL_checkinteger(l, 1);
-	auto filename = tpt_lua_checkByteString(l, 2);
-	int runScript = luaL_optint(l, 3, 0);
-	int confirmPrompt = luaL_optint(l, 4, 1);
-
-	// ByteString url = ByteString::Build(SCHEME, "pan.dragonrster.top/Game/ThePowderToy/scripts/", scriptID,".html");
-	// if (confirmPrompt && !ConfirmPrompt::Blocking(ByteString("确定要安装此脚本吗?").FromUtf8(), url.FromUtf8(), ByteString("安装").FromUtf8()))
-
-	ByteString url;
-	if (scriptID == 1) {
-	url = ByteString::Build(SCHEME, "pan.dragonrster.top/Game/ThePowderToy/scripts/autorun.lua");
-	} else if (scriptID > 1) {
-	url = ByteString::Build(SCHEME, "starcatcher.us/scripts/main.lua?get=", scriptID);
-	}
-	if (confirmPrompt && !ConfirmPrompt::Blocking(ByteString("确定要安装此脚本吗?").FromUtf8(), url.FromUtf8(), ByteString("安装").FromUtf8())) 
-	// handle installation confirmation
-		return 0;
-
-	auto [ ret, scriptData ] = http::Request::Simple(url);
-	if (!scriptData.size())
-	{
-		return luaL_error(l, "Server did not return data");
-	}
-	if (ret != 200)
-	{
-		return luaL_error(l, http::StatusText(ret).ToUtf8().c_str());
-	}
-
-	if (scriptData.Contains("Invalid script ID"))
-	{
-		return luaL_error(l, "Invalid Script ID");
-	}
-
-	if (Platform::FileExists(filename) && confirmPrompt && !ConfirmPrompt::Blocking( ByteString("文件已存在,是否覆盖").FromUtf8(), filename.FromUtf8(), ByteString("覆盖").FromUtf8() ))
-	{
-		return 0;
-	}
-	if (!Platform::WriteFile(std::vector<char>(scriptData.begin(), scriptData.end()), filename))
-	{
-		return luaL_error(l, "Unable to write to file");
-	}
-	if (runScript)
-	{
-		tpt_lua_dostring(l, ByteString::Build("dofile('", filename, "')"));
-	}
-
 	return 0;
 }
 
