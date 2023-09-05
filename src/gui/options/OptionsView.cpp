@@ -222,7 +222,7 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 	});
 	temperatureScale = addDropDown(ByteString("边界模式").FromUtf8(), {
 		{ ByteString("开尔文").FromUtf8(), 0 },
-		{ ByteString("开尔文").FromUtf8(), 1 },
+		{ ByteString("摄氏度").FromUtf8(), 1 },
 		{ ByteString("华氏度").FromUtf8(), 2 },
 	}, [this] {
 		c->SetTemperatureScale(temperatureScale->GetOption().second);
