@@ -16,6 +16,5 @@ public:
 	ConfirmPrompt(String title, String message, ResultCallback callback_ = {}, String buttonText = String(ByteString("继续").FromUtf8()));
 	virtual ~ConfirmPrompt() = default;
 
-	static bool Blocking(String title, String message, String buttonText = String(ByteString("继续").FromUtf8()));
 	void OnDraw() override;
 };

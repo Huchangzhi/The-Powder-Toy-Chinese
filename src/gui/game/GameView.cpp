@@ -605,10 +605,9 @@ void GameView::NotifyToolListChanged(GameModel * sender)
 					}
 					else if (identifier.BeginsWith("DEFAULT_PT_LIFECUST_"))
 					{
-						if (ConfirmPrompt::Blocking("Remove custom GOL type", "Are you sure you want to remove " + identifier.Substr(20).FromUtf8() + "?"))
-						{
+						new ConfirmPrompt("Remove custom GOL type", "Are you sure you want to remove " + identifier.Substr(20).FromUtf8() + "?", { [this, identifier]() {
 							c->RemoveCustomGOLType(identifier);
-						}
+						} });
 					}
 				}
 			}
@@ -995,17 +994,12 @@ int GameView::Record(bool record)
 	}
 	else if (!recording)
 	{
-		// block so that the return value is correct
-		bool record = ConfirmPrompt::Blocking("Recording", "You're about to start recording all drawn frames. This will use a load of disk space.");
-		if (record)
-		{
-			time_t startTime = time(NULL);
-			recordingFolder = startTime;
-			Platform::MakeDirectory("recordings");
-			Platform::MakeDirectory(ByteString::Build("recordings", PATH_SEP_CHAR, recordingFolder));
-			recording = true;
-			recordingIndex = 0;
-		}
+		time_t startTime = time(NULL);
+		recordingFolder = startTime;
+		Platform::MakeDirectory("recordings");
+		Platform::MakeDirectory(ByteString::Build("recordings", PATH_SEP_CHAR, recordingFolder));
+		recording = true;
+		recordingIndex = 0;
 	}
 	return recordingFolder;
 }
@@ -1502,7 +1496,10 @@ void GameView::OnKeyPress(int key, int scan, bool repeat, bool shift, bool ctrl,
 		break;
 	case SDL_SCANCODE_ESCAPE:
 	case SDL_SCANCODE_Q:
-		ui::Engine::Ref().ConfirmExit();
+		if (ALLOW_QUIT)
+		{
+			ui::Engine::Ref().ConfirmExit();
+		}
 		break;
 	case SDL_SCANCODE_U:
 		if (ctrl)
@@ -1660,9 +1657,21 @@ void GameView::OnFileDrop(ByteString filename)
 		new ErrorMessage(ByteString("加载沙盘错误").FromUtf8(), ByteString("无法加载已删除的沙盘文件: ").FromUtf8() + saveFile->GetError());
 		return;
 	}
-	c->LoadSaveFile(std::move(saveFile));
+	if (filename.EndsWith(".stm"))
+	{
+		c->LoadStamp(saveFile->TakeGameSave());
+	}
+	else
+	{
+		c->LoadSaveFile(std::move(saveFile));
+	}
 
 	// hide the info text if it's not already hidden
+	SkipIntroText();
+}
+
+void GameView::SkipIntroText()
+{
 	introText = 0;
 }
 

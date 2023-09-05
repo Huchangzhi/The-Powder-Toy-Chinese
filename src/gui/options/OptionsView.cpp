@@ -18,6 +18,7 @@
 #include "gui/interface/Textbox.h"
 #include "gui/interface/DirectionSelector.h"
 #include "PowderToySDL.h"
+#include "Config.h"
 #include <cstdio>
 #include <cstring>
 #include <cmath>
@@ -251,22 +252,28 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 			c->SetScale(scale->GetOption().second);
 		});
 	}
-	resizable = addCheckbox(0, ByteString("可调整大小 \bg - 允许调整大小和最大化窗口").FromUtf8(), "", [this] {
-		c->SetResizable(resizable->GetChecked());
-	});
-	fullscreen = addCheckbox(0, ByteString("全屏 \bg - 进入全屏模式").FromUtf8(), "", [this] {
-		c->SetFullscreen(fullscreen->GetChecked());
-	});
-	altFullscreen = addCheckbox(1, ByteString("设置最佳屏幕分辨率").FromUtf8(), "", [this] {
-		c->SetAltFullscreen(altFullscreen->GetChecked());
-	});
-	forceIntegerScaling = addCheckbox(1, ByteString("强制整数倍缩放 \bg - 不再那么模糊").FromUtf8(), "", [this] {
-		c->SetForceIntegerScaling(forceIntegerScaling->GetChecked());
-	});
+	if (ALLOW_WINDOW_FRAME_OPS)
+	{
+		resizable = addCheckbox(0, ByteString("可调整大小 \bg - 允许调整大小和最大化窗口").FromUtf8(), "", [this] {
+			c->SetResizable(resizable->GetChecked());
+		});
+		fullscreen = addCheckbox(0, ByteString("全屏 \bg - 进入全屏模式").FromUtf8(), "", [this] {
+			c->SetFullscreen(fullscreen->GetChecked());
+		});
+		altFullscreen = addCheckbox(1, ByteString("设置最佳屏幕分辨率").FromUtf8(), "", [this] {
+			c->SetAltFullscreen(altFullscreen->GetChecked());
+		});
+		forceIntegerScaling = addCheckbox(1, ByteString("强制整数倍缩放 \bg - 不再那么模糊").FromUtf8(), "", [this] {
+			c->SetForceIntegerScaling(forceIntegerScaling->GetChecked());
+		});
+	}
 	addSeparator();
-	fastquit = addCheckbox(0, ByteString("快速退出").FromUtf8(), ByteString("点击关闭按钮时总是完全退出游戏").FromUtf8(), [this] {
-		c->SetFastQuit(fastquit->GetChecked());
-	});
+	if (ALLOW_QUIT)
+	{
+		fastquit = addCheckbox(0, ByteString("快速退出").FromUtf8(), ByteString("点击关闭按钮时总是完全退出游戏").FromUtf8(), [this] {
+			c->SetFastQuit(fastquit->GetChecked());
+		});
+	}
 	showAvatars = addCheckbox(0, ByteString("显示头像").FromUtf8(), ByteString("禁用此项可减少使用的网络带宽").FromUtf8(), [this] {
 		c->SetShowAvatars(showAvatars->GetChecked());
 	});
@@ -294,8 +301,9 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 		c->SetDecoSpace(decoSpace->GetOption().second);
 	});
 
+	currentY += 4;
+	if (ALLOW_DATA_FOLDER)
 	{
-		currentY += 4;
 		auto *dataFolderButton = new ui::Button(ui::Point(10, currentY), ui::Point(90, 16), ByteString("打开数据目录").FromUtf8());
 		dataFolderButton->SetActionCallback({ [] {
 			ByteString cwd = Platform::GetCwd();
@@ -420,11 +428,26 @@ void OptionsView::NotifySettingsChanged(OptionsModel * sender)
 	decoSpace->SetOption(sender->GetDecoSpace());
 	edgeMode->SetOption(sender->GetEdgeMode());
 	scale->SetOption(sender->GetScale());
-	resizable->SetChecked(sender->GetResizable());
-	fullscreen->SetChecked(sender->GetFullscreen());
-	altFullscreen->SetChecked(sender->GetAltFullscreen());
-	forceIntegerScaling->SetChecked(sender->GetForceIntegerScaling());
-	fastquit->SetChecked(sender->GetFastQuit());
+	if (resizable)
+	{
+		resizable->SetChecked(sender->GetResizable());
+	}
+	if (fullscreen)
+	{
+		fullscreen->SetChecked(sender->GetFullscreen());
+	}
+	if (altFullscreen)
+	{
+		altFullscreen->SetChecked(sender->GetAltFullscreen());
+	}
+	if (forceIntegerScaling)
+	{
+		forceIntegerScaling->SetChecked(sender->GetForceIntegerScaling());
+	}
+	if (fastquit)
+	{
+		fastquit->SetChecked(sender->GetFastQuit());
+	}
 	showAvatars->SetChecked(sender->GetShowAvatars());
 	mouseClickRequired->SetChecked(sender->GetMouseClickRequired());
 	includePressure->SetChecked(sender->GetIncludePressure());
