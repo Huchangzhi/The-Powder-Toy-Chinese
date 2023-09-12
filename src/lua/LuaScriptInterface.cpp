@@ -1,5 +1,6 @@
 #include "bzip2/bz2wrap.h"
 #include "common/VariantIndex.h"
+#include "Config.h"
 
 #include "LuaScriptInterface.h"
 
@@ -416,6 +417,12 @@ LuaScriptInterface::LuaScriptInterface(GameController * c, GameModel * m):
 	lua_setfield(l, tptPropertiesVersion, "snapshot");
 	lua_pushinteger(l, MOD_ID);
 	lua_setfield(l, tptPropertiesVersion, "modid");
+	auto vcsTag = ByteString(VCS_TAG);
+	if (vcsTag.size())
+	{
+		tpt_lua_pushByteString(l, VCS_TAG);
+		lua_setfield(l, tptPropertiesVersion, "vcstag");
+	}
 	lua_setfield(l, tptProperties, "version");
 
 	lua_sethook(l, &luacon_hook, LUA_MASKCOUNT, 200);
@@ -662,14 +669,37 @@ int LuaScriptInterface::tpt_newIndex(lua_State *l)
 	return 0;
 }
 
+template<class Type>
+struct PickIfTypeHelper;
+
+template<>
+struct PickIfTypeHelper<String>
+{
+	static constexpr auto LuaType = LUA_TSTRING;
+	static String Get(lua_State *l, int index) { return tpt_lua_checkString(l, index); }
+};
+
+template<>
+struct PickIfTypeHelper<bool>
+{
+	static constexpr auto LuaType = LUA_TBOOLEAN;
+	static bool Get(lua_State *l, int index) { return lua_toboolean(l, index); }
+};
+
+template<class Type>
+static Type PickIfType(lua_State *l, int index, Type defaultValue)
+{
+	return lua_type(l, index) == PickIfTypeHelper<Type>::LuaType ? PickIfTypeHelper<Type>::Get(l, index) : defaultValue;
+}
+
 static int beginMessageBox(lua_State* l)
 {
-	String title = tpt_lua_optString(l, 1, "Title");
-	String message = tpt_lua_optString(l, 2, "Message");
-	int large = lua_toboolean(l, 3);
+	auto title = PickIfType(l, 1, String("Title"));
+	auto message = PickIfType(l, 2, String("Message"));
+	auto large = PickIfType(l, 3, false);
 	auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
 	auto cb = std::make_shared<LuaSmartRef>(luacon_ci->l); // * Bind to main lua state (might be different from l).
-	cb->Assign(l, 4);
+	cb->Assign(l, lua_gettop(l));
 	new InformationMessage(title, message, large, { [cb]() {
 		auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
 		auto l = luacon_ci->l;
@@ -691,10 +721,10 @@ static int beginMessageBox(lua_State* l)
 
 static int beginThrowError(lua_State* l)
 {
-	String errorMessage = tpt_lua_optString(l, 1, "Error text");
+	auto errorMessage = PickIfType(l, 1, String("Error text"));
 	auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
 	auto cb = std::make_shared<LuaSmartRef>(luacon_ci->l); // * Bind to main lua state (might be different from l).
-	cb->Assign(l, 2);
+	cb->Assign(l, lua_gettop(l));
 	new ErrorMessage("Error", errorMessage, { [cb]() {
 		auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
 		auto l = luacon_ci->l;
@@ -716,20 +746,27 @@ static int beginThrowError(lua_State* l)
 
 static int beginInput(lua_State* l)
 {
-	String title = tpt_lua_optString(l, 1, "Title");
-	String prompt = tpt_lua_optString(l, 2, "Enter some text:");
-	String text = tpt_lua_optString(l, 3, "");
-	String shadow = tpt_lua_optString(l, 4, "");
+	auto title = PickIfType(l, 1, String("Title"));
+	auto prompt = PickIfType(l, 2, String("Enter some text:"));
+	auto text = PickIfType(l, 3, String(""));
+	auto shadow = PickIfType(l, 4, String(""));
 	auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
 	auto cb = std::make_shared<LuaSmartRef>(luacon_ci->l); // * Bind to main lua state (might be different from l).
-	cb->Assign(l, 5);
-	auto handle = [cb](const String &input) {
+	cb->Assign(l, lua_gettop(l));
+	auto handle = [cb](std::optional<String> input) {
 		auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
 		auto l = luacon_ci->l;
 		cb->Push(l);
 		if (lua_isfunction(l, -1))
 		{
-			tpt_lua_pushString(l, input);
+			if (input)
+			{
+				tpt_lua_pushString(l, *input);
+			}
+			else
+			{
+				lua_pushnil(l);
+			}
 			if (lua_pcall(l, 1, 0, 0))
 			{
 				luacon_ci->Log(CommandInterface::LogError, luacon_geterror());
@@ -743,19 +780,19 @@ static int beginInput(lua_State* l)
 	new TextPrompt(title, prompt, text, shadow, false, { [handle](const String &input) {
 		handle(input);
 	}, [handle]() {
-		handle({}); // * Has always returned empty string >_>
+		handle(std::nullopt);
 	} });
 	return 0;
 }
 
 static int beginConfirm(lua_State *l)
 {
-	String title = tpt_lua_optString(l, 1, "Title");
-	String message = tpt_lua_optString(l, 2, "Message");
-	String buttonText = tpt_lua_optString(l, 3, "Confirm");
+	auto title = PickIfType(l, 1, String("Title"));
+	auto message = PickIfType(l, 2, String("Message"));
+	auto buttonText = PickIfType(l, 3, String("Confirm"));
 	auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
 	auto cb = std::make_shared<LuaSmartRef>(luacon_ci->l); // * Bind to main lua state (might be different from l).
-	cb->Assign(l, 4);
+	cb->Assign(l, lua_gettop(l));
 	auto handle = [cb](int result) {
 		auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
 		auto l = luacon_ci->l;
@@ -5069,10 +5106,10 @@ int LuaScriptInterface::luatpt_getscript(lua_State* l)
 
 	int scriptID = luaL_checkinteger(l, 1);
 	auto filename = tpt_lua_checkByteString(l, 2);
-	bool runScript = luaL_optint(l, 3, 0);
+	auto runScript = PickIfType(l, 3, false);
 
 	auto cb = std::make_shared<LuaSmartRef>(luacon_ci->l); // * Bind to main lua state (might be different from l).
-	cb->Assign(l, 4);
+	cb->Assign(l, lua_gettop(l));
 	luacon_ci->scriptDownloadComplete = [cb](const GetScriptStatus &status) {
 		auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
 		auto l = luacon_ci->l;
