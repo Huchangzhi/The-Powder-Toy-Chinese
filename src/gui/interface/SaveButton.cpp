@@ -268,7 +268,7 @@ void SaveButton::OnMouseUnclick(int x, int y, unsigned int button)
 	{
 		return; //left click only!
 	}
-	if (file && !file->GetGameSave())
+	if (file && !file->LazyGetGameSave())
 	{
 		new ErrorMessage(ByteString("无法加载此沙盘").FromUtf8(), file->GetError());
 		return;
