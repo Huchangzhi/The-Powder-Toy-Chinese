@@ -228,8 +228,9 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 	}, [this] {
 		c->SetTemperatureScale(temperatureScale->GetOption().second);
 	});
-	addSeparator();
+	if (FORCE_WINDOW_FRAME_OPS != forceWindowFrameOpsHandheld)
 	{
+		addSeparator();
 		std::vector<std::pair<String, int>> options;
 		int currentScale = ui::Engine::Ref().GetScale();
 		int scaleIndex = 1;
@@ -252,7 +253,7 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 			c->SetScale(scale->GetOption().second);
 		});
 	}
-	if (ALLOW_WINDOW_FRAME_OPS)
+	if (FORCE_WINDOW_FRAME_OPS == forceWindowFrameOpsNone)
 	{
 		resizable = addCheckbox(0, ByteString("可调整大小 \bg - 允许调整大小和最大化窗口").FromUtf8(), "", [this] {
 			c->SetResizable(resizable->GetChecked());
@@ -260,13 +261,16 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 		fullscreen = addCheckbox(0, ByteString("全屏 \bg - 进入全屏模式").FromUtf8(), "", [this] {
 			c->SetFullscreen(fullscreen->GetChecked());
 		});
-		altFullscreen = addCheckbox(1, ByteString("设置最佳屏幕分辨率").FromUtf8(), "", [this] {
-			c->SetAltFullscreen(altFullscreen->GetChecked());
+		changeResolution = addCheckbox(1, ByteString("设置最佳屏幕分辨率").FromUtf8(), "", [this] {
+			c->SetChangeResolution(changeResolution->GetChecked());
 		});
 		forceIntegerScaling = addCheckbox(1, ByteString("强制整数倍缩放 \bg - 不再那么模糊").FromUtf8(), "", [this] {
 			c->SetForceIntegerScaling(forceIntegerScaling->GetChecked());
 		});
 	}
+	blurryScaling = addCheckbox(0, "Blurry scaling \bg- more blurry, better on very big screens", "", [this] {
+		c->SetBlurryScaling(blurryScaling->GetChecked());
+	});
 	addSeparator();
 	if (ALLOW_QUIT)
 	{
@@ -427,7 +431,10 @@ void OptionsView::NotifySettingsChanged(OptionsModel * sender)
 	customGravityY = sender->GetCustomGravityY();
 	decoSpace->SetOption(sender->GetDecoSpace());
 	edgeMode->SetOption(sender->GetEdgeMode());
-	scale->SetOption(sender->GetScale());
+	if (scale)
+	{
+		scale->SetOption(sender->GetScale());
+	}
 	if (resizable)
 	{
 		resizable->SetChecked(sender->GetResizable());
@@ -436,13 +443,17 @@ void OptionsView::NotifySettingsChanged(OptionsModel * sender)
 	{
 		fullscreen->SetChecked(sender->GetFullscreen());
 	}
-	if (altFullscreen)
+	if (changeResolution)
 	{
-		altFullscreen->SetChecked(sender->GetAltFullscreen());
+		changeResolution->SetChecked(sender->GetChangeResolution());
 	}
 	if (forceIntegerScaling)
 	{
 		forceIntegerScaling->SetChecked(sender->GetForceIntegerScaling());
+	}
+	if (blurryScaling)
+	{
+		blurryScaling->SetChecked(sender->GetBlurryScaling());
 	}
 	if (fastquit)
 	{

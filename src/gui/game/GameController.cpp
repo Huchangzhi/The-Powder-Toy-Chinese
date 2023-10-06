@@ -773,20 +773,20 @@ void GameController::ResetSpark()
 
 void GameController::SwitchGravity()
 {
-	gameModel->GetSimulation()->gravityMode = (gameModel->GetSimulation()->gravityMode+1)%4;
+	gameModel->GetSimulation()->gravityMode = (gameModel->GetSimulation()->gravityMode + 1) % NUM_GRAV_MODES;
 
 	switch (gameModel->GetSimulation()->gravityMode)
 	{
-	case 0:
+	case GRAV_VERTICAL:
 		gameModel->SetInfoTip(ByteString("引力模式:竖直").FromUtf8());
 		break;
-	case 1:
+	case GRAV_OFF:
 		gameModel->SetInfoTip(ByteString("引力模式:关闭").FromUtf8());
 		break;
-	case 2:
+	case GRAV_RADIAL:
 		gameModel->SetInfoTip(ByteString("引力模式:中心").FromUtf8());
 		break;
-	case 3:
+	case GRAV_CUSTOM:
 		gameModel->SetInfoTip(ByteString("引力模式:自定义").FromUtf8());
 		break;
 	}
@@ -794,23 +794,23 @@ void GameController::SwitchGravity()
 
 void GameController::SwitchAir()
 {
-	gameModel->GetSimulation()->air->airMode = (gameModel->GetSimulation()->air->airMode+1)%5;
+	gameModel->GetSimulation()->air->airMode = (gameModel->GetSimulation()->air->airMode + 1) % NUM_AIR_MODES;
 
 	switch (gameModel->GetSimulation()->air->airMode)
 	{
-	case 0:
+	case AIR_ON:
 		gameModel->SetInfoTip(ByteString("空气模拟:开启").FromUtf8());
 		break;
-	case 1:
+	case AIR_PRESSURE_OFF:
 		gameModel->SetInfoTip(ByteString("空气模拟:关闭压力").FromUtf8());
 		break;
-	case 2:
+	case AIR_VELOCITY_OFF:
 		gameModel->SetInfoTip(ByteString("空气模拟:关闭速度").FromUtf8());
 		break;
-	case 3:
+	case AIR_OFF:
 		gameModel->SetInfoTip(ByteString("空气模拟:关闭").FromUtf8());
 		break;
-	case 4:
+	case AIR_NO_UPDATE:
 		gameModel->SetInfoTip(ByteString("空气模拟:更新停止").FromUtf8());
 		break;
 	}
@@ -1010,6 +1010,32 @@ void GameController::SetTemperatureScale(int temperatureScale)
 int GameController::GetTemperatureScale()
 {
 	return gameModel->GetTemperatureScale();
+}
+
+int GameController::GetEdgeMode()
+{
+	return gameModel->GetEdgeMode();
+}
+
+void GameController::SetEdgeMode(int edgeMode)
+{
+	if (edgeMode < 0 || edgeMode >= NUM_EDGE_MODES)
+		edgeMode = 0;
+
+	gameModel->SetEdgeMode(edgeMode);
+
+	switch (edgeMode)
+	{
+		case EDGE_VOID:
+			gameModel->SetInfoTip("Edge Mode: Void");
+			break;
+		case EDGE_SOLID:
+			gameModel->SetInfoTip("Edge Mode: Solid");
+			break;
+		case EDGE_LOOP:
+			gameModel->SetInfoTip("Edge Mode: Loop");
+			break;
+	}
 }
 
 void GameController::SetActiveColourPreset(int preset)

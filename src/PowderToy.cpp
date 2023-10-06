@@ -81,12 +81,13 @@ void SaveWindowPosition()
 void LargeScreenDialog()
 {
 	StringBuilder message;
+	auto scale = ui::Engine::Ref().windowFrameOps.scale;
 	message <<  ByteString("切换到 ").FromUtf8() << scale <<  ByteString("x 模式，因为你的屏幕已经够大了:").FromUtf8();
-	message << desktopWidth << "x" << desktopHeight <<  ByteString("<-检测到 ,").FromUtf8() << WINDOWW*scale << "x" << WINDOWH*scale <<  ByteString("<-要求").FromUtf8();
+	message << desktopWidth << "x" << desktopHeight <<  ByteString("<-检测到 ,").FromUtf8() << WINDOWW * scale << "x" << WINDOWH * scale <<  ByteString("<-要求").FromUtf8();
 	message <<  ByteString("\n要撤销此操作，请点击\"取消\"。可以随时在设置中更改它。”").FromUtf8();
 	new ConfirmPrompt(ByteString("检测到可缩放屏幕").FromUtf8(), message.Build(), { nullptr, []() {
 		GlobalPrefs::Ref().Set("Scale", 1);
-		ui::Engine::Ref().SetScale(1);
+		ui::Engine::Ref().windowFrameOps.scale = 1;
 	} });
 }
 
@@ -286,12 +287,16 @@ int Main(int argc, char *argv[])
 	explicitSingletons->globalPrefs = std::make_unique<GlobalPrefs>();
 
 	auto &prefs = GlobalPrefs::Ref();
-	scale = prefs.Get("Scale", 1);
+
+	WindowFrameOps windowFrameOps{
+		prefs.Get("Scale", 1),
+		prefs.Get("Resizable", false),
+		prefs.Get("Fullscreen", false),
+		prefs.Get("AltFullscreen", false),
+		prefs.Get("ForceIntegerScaling", true),
+		prefs.Get("BlurryScaling", false),
+	};
 	auto graveExitsConsole = prefs.Get("GraveExitsConsole", true);
-	resizable = prefs.Get("Resizable", false);
-	fullscreen = prefs.Get("Fullscreen", false);
-	altFullscreen = prefs.Get("AltFullscreen", false);
-	forceIntegerScaling = prefs.Get("ForceIntegerScaling", true);
 	momentumScroll = prefs.Get("MomentumScroll", true);
 	showAvatars = prefs.Get("ShowAvatars", true);
 
@@ -312,8 +317,8 @@ int Main(int argc, char *argv[])
 	auto kioskArg = arguments["kiosk"];
 	if (kioskArg.has_value())
 	{
-		fullscreen = true_string(kioskArg.value());
-		prefs.Set("Fullscreen", fullscreen);
+		windowFrameOps.fullscreen = true_string(kioskArg.value());
+		prefs.Set("Fullscreen", windowFrameOps.fullscreen);
 	}
 
 	if (true_arg(arguments["redirect"]))
@@ -331,8 +336,8 @@ int Main(int argc, char *argv[])
 	{
 		try
 		{
-			scale = scaleArg.value().ToNumber<int>();
-			prefs.Set("Scale", scale);
+			windowFrameOps.scale = scaleArg.value().ToNumber<int>();
+			prefs.Set("Scale", windowFrameOps.scale);
 		}
 		catch (const std::runtime_error &e)
 		{
@@ -371,36 +376,29 @@ int Main(int argc, char *argv[])
 	explicitSingletons->engine = std::make_unique<ui::Engine>();
 
 	// TODO: maybe bind the maximum allowed scale to screen size somehow
-	if(scale < 1 || scale > SCALE_MAXIMUM)
-		scale = 1;
-
-	SDLOpen();
-
-	if (Client::Ref().IsFirstRun())
-	{
-		scale = GuessBestScale();
-		if (scale > 1)
-		{
-			prefs.Set("Scale", scale);
-			SDL_SetWindowSize(sdl_window, WINDOWW * scale, WINDOWH * scale);
-			showLargeScreenDialog = true;
-		}
-	}
-
-	StopTextInput();
+	if(windowFrameOps.scale < 1 || windowFrameOps.scale > SCALE_MAXIMUM)
+		windowFrameOps.scale = 1;
 
 	auto &engine = ui::Engine::Ref();
 	engine.g = new Graphics();
-	engine.Scale = scale;
 	engine.GraveExitsConsole = graveExitsConsole;
-	engine.SetResizable(resizable);
-	engine.Fullscreen = fullscreen;
-	engine.SetAltFullscreen(altFullscreen);
-	engine.SetForceIntegerScaling(forceIntegerScaling);
 	engine.MomentumScroll = momentumScroll;
 	engine.ShowAvatars = showAvatars;
 	engine.Begin();
 	engine.SetFastQuit(prefs.Get("FastQuit", true));
+	engine.TouchUI = prefs.Get("TouchUI", DEFAULT_TOUCH_UI);
+	if (Client::Ref().IsFirstRun() && FORCE_WINDOW_FRAME_OPS == forceWindowFrameOpsNone)
+	{
+		windowFrameOps.scale = GuessBestScale();
+		if (windowFrameOps.scale)
+		{
+			prefs.Set("Scale", windowFrameOps.scale);
+			showLargeScreenDialog = true;
+		}
+	}
+	engine.windowFrameOps = windowFrameOps;
+
+	SDLOpen();
 
 	bool enableBluescreen = USE_BLUESCREEN && !true_arg(arguments["disable-bluescreen"]);
 	if (enableBluescreen)

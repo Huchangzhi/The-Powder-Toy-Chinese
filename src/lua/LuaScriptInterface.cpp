@@ -1215,6 +1215,8 @@ void LuaScriptInterface::initSimulationAPI()
 	SETCONST(l, NCELL);
 	SETCONST(l, XRES);
 	SETCONST(l, YRES);
+	SETCONST(l, XCNTR);
+	SETCONST(l, YCNTR);
 	SETCONST(l, NPART);
 	SETCONST(l, NT);
 	SETCONST(l, ST);
@@ -1229,6 +1231,9 @@ void LuaScriptInterface::initSimulationAPI()
 	SETCONSTF(l, MIN_TEMP);
 	SETCONSTF(l, MAX_PRESSURE);
 	SETCONSTF(l, MIN_PRESSURE);
+	SETCONST(l, ISTP);
+	SETCONSTF(l, CFDS);
+	SETCONSTF(l, SIM_MAXVELOCITY);
 
 	SETCONST(l, TOOL_HEAT);
 	SETCONST(l, TOOL_COOL);
@@ -1239,6 +1244,7 @@ void LuaScriptInterface::initSimulationAPI()
 	SETCONST(l, TOOL_MIX);
 	SETCONST(l, TOOL_CYCL);
 	lua_pushinteger(l, luacon_sim->tools.size()); lua_setfield(l, -2, "TOOL_WIND");
+
 	SETCONST(l, DECO_DRAW);
 	SETCONST(l, DECO_CLEAR);
 	SETCONST(l, DECO_ADD);
@@ -1249,6 +1255,43 @@ void LuaScriptInterface::initSimulationAPI()
 
 	SETCONST(l, PMAPBITS);
 	SETCONST(l, PMAPMASK);
+
+	SETCONST(l, CIRCLE_BRUSH);
+	SETCONST(l, SQUARE_BRUSH);
+	SETCONST(l, TRI_BRUSH);
+	SETCONST(l, BRUSH_NUM);
+
+	SETCONST(l, EDGE_VOID);
+	SETCONST(l, EDGE_SOLID);
+	SETCONST(l, EDGE_LOOP);
+	SETCONST(l, NUM_EDGE_MODES);
+
+	SETCONST(l, AIR_ON);
+	SETCONST(l, AIR_PRESSURE_OFF);
+	SETCONST(l, AIR_VELOCITY_OFF);
+	SETCONST(l, AIR_OFF);
+	SETCONST(l, AIR_NO_UPDATE);
+	SETCONST(l, NUM_AIR_MODES);
+
+	SETCONST(l, GRAV_VERTICAL);
+	SETCONST(l, GRAV_OFF);
+	SETCONST(l, GRAV_RADIAL);
+	SETCONST(l, GRAV_CUSTOM);
+	SETCONST(l, NUM_GRAV_MODES);
+
+	lua_newtable(l);
+	for (int i = 0; i < UI_WALLCOUNT; i++)
+	{
+		tpt_lua_pushByteString(l, luacon_sim->wtypes[i].identifier);
+		lua_pushinteger(l, i);
+		lua_settable(l, -3);
+
+		lua_pushinteger(l, i);
+		tpt_lua_pushByteString(l, luacon_sim->wtypes[i].identifier);
+		lua_settable(l, -3);
+	}
+	lua_setfield(l, -2, "walls");
+	SETCONST(l, UI_WALLCOUNT);
 
 	//Declare FIELD_BLAH constants
 	{
@@ -2301,7 +2344,7 @@ int LuaScriptInterface::simulation_edgeMode(lua_State * l)
 		lua_pushnumber(l, luacon_model->GetEdgeMode());
 		return 1;
 	}
-	int edgeMode = luaL_optint(l, 1, 0);
+	int edgeMode = luaL_optint(l, 1, EDGE_VOID);
 	luacon_model->SetEdgeMode(edgeMode);
 	return 0;
 }
@@ -2314,7 +2357,7 @@ int LuaScriptInterface::simulation_gravityMode(lua_State * l)
 		lua_pushnumber(l, luacon_sim->gravityMode);
 		return 1;
 	}
-	int gravityMode = luaL_optint(l, 1, 0);
+	int gravityMode = luaL_optint(l, 1, GRAV_VERTICAL);
 	luacon_sim->gravityMode = gravityMode;
 	return 0;
 }
@@ -2347,7 +2390,7 @@ int LuaScriptInterface::simulation_airMode(lua_State * l)
 		lua_pushnumber(l, luacon_sim->air->airMode);
 		return 1;
 	}
-	int airMode = luaL_optint(l, 1, 0);
+	int airMode = luaL_optint(l, 1, AIR_ON);
 	luacon_sim->air->airMode = airMode;
 	return 0;
 }
