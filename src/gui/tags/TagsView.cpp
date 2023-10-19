@@ -31,7 +31,6 @@ TagsView::TagsView():
 	tagInput->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tagInput->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	AddComponent(tagInput);
-	FocusComponent(tagInput);
 
 	addButton = new ui::Button(ui::Point(tagInput->Position.X+tagInput->Size.X+4, tagInput->Position.Y), ui::Point(40, 16), "Add");
 	addButton->Appearance.icon = IconAdd;

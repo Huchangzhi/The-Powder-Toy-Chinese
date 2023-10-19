@@ -1598,12 +1598,6 @@ void GameView::OnKeyPress(int key, int scan, bool repeat, bool shift, bool ctrl,
 	{
 		switch (key)
 		{
-		case SDLK_AC_BACK:
-			if (ALLOW_QUIT)
-			{
-				ui::Engine::Ref().ConfirmExit();
-			}
-			break;
 		case SDLK_TAB: //Tab
 			c->ChangeBrush();
 			break;
