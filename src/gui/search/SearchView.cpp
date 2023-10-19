@@ -14,10 +14,6 @@
 #include "SimulationConfig.h"
 #include <SDL.h>
 
-#ifdef GetUserName
-# undef GetUserName // dammit windows
-#endif
-
 SearchView::SearchView():
 	ui::Window(ui::Point(0, 0), ui::Point(WINDOWW, WINDOWH)),
 	c(NULL),
@@ -211,7 +207,7 @@ void SearchView::Search(String query)
 
 void SearchView::NotifySortChanged(SearchModel * sender)
 {
-	if(sender->GetSort() == "best")
+	if(sender->GetSort() == http::sortByVotes)
 	{
 		sortButton->SetToggleState(false);
 		sortButton->SetText(ByteString("评分").FromUtf8());
@@ -228,7 +224,7 @@ void SearchView::NotifySortChanged(SearchModel * sender)
 void SearchView::NotifyShowOwnChanged(SearchModel * sender)
 {
 	ownButton->SetToggleState(sender->GetShowOwn());
-	if(sender->GetShowOwn() || Client::Ref().GetAuthUser().UserElevation == User::ElevationAdmin || Client::Ref().GetAuthUser().UserElevation == User::ElevationModerator)
+	if(sender->GetShowOwn() || Client::Ref().GetAuthUser().UserElevation == User::ElevationAdmin || Client::Ref().GetAuthUser().UserElevation == User::ElevationMod)
 	{
 		unpublishSelected->Enabled = true;
 		removeSelected->Enabled = true;
@@ -248,7 +244,7 @@ void SearchView::NotifyShowFavouriteChanged(SearchModel * sender)
 		unpublishSelected->Enabled = false;
 		removeSelected->Enabled = false;
 	}
-	else if(sender->GetShowOwn() || Client::Ref().GetAuthUser().UserElevation == User::ElevationAdmin || Client::Ref().GetAuthUser().UserElevation == User::ElevationModerator)
+	else if(sender->GetShowOwn() || Client::Ref().GetAuthUser().UserElevation == User::ElevationAdmin || Client::Ref().GetAuthUser().UserElevation == User::ElevationMod)
 	{
 		unpublishSelected->Enabled = true;
 		removeSelected->Enabled = true;
@@ -323,7 +319,7 @@ void SearchView::CheckAccess()
 		favButton->Enabled = true;
 		favouriteSelected->Enabled = true;
 
-		if (Client::Ref().GetAuthUser().UserElevation == User::ElevationAdmin || Client::Ref().GetAuthUser().UserElevation == User::ElevationModerator)
+		if (Client::Ref().GetAuthUser().UserElevation == User::ElevationAdmin || Client::Ref().GetAuthUser().UserElevation == User::ElevationMod)
 		{
 			unpublishSelected->Enabled = true;
 			removeSelected->Enabled = true;
@@ -569,7 +565,7 @@ void SearchView::NotifySaveListChanged(SearchModel * sender)
 			});
 			if(Client::Ref().GetAuthUser().UserID)
 				saveButton->SetSelectable(true);
-			if (saves[i]->GetUserName() == Client::Ref().GetAuthUser().Username || Client::Ref().GetAuthUser().UserElevation == User::ElevationAdmin || Client::Ref().GetAuthUser().UserElevation == User::ElevationModerator)
+			if (saves[i]->GetUserName() == Client::Ref().GetAuthUser().Username || Client::Ref().GetAuthUser().UserElevation == User::ElevationAdmin || Client::Ref().GetAuthUser().UserElevation == User::ElevationMod)
 				saveButton->SetShowVotes(true);
 			saveButtons.push_back(saveButton);
 			AddComponent(saveButton);
@@ -647,7 +643,7 @@ void SearchView::OnKeyPress(int key, int scan, bool repeat, bool shift, bool ctr
 {
 	if (repeat)
 		return;
-	if (key == SDLK_ESCAPE)
+	if (key == SDLK_ESCAPE || key == SDLK_AC_BACK)
 		c->Exit();
 	else if ((focusedComponent_ != pageTextbox && focusedComponent_ != searchField) && scan == SDL_SCANCODE_A && ctrl)
 		c->SelectAllSaves();

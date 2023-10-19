@@ -2,10 +2,7 @@
 #include "common/String.h"
 #include <list>
 #include <memory>
-
-#ifdef GetUserName
-# undef GetUserName // dammit windows
-#endif
+#include <ctime>
 
 class GameSave;
 
@@ -14,8 +11,8 @@ class SaveInfo
 private:
 public:
 	int id;
-	int createdDate;
-	int updatedDate;
+	time_t createdDate;
+	time_t updatedDate;
 	int votesUp, votesDown;
 	int vote;
 	bool Favourite;
@@ -32,15 +29,15 @@ public:
 	std::list<ByteString> tags;
 	std::unique_ptr<GameSave> gameSave;
 
-	SaveInfo(int _id, int _createdDate, int _updatedDate, int _votesUp, int _votesDown, ByteString _userName, String _name);
+	SaveInfo(int _id, time_t _createdDate, time_t _updatedDate, int _votesUp, int _votesDown, ByteString _userName, String _name);
 
-	SaveInfo(int _id, int _createdDate, int _updatedDate, int _votesUp, int _votesDown, int _vote, ByteString _userName, String _name, String description_, bool published_, std::list<ByteString> tags);
+	SaveInfo(int _id, time_t _createdDate, time_t _updatedDate, int _votesUp, int _votesDown, int _vote, ByteString _userName, String _name, String description_, bool published_, std::list<ByteString> tags);
 
 	void SetName(String name);
-	String GetName();
+	const String &GetName() const;
 
 	void SetDescription(String description);
-	String GetDescription();
+	const String &GetDescription() const;
 
 	void SetPublished(bool published);
 	bool GetPublished() const;

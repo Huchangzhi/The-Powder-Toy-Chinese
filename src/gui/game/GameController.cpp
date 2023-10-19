@@ -63,10 +63,7 @@
 
 #include "Config.h"
 #include <SDL.h>
-
-#ifdef GetUserName
-# undef GetUserName // dammit windows
-#endif
+#include <iostream>
 
 GameController::GameController():
 	firstTick(true),
@@ -542,7 +539,7 @@ bool GameController::MouseUp(int x, int y, unsigned button, MouseupReason reason
 						{
 							int saveID = str.Substr(3, si.first - 3).ToNumber<int>(true);
 							if (saveID)
-								OpenSavePreview(saveID, 0, false);
+								OpenSavePreview(saveID, 0, savePreviewNormal);
 						}
 						break;
 					case sign::Type::Thread:
@@ -699,6 +696,7 @@ bool GameController::KeyRelease(int key, int scan, bool repeat, bool shift, bool
 
 void GameController::Tick()
 {
+	gameModel->Tick();
 	if(firstTick)
 	{
 		commandInterface->Init();
@@ -771,20 +769,20 @@ void GameController::ResetSpark()
 
 void GameController::SwitchGravity()
 {
-	gameModel->GetSimulation()->gravityMode = (gameModel->GetSimulation()->gravityMode+1)%4;
+	gameModel->GetSimulation()->gravityMode = (gameModel->GetSimulation()->gravityMode + 1) % NUM_GRAV_MODES;
 
 	switch (gameModel->GetSimulation()->gravityMode)
 	{
-	case 0:
+	case GRAV_VERTICAL:
 		gameModel->SetInfoTip(ByteString("引力模式:竖直").FromUtf8());
 		break;
-	case 1:
+	case GRAV_OFF:
 		gameModel->SetInfoTip(ByteString("引力模式:关闭").FromUtf8());
 		break;
-	case 2:
+	case GRAV_RADIAL:
 		gameModel->SetInfoTip(ByteString("引力模式:中心").FromUtf8());
 		break;
-	case 3:
+	case GRAV_CUSTOM:
 		gameModel->SetInfoTip(ByteString("引力模式:自定义").FromUtf8());
 		break;
 	}
@@ -792,23 +790,23 @@ void GameController::SwitchGravity()
 
 void GameController::SwitchAir()
 {
-	gameModel->GetSimulation()->air->airMode = (gameModel->GetSimulation()->air->airMode+1)%5;
+	gameModel->GetSimulation()->air->airMode = (gameModel->GetSimulation()->air->airMode + 1) % NUM_AIR_MODES;
 
 	switch (gameModel->GetSimulation()->air->airMode)
 	{
-	case 0:
+	case AIR_ON:
 		gameModel->SetInfoTip(ByteString("空气模拟:开启").FromUtf8());
 		break;
-	case 1:
+	case AIR_PRESSURE_OFF:
 		gameModel->SetInfoTip(ByteString("空气模拟:关闭压力").FromUtf8());
 		break;
-	case 2:
+	case AIR_VELOCITY_OFF:
 		gameModel->SetInfoTip(ByteString("空气模拟:关闭速度").FromUtf8());
 		break;
-	case 3:
+	case AIR_OFF:
 		gameModel->SetInfoTip(ByteString("空气模拟:关闭").FromUtf8());
 		break;
-	case 4:
+	case AIR_NO_UPDATE:
 		gameModel->SetInfoTip(ByteString("空气模拟:更新停止").FromUtf8());
 		break;
 	}
@@ -1010,6 +1008,32 @@ int GameController::GetTemperatureScale()
 	return gameModel->GetTemperatureScale();
 }
 
+int GameController::GetEdgeMode()
+{
+	return gameModel->GetEdgeMode();
+}
+
+void GameController::SetEdgeMode(int edgeMode)
+{
+	if (edgeMode < 0 || edgeMode >= NUM_EDGE_MODES)
+		edgeMode = 0;
+
+	gameModel->SetEdgeMode(edgeMode);
+
+	switch (edgeMode)
+	{
+		case EDGE_VOID:
+			gameModel->SetInfoTip("Edge Mode: Void");
+			break;
+		case EDGE_SOLID:
+			gameModel->SetInfoTip("Edge Mode: Solid");
+			break;
+		case EDGE_LOOP:
+			gameModel->SetInfoTip("Edge Mode: Loop");
+			break;
+	}
+}
+
 void GameController::SetActiveColourPreset(int preset)
 {
 	gameModel->SetActiveColourPreset(preset);
@@ -1161,10 +1185,10 @@ void GameController::OpenLocalSaveWindow(bool asCurrent)
 			tempSave->SetFileName(gameModel->GetSaveFile()->GetName());
 			tempSave->SetDisplayName(gameModel->GetSaveFile()->GetDisplayName());
 		}
-		tempSave->SetGameSave(std::move(gameSave));
 
 		if (!asCurrent || !gameModel->GetSaveFile())
 		{
+			tempSave->SetGameSave(std::move(gameSave));
 			new LocalSaveActivity(std::move(tempSave), [this](auto file) {
 				gameModel->SetSaveFile(std::move(file), gameView->ShiftBehaviour());
 			});
@@ -1181,6 +1205,7 @@ void GameController::OpenLocalSaveWindow(bool asCurrent)
 
 			Platform::MakeDirectory(LOCAL_SAVE_DIR);
 			auto [ fromNewerVersion, saveData ] = gameSave->Serialise();
+			tempSave->SetGameSave(std::move(gameSave));
 			gameModel->SetSaveFile(std::move(tempSave), gameView->ShiftBehaviour());
 			(void)fromNewerVersion;
 			if (saveData.size() == 0)
@@ -1220,9 +1245,13 @@ void GameController::OpenSaveDone()
 	}
 }
 
-void GameController::OpenSavePreview(int saveID, int saveDate, bool instant)
+void GameController::OpenSavePreview(int saveID, int saveDate, SavePreviewType savePreviewType)
 {
-	activePreview = new PreviewController(saveID, saveDate, instant, [this] { OpenSaveDone(); }, nullptr);
+	if (savePreviewType == savePreviewUrl)
+	{
+		gameView->SkipIntroText();
+	}
+	activePreview = new PreviewController(saveID, saveDate, savePreviewType, [this] { OpenSaveDone(); }, nullptr);
 	ui::Engine::Ref().ShowWindow(activePreview->GetView());
 }
 
@@ -1230,7 +1259,7 @@ void GameController::OpenSavePreview()
 {
 	if(gameModel->GetSave())
 	{
-		activePreview = new PreviewController(gameModel->GetSave()->GetID(), 0, false, [this] { OpenSaveDone(); }, nullptr);
+		activePreview = new PreviewController(gameModel->GetSave()->GetID(), 0, savePreviewNormal, [this] { OpenSaveDone(); }, nullptr);
 		ui::Engine::Ref().ShowWindow(activePreview->GetView());
 	}
 }
@@ -1440,24 +1469,15 @@ void GameController::FrameStep()
 
 void GameController::Vote(int direction)
 {
-	if(gameModel->GetSave() && gameModel->GetUser().UserID && gameModel->GetSave()->GetID())
+	if (gameModel->GetSave() && gameModel->GetUser().UserID && gameModel->GetSave()->GetID())
 	{
-		try
-		{
-			gameModel->SetVote(direction);
-		}
-		catch(GameModelException & ex)
-		{
-			new ErrorMessage("Error while voting", ByteString(ex.what()).FromUtf8());
-		}
+		gameModel->SetVote(direction);
 	}
 }
 
 void GameController::ChangeBrush()
 {
-	auto prev_size = gameModel->GetBrush().GetRadius();
 	gameModel->SetBrushID(gameModel->GetBrushID()+1);
-	gameModel->GetBrush().SetRadius(prev_size);
 }
 
 void GameController::ClearSim()
@@ -1536,7 +1556,7 @@ void GameController::NotifyAuthUserChanged(Client * sender)
 	gameModel->SetUser(newUser);
 }
 
-void GameController::NotifyNewNotification(Client * sender, std::pair<String, ByteString> notification)
+void GameController::NotifyNewNotification(Client * sender, ServerNotification notification)
 {
 	class LinkNotification : public Notification
 	{
@@ -1550,7 +1570,7 @@ void GameController::NotifyNewNotification(Client * sender, std::pair<String, By
 			Platform::OpenURI(link);
 		}
 	};
-	gameModel->AddNotification(new LinkNotification(notification.second, notification.first));
+	gameModel->AddNotification(new LinkNotification(notification.link, notification.text));
 }
 
 void GameController::NotifyUpdateAvailable(Client * sender)
@@ -1564,7 +1584,13 @@ void GameController::NotifyUpdateAvailable(Client * sender)
 
 		void Action() override
 		{
-			UpdateInfo info = Client::Ref().GetUpdateInfo();
+			auto optinfo = Client::Ref().GetUpdateInfo();
+			if (!optinfo.has_value())
+			{
+				std::cerr << "odd, the update has disappeared" << std::endl;
+				return;
+			}
+			UpdateInfo info = optinfo.value();
 			StringBuilder updateMessage;
 			if (Platform::CanUpdate())
 			{
@@ -1593,36 +1619,41 @@ void GameController::NotifyUpdateAvailable(Client * sender)
 			}
 
 			updateMessage << "\nNew version:\n ";
-			if (info.Type == UpdateInfo::Beta)
+			if (info.channel == UpdateInfo::channelBeta)
 			{
-				updateMessage << info.Major << "." << info.Minor << " Beta, Build " << info.Build;
+				updateMessage << info.major << "." << info.minor << " Beta, Build " << info.build;
 			}
-			else if (info.Type == UpdateInfo::Snapshot)
+			else if (info.channel == UpdateInfo::channelSnapshot)
 			{
 				if constexpr (MOD)
 				{
-					updateMessage << "Mod version " << info.Time;
+					updateMessage << "Mod version " << info.build;
 				}
 				else
 				{
-					updateMessage << "Snapshot " << info.Time;
+					updateMessage << "Snapshot " << info.build;
 				}
 			}
-			else if(info.Type == UpdateInfo::Stable)
+			else if(info.channel == UpdateInfo::channelStable)
 			{
-				updateMessage << info.Major << "." << info.Minor << " Stable, Build " << info.Build;
+				updateMessage << info.major << "." << info.minor << " Stable, Build " << info.build;
 			}
 
-			if (info.Changelog.length())
-				updateMessage << "\n\nChangelog:\n" << info.Changelog;
+			if (info.changeLog.length())
+				updateMessage << "\n\nChangelog:\n" << info.changeLog;
 
-			new ConfirmPrompt("Run Updater", updateMessage.Build(), { [this] { c->RunUpdater(); } });
+			new ConfirmPrompt("Run Updater", updateMessage.Build(), { [this, info] { c->RunUpdater(info); } });
 		}
 	};
 
-	switch(sender->GetUpdateInfo().Type)
+	auto optinfo = sender->GetUpdateInfo();
+	if (!optinfo.has_value())
 	{
-		case UpdateInfo::Snapshot:
+		return;
+	}
+	switch(optinfo.value().channel)
+	{
+		case UpdateInfo::channelSnapshot:
 			if constexpr (MOD)
 			{
 				gameModel->AddNotification(new UpdateNotification(this, "A new mod update is available - click here to update"));
@@ -1632,10 +1663,10 @@ void GameController::NotifyUpdateAvailable(Client * sender)
 				gameModel->AddNotification(new UpdateNotification(this, "A new snapshot is available - click here to update"));
 			}
 			break;
-		case UpdateInfo::Stable:
+		case UpdateInfo::channelStable:
 			gameModel->AddNotification(new UpdateNotification(this, "A new version is available - click here to update"));
 			break;
-		case UpdateInfo::Beta:
+		case UpdateInfo::channelBeta:
 			gameModel->AddNotification(new UpdateNotification(this, "A new beta is available - click here to update"));
 			break;
 	}
@@ -1646,25 +1677,16 @@ void GameController::RemoveNotification(Notification * notification)
 	gameModel->RemoveNotification(notification);
 }
 
-void GameController::RunUpdater()
+void GameController::RunUpdater(UpdateInfo info)
 {
 	if (Platform::CanUpdate())
 	{
 		Exit();
-		new UpdateActivity();
+		new UpdateActivity(info);
 	}
 	else
 	{
-		ByteString file;
-		if constexpr (USE_UPDATESERVER)
-		{
-			file = ByteString::Build(SCHEME, UPDATESERVER, Client::Ref().GetUpdateInfo().File);
-		}
-		else
-		{
-			file = ByteString::Build(SCHEME, SERVER, Client::Ref().GetUpdateInfo().File);
-		}
-		Platform::OpenURI(file);
+		Platform::OpenURI(info.file);
 	}
 }
 

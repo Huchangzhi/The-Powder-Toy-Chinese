@@ -7,6 +7,8 @@
 #include "client/SaveFile.h"
 #include "client/SaveInfo.h"
 #include "client/http/requestmanager/RequestManager.h"
+#include "client/http/GetSaveRequest.h"
+#include "client/http/GetSaveDataRequest.h"
 #include "common/platform/Platform.h"
 #include "graphics/Graphics.h"
 #include "simulation/SaveRenderer.h"
@@ -15,6 +17,7 @@
 #include "gui/Style.h"
 #include "gui/game/GameController.h"
 #include "gui/game/GameView.h"
+#include "gui/game/IntroText.h"
 #include "gui/dialogues/ConfirmPrompt.h"
 #include "gui/dialogues/ErrorMessage.h"
 #include "gui/interface/Engine.h"
@@ -78,14 +81,14 @@ void SaveWindowPosition()
 void LargeScreenDialog()
 {
 	StringBuilder message;
+	auto scale = ui::Engine::Ref().windowFrameOps.scale;
 	message <<  ByteString("切换到 ").FromUtf8() << scale <<  ByteString("x 模式，因为你的屏幕已经够大了:").FromUtf8();
-	message << desktopWidth << "x" << desktopHeight <<  ByteString("<-检测到 ,").FromUtf8() << WINDOWW*scale << "x" << WINDOWH*scale <<  ByteString("<-要求").FromUtf8();
+	message << desktopWidth << "x" << desktopHeight <<  ByteString("<-检测到 ,").FromUtf8() << WINDOWW * scale << "x" << WINDOWH * scale <<  ByteString("<-要求").FromUtf8();
 	message <<  ByteString("\n要撤销此操作，请点击\"取消\"。可以随时在设置中更改它。”").FromUtf8();
-	if (!ConfirmPrompt::Blocking(ByteString("检测到大屏幕").FromUtf8(), message.Build()))
-	{
+	new ConfirmPrompt(ByteString("检测到可缩放屏幕").FromUtf8(), message.Build(), { nullptr, []() {
 		GlobalPrefs::Ref().Set("Scale", 1);
-		ui::Engine::Ref().SetScale(1);
-	}
+		ui::Engine::Ref().windowFrameOps.scale = 1;
+	} });
 }
 
 
@@ -102,6 +105,7 @@ void BlueScreen(String detailMessage)
 	String errorTitle = "ERROR";
 	String errorDetails = "Details: " + detailMessage;
 	String errorHelp = String("An unrecoverable fault has occurred, please report the error by visiting the website below\n") + SCHEME + SERVER;
+	auto versionInfo = ByteString::Build("Version: ", VersionInfo(), "\nTag: ", VCS_TAG).FromUtf8();
 
 	// We use the width of errorHelp to center, but heights of the individual texts for vertical spacing
 	auto pos = engine.g->Size() / 2 - Vec2(Graphics::TextSize(errorHelp).X / 2, 100);
@@ -110,6 +114,8 @@ void BlueScreen(String detailMessage)
 	engine.g->BlendText(pos, errorDetails, 0xFFFFFF_rgb .WithAlpha(0xFF));
 	pos.Y += 4 + Graphics::TextSize(errorDetails).Y;
 	engine.g->BlendText(pos, errorHelp, 0xFFFFFF_rgb .WithAlpha(0xFF));
+	pos.Y += 4 + Graphics::TextSize(errorHelp).Y;
+	engine.g->BlendText(pos, versionInfo, 0xFFFFFF_rgb .WithAlpha(0xFF));
 
 	//Death loop
 	SDL_Event event;
@@ -122,22 +128,30 @@ void BlueScreen(String detailMessage)
 	}
 }
 
+struct
+{
+	int sig;
+	const char *message;
+} signalMessages[] = {
+	{ SIGSEGV, "Memory read/write error" },
+	{ SIGFPE, "Floating point exception" },
+	{ SIGILL, "Program execution exception" },
+	{ SIGABRT, "Unexpected program abort" },
+	{ 0, nullptr },
+};
+
 void SigHandler(int signal)
 {
-	switch(signal){
-	case SIGSEGV:
-		BlueScreen("Memory read/write error");
-		break;
-	case SIGFPE:
-		BlueScreen("Floating point exception");
-		break;
-	case SIGILL:
-		BlueScreen("Program execution exception");
-		break;
-	case SIGABRT:
-		BlueScreen("Unexpected program abort");
-		break;
+	const char *message = "Unknown signal";
+	for (auto *msg = signalMessages; msg->message; ++msg)
+	{
+		if (msg->sig == signal)
+		{
+			message = msg->message;
+			break;
+		}
 	}
+	BlueScreen(ByteString(message).FromUtf8());
 }
 
 constexpr int SCALE_MAXIMUM = 10;
@@ -171,10 +185,21 @@ struct ExplicitSingletons
 };
 static std::unique_ptr<ExplicitSingletons> explicitSingletons;
 
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
 	Platform::SetupCrt();
+	return Platform::InvokeMain(argc, argv);
+}
+
+int Main(int argc, char *argv[])
+{
 	Platform::Atexit([]() {
+		SaveWindowPosition();
+		// Unregister dodgy error handlers so they don't try to show the blue screen when the window is closed
+		for (auto *msg = signalMessages; msg->message; ++msg)
+		{
+			signal(msg->sig, SIG_DFL);
+		}
 		SDLClose();
 		explicitSingletons.reset();
 	});
@@ -240,35 +265,38 @@ int main(int argc, char * argv[])
 	}
 	else
 	{
-		char *ddir = SDL_GetPrefPath(NULL, APPDATA);
+		auto ddir = Platform::DefaultDdir();
 		if (!Platform::FileExists("powder.pref"))
 		{
-			if (ddir)
+			if (ddir.size())
 			{
 				if (!Platform::ChangeDir(ddir))
 				{
 					perror("failed to chdir to default ddir");
-					SDL_free(ddir);
-					ddir = nullptr;
+					ddir = {};
 				}
 			}
 		}
 
-		if (ddir)
+		if (ddir.size())
 		{
 			Platform::sharedCwd = ddir;
-			SDL_free(ddir);
 		}
 	}
 	// We're now in the correct directory, time to get prefs.
 	explicitSingletons->globalPrefs = std::make_unique<GlobalPrefs>();
 
 	auto &prefs = GlobalPrefs::Ref();
-	scale = prefs.Get("Scale", 1);
-	resizable = prefs.Get("Resizable", false);
-	fullscreen = prefs.Get("Fullscreen", false);
-	altFullscreen = prefs.Get("AltFullscreen", false);
-	forceIntegerScaling = prefs.Get("ForceIntegerScaling", true);
+
+	WindowFrameOps windowFrameOps{
+		prefs.Get("Scale", 1),
+		prefs.Get("Resizable", false),
+		prefs.Get("Fullscreen", false),
+		prefs.Get("AltFullscreen", false),
+		prefs.Get("ForceIntegerScaling", true),
+		prefs.Get("BlurryScaling", false),
+	};
+	auto graveExitsConsole = prefs.Get("GraveExitsConsole", true);
 	momentumScroll = prefs.Get("MomentumScroll", true);
 	showAvatars = prefs.Get("ShowAvatars", true);
 
@@ -289,8 +317,8 @@ int main(int argc, char * argv[])
 	auto kioskArg = arguments["kiosk"];
 	if (kioskArg.has_value())
 	{
-		fullscreen = true_string(kioskArg.value());
-		prefs.Set("Fullscreen", fullscreen);
+		windowFrameOps.fullscreen = true_string(kioskArg.value());
+		prefs.Set("Fullscreen", windowFrameOps.fullscreen);
 	}
 
 	if (true_arg(arguments["redirect"]))
@@ -308,8 +336,8 @@ int main(int argc, char * argv[])
 	{
 		try
 		{
-			scale = scaleArg.value().ToNumber<int>();
-			prefs.Set("Scale", scale);
+			windowFrameOps.scale = scaleArg.value().ToNumber<int>();
+			prefs.Set("Scale", windowFrameOps.scale);
 		}
 		catch (const std::runtime_error &e)
 		{
@@ -348,44 +376,39 @@ int main(int argc, char * argv[])
 	explicitSingletons->engine = std::make_unique<ui::Engine>();
 
 	// TODO: maybe bind the maximum allowed scale to screen size somehow
-	if(scale < 1 || scale > SCALE_MAXIMUM)
-		scale = 1;
-
-	SDLOpen();
-
-	if (Client::Ref().IsFirstRun())
-	{
-		scale = GuessBestScale();
-		if (scale > 1)
-		{
-			prefs.Set("Scale", scale);
-			SDL_SetWindowSize(sdl_window, WINDOWW * scale, WINDOWH * scale);
-			showLargeScreenDialog = true;
-		}
-	}
-
-	StopTextInput();
+	if(windowFrameOps.scale < 1 || windowFrameOps.scale > SCALE_MAXIMUM)
+		windowFrameOps.scale = 1;
 
 	auto &engine = ui::Engine::Ref();
 	engine.g = new Graphics();
-	engine.Scale = scale;
-	engine.SetResizable(resizable);
-	engine.Fullscreen = fullscreen;
-	engine.SetAltFullscreen(altFullscreen);
-	engine.SetForceIntegerScaling(forceIntegerScaling);
+	engine.GraveExitsConsole = graveExitsConsole;
 	engine.MomentumScroll = momentumScroll;
 	engine.ShowAvatars = showAvatars;
 	engine.Begin();
 	engine.SetFastQuit(prefs.Get("FastQuit", true));
+	engine.TouchUI = prefs.Get("TouchUI", DEFAULT_TOUCH_UI);
+	if (Client::Ref().IsFirstRun() && FORCE_WINDOW_FRAME_OPS == forceWindowFrameOpsNone)
+	{
+		auto guessed = GuessBestScale();
+		if (windowFrameOps.scale != guessed)
+		{
+			windowFrameOps.scale = guessed;
+			prefs.Set("Scale", windowFrameOps.scale);
+			showLargeScreenDialog = true;
+		}
+	}
+	engine.windowFrameOps = windowFrameOps;
 
-	bool enableBluescreen = !DEBUG && !true_arg(arguments["disable-bluescreen"]);
+	SDLOpen();
+
+	bool enableBluescreen = USE_BLUESCREEN && !true_arg(arguments["disable-bluescreen"]);
 	if (enableBluescreen)
 	{
 		//Get ready to catch any dodgy errors
-		signal(SIGSEGV, SigHandler);
-		signal(SIGFPE, SigHandler);
-		signal(SIGILL, SigHandler);
-		signal(SIGABRT, SigHandler);
+		for (auto *msg = signalMessages; msg->message; ++msg)
+		{
+			signal(msg->sig, SigHandler);
+		}
 	}
 
 	if constexpr (X86)
@@ -461,27 +484,28 @@ int main(int argc, char * argv[])
 				{
 					std::cout << "Got Ptsave: id: " << saveIdPart << std::endl;
 				}
+				ByteString saveHistoryPart = "0";
+				if (auto split = saveIdPart.SplitBy('@'))
+				{
+					saveHistoryPart = split.After();
+					saveIdPart = split.Before();
+				}
 				int saveId = saveIdPart.ToNumber<int>();
-
-				auto newSave = Client::Ref().GetSave(saveId, 0);
-				if (!newSave)
-					throw std::runtime_error("Could not load save info");
-				auto saveData = Client::Ref().GetSaveData(saveId, 0);
-				if (!saveData.size())
-					throw std::runtime_error(("Could not load save\n" + Client::Ref().GetLastError()).ToUtf8());
-				auto newGameSave = std::make_unique<GameSave>(std::move(saveData));
-				newSave->SetGameSave(std::move(newGameSave));
-
-				gameController->LoadSave(std::move(newSave));
+				int saveHistory = saveHistoryPart.ToNumber<int>();
+				gameController->OpenSavePreview(saveId, saveHistory, savePreviewUrl);
 			}
 			catch (std::exception & e)
 			{
 				new ErrorMessage("Error", ByteString(e.what()).FromUtf8());
+				Platform::MarkPresentable();
 			}
 		}
+		else
+		{
+			Platform::MarkPresentable();
+		}
 
-		EngineProcess();
-		SaveWindowPosition();
+		MainLoop();
 	};
 
 	if (enableBluescreen)

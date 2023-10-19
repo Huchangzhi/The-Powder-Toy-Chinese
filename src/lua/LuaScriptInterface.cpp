@@ -1,5 +1,7 @@
 #include "bzip2/bz2wrap.h"
 #include "common/VariantIndex.h"
+#include "Config.h"
+#include "prefs/GlobalPrefs.h"
 
 #include "LuaScriptInterface.h"
 
@@ -24,6 +26,7 @@
 #include "client/GameSave.h"
 #include "client/SaveFile.h"
 #include "client/SaveInfo.h"
+#include "client/http/Request.h"
 #include "common/platform/Platform.h"
 #include "graphics/Graphics.h"
 #include "graphics/Renderer.h"
@@ -37,6 +40,10 @@
 #include "simulation/SaveRenderer.h"
 #include "simulation/Snapshot.h"
 
+#include "gui/dialogues/ConfirmPrompt.h"
+#include "gui/dialogues/ErrorMessage.h"
+#include "gui/dialogues/InformationMessage.h"
+#include "gui/dialogues/TextPrompt.h"
 #include "gui/interface/Window.h"
 #include "gui/interface/Engine.h"
 #include "gui/game/GameView.h"
@@ -44,6 +51,9 @@
 #include "gui/game/GameModel.h"
 #include "gui/game/Tool.h"
 #include "gui/game/Brush.h"
+#include "gui/dialogues/ConfirmPrompt.h"
+#include "gui/dialogues/ErrorMessage.h"
+#include "gui/dialogues/InformationMessage.h"
 
 #include "eventcompat.lua.h"
 
@@ -196,7 +206,16 @@ static int mathRandom(lua_State *l)
 	{
 		luaL_error(l, "interval is empty");
 	}
-	lua_pushinteger(l, rng.between(lower, upper));
+	if ((unsigned int)(upper) - (unsigned int)(lower) + 1U)
+	{
+		lua_pushinteger(l, rng.between(lower, upper));
+	}
+	else
+	{
+		// The interval is *so* not empty that its size overflows 32-bit integers
+		// (only possible if it's exactly 0x100000000); don't use between.
+		lua_pushinteger(l, int(rng()));
+	}
 	return 1;
 }
 
@@ -254,6 +273,8 @@ LuaScriptInterface::LuaScriptInterface(GameController * c, GameModel * m):
 	currentCommand(false),
 	textInputRefcount(0)
 {
+	auto &prefs = GlobalPrefs::Ref();
+	luaHookTimeout = prefs.Get("LuaHookTimeout", 3000);
 	luacon_model = m;
 	luacon_controller = c;
 	luacon_sim = m->GetSimulation();
@@ -274,6 +295,7 @@ LuaScriptInterface::LuaScriptInterface(GameController * c, GameModel * m):
 	lua_atpanic(l, atPanic);
 	luaL_openlibs(l);
 	luaopen_bit(l);
+	lua_pop(l, 1);
 
 	lua_pushliteral(l, "Luacon_ci");
 	lua_pushlightuserdata(l, this);
@@ -332,9 +354,6 @@ LuaScriptInterface::LuaScriptInterface(GameController * c, GameModel * m):
 		{"textwidth", &luatpt_textwidth},
 		{"get_name", &luatpt_get_name},
 		{"delete", &luatpt_delete},
-		{"input", &luatpt_input},
-		{"message_box", &luatpt_message_box},
-		{"confirm", &luatpt_confirm},
 		{"get_numOfParts", &luatpt_get_numOfParts},
 		{"start_getPartIndex", &luatpt_start_getPartIndex},
 		{"next_getPartIndex", &luatpt_next_getPartIndex},
@@ -347,12 +366,11 @@ LuaScriptInterface::LuaScriptInterface(GameController * c, GameModel * m):
 		{"num_menus", &luatpt_num_menus},
 		{"decorations_enable", &luatpt_decorations_enable},
 		{"display_mode", &luatpt_cmode_set},
-		{"throw_error", &luatpt_error},
 		{"heat", &luatpt_heat},
 		{"setfire", &luatpt_setfire},
 		{"setdebug", &luatpt_setdebug},
 		{"setfpscap",&luatpt_setfpscap},
-		{"getscript",&luatpt_getscript},
+		{"beginGetScript",&luatpt_getscript},
 		{"setwindowsize",&luatpt_setwindowsize},
 		{"watertest",&luatpt_togglewater},
 		{"screenshot",&luatpt_screenshot},
@@ -402,6 +420,12 @@ LuaScriptInterface::LuaScriptInterface(GameController * c, GameModel * m):
 	lua_setfield(l, tptPropertiesVersion, "snapshot");
 	lua_pushinteger(l, MOD_ID);
 	lua_setfield(l, tptPropertiesVersion, "modid");
+	auto vcsTag = ByteString(VCS_TAG);
+	if (vcsTag.size())
+	{
+		tpt_lua_pushByteString(l, VCS_TAG);
+		lua_setfield(l, tptPropertiesVersion, "vcstag");
+	}
 	lua_setfield(l, tptProperties, "version");
 
 	lua_sethook(l, &luacon_hook, LUA_MASKCOUNT, 200);
@@ -444,7 +468,7 @@ tpt.partsdata = nil");
 		lua_setmetatable(l, top);
 	}
 
-	tptPart = new LuaSmartRef(l);
+	tptPart = new LuaSmartRef();
 	tptPart->Assign(l, -1);
 	lua_pop(l, 1);
 #endif
@@ -489,14 +513,14 @@ tpt.partsdata = nil");
 	}
 	lua_setfield(l, tptProperties, "eltransition");
 
-	lua_gr_func_v = std::vector<LuaSmartRef>(PT_NUM, l);
+	lua_gr_func_v = std::vector<LuaSmartRef>(PT_NUM);
 	lua_gr_func = &lua_gr_func_v[0];
-	lua_el_func_v = std::vector<LuaSmartRef>(PT_NUM, l);
+	lua_el_func_v = std::vector<LuaSmartRef>(PT_NUM);
 	lua_el_func = &lua_el_func_v[0];
 	lua_el_mode_v = std::vector<int>(PT_NUM, 0);
 	lua_el_mode = &lua_el_mode_v[0];
 
-	gameControllerEventHandlers = std::vector<LuaSmartRef>(std::variant_size<GameControllerEvent>::value, l);
+	gameControllerEventHandlers = std::vector<LuaSmartRef>(std::variant_size<GameControllerEvent>::value);
 	for (auto &ref : gameControllerEventHandlers)
 	{
 		lua_newtable(l);
@@ -504,10 +528,10 @@ tpt.partsdata = nil");
 		lua_pop(l, 1);
 	}
 
-	luaCtypeDrawHandlers = std::vector<LuaSmartRef>(PT_NUM, l);
-	luaCreateHandlers = std::vector<LuaSmartRef>(PT_NUM, l);
-	luaCreateAllowedHandlers = std::vector<LuaSmartRef>(PT_NUM, l);
-	luaChangeTypeHandlers = std::vector<LuaSmartRef>(PT_NUM, l);
+	luaCtypeDrawHandlers = std::vector<LuaSmartRef>(PT_NUM);
+	luaCreateHandlers = std::vector<LuaSmartRef>(PT_NUM);
+	luaCreateAllowedHandlers = std::vector<LuaSmartRef>(PT_NUM);
+	luaChangeTypeHandlers = std::vector<LuaSmartRef>(PT_NUM);
 
 	//make tpt.* a metatable
 	lua_newtable(l);
@@ -523,6 +547,7 @@ tpt.partsdata = nil");
 	{
 		throw std::runtime_error(ByteString("failed to load built-in eventcompat: ") + tpt_lua_toByteString(l, -1));
 	}
+	lua_pop(l, 1);
 }
 
 void LuaScriptInterface::custom_init_can_move()
@@ -647,7 +672,150 @@ int LuaScriptInterface::tpt_newIndex(lua_State *l)
 	return 0;
 }
 
-//// Begin Interface API
+template<class Type>
+struct PickIfTypeHelper;
+
+template<>
+struct PickIfTypeHelper<String>
+{
+	static constexpr auto LuaType = LUA_TSTRING;
+	static String Get(lua_State *l, int index) { return tpt_lua_checkString(l, index); }
+};
+
+template<>
+struct PickIfTypeHelper<bool>
+{
+	static constexpr auto LuaType = LUA_TBOOLEAN;
+	static bool Get(lua_State *l, int index) { return lua_toboolean(l, index); }
+};
+
+template<class Type>
+static Type PickIfType(lua_State *l, int index, Type defaultValue)
+{
+	return lua_type(l, index) == PickIfTypeHelper<Type>::LuaType ? PickIfTypeHelper<Type>::Get(l, index) : defaultValue;
+}
+
+static int beginMessageBox(lua_State* l)
+{
+	auto title = PickIfType(l, 1, String("Title"));
+	auto message = PickIfType(l, 2, String("Message"));
+	auto large = PickIfType(l, 3, false);
+	auto cb = std::make_shared<LuaSmartRef>(); // * Bind to main lua state (might be different from l).
+	cb->Assign(l, lua_gettop(l));
+	new InformationMessage(title, message, large, { [cb]() {
+		auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
+		auto l = luacon_ci->l;
+		cb->Push(l);
+		if (lua_isfunction(l, -1))
+		{
+			if (tpt_lua_pcall(l, 0, 0, 0, false))
+			{
+				luacon_ci->Log(CommandInterface::LogError, luacon_geterror());
+			}
+		}
+		else
+		{
+			lua_pop(l, 1);
+		}
+	} });
+	return 0;
+}
+
+static int beginThrowError(lua_State* l)
+{
+	auto errorMessage = PickIfType(l, 1, String("Error text"));
+	auto cb = std::make_shared<LuaSmartRef>(); // * Bind to main lua state (might be different from l).
+	cb->Assign(l, lua_gettop(l));
+	new ErrorMessage("Error", errorMessage, { [cb]() {
+		auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
+		auto l = luacon_ci->l;
+		cb->Push(l);
+		if (lua_isfunction(l, -1))
+		{
+			if (tpt_lua_pcall(l, 0, 0, 0, false))
+			{
+				luacon_ci->Log(CommandInterface::LogError, luacon_geterror());
+			}
+		}
+		else
+		{
+			lua_pop(l, 1);
+		}
+	} });
+	return 0;
+}
+
+static int beginInput(lua_State* l)
+{
+	auto title = PickIfType(l, 1, String("Title"));
+	auto prompt = PickIfType(l, 2, String("Enter some text:"));
+	auto text = PickIfType(l, 3, String(""));
+	auto shadow = PickIfType(l, 4, String(""));
+	auto cb = std::make_shared<LuaSmartRef>(); // * Bind to main lua state (might be different from l).
+	cb->Assign(l, lua_gettop(l));
+	auto handle = [cb](std::optional<String> input) {
+		auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
+		auto l = luacon_ci->l;
+		cb->Push(l);
+		if (lua_isfunction(l, -1))
+		{
+			if (input)
+			{
+				tpt_lua_pushString(l, *input);
+			}
+			else
+			{
+				lua_pushnil(l);
+			}
+			if (tpt_lua_pcall(l, 1, 0, 0, false))
+			{
+				luacon_ci->Log(CommandInterface::LogError, luacon_geterror());
+			}
+		}
+		else
+		{
+			lua_pop(l, 1);
+		}
+	};
+	new TextPrompt(title, prompt, text, shadow, false, { [handle](const String &input) {
+		handle(input);
+	}, [handle]() {
+		handle(std::nullopt);
+	} });
+	return 0;
+}
+
+static int beginConfirm(lua_State *l)
+{
+	auto title = PickIfType(l, 1, String("Title"));
+	auto message = PickIfType(l, 2, String("Message"));
+	auto buttonText = PickIfType(l, 3, String("Confirm"));
+	auto cb = std::make_shared<LuaSmartRef>(); // * Bind to main lua state (might be different from l).
+	cb->Assign(l, lua_gettop(l));
+	auto handle = [cb](int result) {
+		auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
+		auto l = luacon_ci->l;
+		cb->Push(l);
+		if (lua_isfunction(l, -1))
+		{
+			lua_pushboolean(l, result);
+			if (tpt_lua_pcall(l, 1, 0, 0, false))
+			{
+				luacon_ci->Log(CommandInterface::LogError, luacon_geterror());
+			}
+		}
+		else
+		{
+			lua_pop(l, 1);
+		}
+	};
+	new ConfirmPrompt(title, message, { [handle]() {
+		handle(1);
+	}, [handle]() {
+		handle(0);
+	} }, buttonText);
+	return 0;
+}
 
 void LuaScriptInterface::initInterfaceAPI()
 {
@@ -659,16 +827,21 @@ void LuaScriptInterface::initInterfaceAPI()
 		{"grabTextInput", interface_grabTextInput},
 		{"dropTextInput", interface_dropTextInput},
 		{"textInputRect", interface_textInputRect},
+		{"beginInput", beginInput},
+		{"beginMessageBox", beginMessageBox},
+		{"beginConfirm", beginConfirm},
+		{"beginThrowError", beginThrowError},
 		{NULL, NULL}
 	};
 	luaL_register(l, "interface", interfaceAPIMethods);
-
-	//Ren shortcut
-	lua_getglobal(l, "interface");
 	initLuaSDLKeys(l);
 	lua_pushinteger(l, GameController::mouseUpNormal); lua_setfield(l, -2, "MOUSE_UP_NORMAL");
 	lua_pushinteger(l, GameController::mouseUpBlur); lua_setfield(l, -2, "MOUSE_UP_BLUR");
 	lua_pushinteger(l, GameController::mouseUpDrawEnd); lua_setfield(l, -2, "MOUSE_UP_DRAW_END");
+	lua_pop(l, 1);
+
+	//Ren shortcut
+	lua_getglobal(l, "interface");
 	lua_setglobal(l, "ui");
 
 	Luna<LuaWindow>::Register(l);
@@ -701,7 +874,7 @@ int LuaScriptInterface::interface_addComponent(lua_State * l)
 		luaL_typerror(l, 1, "Component");
 	if (luacon_ci->Window && luaComponent)
 	{
-		auto ok = luacon_ci->grabbed_components.insert(std::make_pair(luaComponent, LuaSmartRef(l)));
+		auto ok = luacon_ci->grabbed_components.insert(std::make_pair(luaComponent, LuaSmartRef()));
 		if (ok.second)
 		{
 			auto it = ok.first;
@@ -1035,10 +1208,6 @@ void LuaScriptInterface::initSimulationAPI()
 	};
 	luaL_register(l, "simulation", simulationAPIMethods);
 
-	//Sim shortcut
-	lua_getglobal(l, "simulation");
-	lua_setglobal(l, "sim");
-
 	//Static values
 	SETCONST(l, CELL);
 	SETCONST(l, XCELLS);
@@ -1046,6 +1215,8 @@ void LuaScriptInterface::initSimulationAPI()
 	SETCONST(l, NCELL);
 	SETCONST(l, XRES);
 	SETCONST(l, YRES);
+	SETCONST(l, XCNTR);
+	SETCONST(l, YCNTR);
 	SETCONST(l, NPART);
 	SETCONST(l, NT);
 	SETCONST(l, ST);
@@ -1060,6 +1231,9 @@ void LuaScriptInterface::initSimulationAPI()
 	SETCONSTF(l, MIN_TEMP);
 	SETCONSTF(l, MAX_PRESSURE);
 	SETCONSTF(l, MIN_PRESSURE);
+	SETCONST(l, ISTP);
+	SETCONSTF(l, CFDS);
+	SETCONSTF(l, MAX_VELOCITY);
 
 	SETCONST(l, TOOL_HEAT);
 	SETCONST(l, TOOL_COOL);
@@ -1070,6 +1244,7 @@ void LuaScriptInterface::initSimulationAPI()
 	SETCONST(l, TOOL_MIX);
 	SETCONST(l, TOOL_CYCL);
 	lua_pushinteger(l, luacon_sim->tools.size()); lua_setfield(l, -2, "TOOL_WIND");
+
 	SETCONST(l, DECO_DRAW);
 	SETCONST(l, DECO_CLEAR);
 	SETCONST(l, DECO_ADD);
@@ -1080,6 +1255,43 @@ void LuaScriptInterface::initSimulationAPI()
 
 	SETCONST(l, PMAPBITS);
 	SETCONST(l, PMAPMASK);
+
+	SETCONST(l, CIRCLE_BRUSH);
+	SETCONST(l, SQUARE_BRUSH);
+	SETCONST(l, TRI_BRUSH);
+	SETCONST(l, BRUSH_NUM);
+
+	SETCONST(l, EDGE_VOID);
+	SETCONST(l, EDGE_SOLID);
+	SETCONST(l, EDGE_LOOP);
+	SETCONST(l, NUM_EDGE_MODES);
+
+	SETCONST(l, AIR_ON);
+	SETCONST(l, AIR_PRESSURE_OFF);
+	SETCONST(l, AIR_VELOCITY_OFF);
+	SETCONST(l, AIR_OFF);
+	SETCONST(l, AIR_NO_UPDATE);
+	SETCONST(l, NUM_AIR_MODES);
+
+	SETCONST(l, GRAV_VERTICAL);
+	SETCONST(l, GRAV_OFF);
+	SETCONST(l, GRAV_RADIAL);
+	SETCONST(l, GRAV_CUSTOM);
+	SETCONST(l, NUM_GRAV_MODES);
+
+	lua_newtable(l);
+	for (int i = 0; i < UI_WALLCOUNT; i++)
+	{
+		tpt_lua_pushByteString(l, luacon_sim->wtypes[i].identifier);
+		lua_pushinteger(l, i);
+		lua_settable(l, -3);
+
+		lua_pushinteger(l, i);
+		tpt_lua_pushByteString(l, luacon_sim->wtypes[i].identifier);
+		lua_settable(l, -3);
+	}
+	lua_setfield(l, -2, "walls");
+	SETCONST(l, UI_WALLCOUNT);
 
 	//Declare FIELD_BLAH constants
 	{
@@ -1120,6 +1332,12 @@ void LuaScriptInterface::initSimulationAPI()
 	lua_pushcfunction(l, simulation_deletesign);
 	lua_setfield(l, -2, "delete");
 	lua_setfield(l, -2, "signs");
+
+	lua_pop(l, 1);
+
+	//Sim shortcut
+	lua_getglobal(l, "simulation");
+	lua_setglobal(l, "sim");
 }
 
 void LuaScriptInterface::set_map(int x, int y, int width, int height, float value, int map) // A function so this won't need to be repeated many times later
@@ -1152,7 +1370,7 @@ void LuaScriptInterface::set_map(int x, int y, int width, int height, float valu
 int LuaScriptInterface::simulation_partNeighbours(lua_State * l)
 {
 	lua_newtable(l);
-	int id = 0;
+	int id = 1;
 	int x = lua_tointeger(l, 1), y = lua_tointeger(l, 2), r = lua_tointeger(l, 3), rx, ry, n;
 	if(lua_gettop(l) == 5) // this is one more than the number of arguments because a table has just been pushed onto the stack with lua_newtable(l);
 	{
@@ -2058,7 +2276,7 @@ int LuaScriptInterface::simulation_loadSave(lua_State * l)
 	int saveID = luaL_optint(l,1,0);
 	int instant = luaL_optint(l,2,0);
 	int history = luaL_optint(l,3,0); //Exact second a previous save was saved
-	luacon_controller->OpenSavePreview(saveID, history, instant?true:false);
+	luacon_controller->OpenSavePreview(saveID, history, instant ? savePreviewInstant : savePreviewNormal);
 	return 0;
 }
 
@@ -2126,7 +2344,7 @@ int LuaScriptInterface::simulation_edgeMode(lua_State * l)
 		lua_pushnumber(l, luacon_model->GetEdgeMode());
 		return 1;
 	}
-	int edgeMode = luaL_optint(l, 1, 0);
+	int edgeMode = luaL_optint(l, 1, EDGE_VOID);
 	luacon_model->SetEdgeMode(edgeMode);
 	return 0;
 }
@@ -2139,7 +2357,7 @@ int LuaScriptInterface::simulation_gravityMode(lua_State * l)
 		lua_pushnumber(l, luacon_sim->gravityMode);
 		return 1;
 	}
-	int gravityMode = luaL_optint(l, 1, 0);
+	int gravityMode = luaL_optint(l, 1, GRAV_VERTICAL);
 	luacon_sim->gravityMode = gravityMode;
 	return 0;
 }
@@ -2172,7 +2390,7 @@ int LuaScriptInterface::simulation_airMode(lua_State * l)
 		lua_pushnumber(l, luacon_sim->air->airMode);
 		return 1;
 	}
-	int airMode = luaL_optint(l, 1, 0);
+	int airMode = luaL_optint(l, 1, AIR_ON);
 	luacon_sim->air->airMode = airMode;
 	return 0;
 }
@@ -2340,6 +2558,10 @@ static int NeighboursClosure(lua_State *l)
 			{
 				r = 0;
 			}
+		}
+		if (cx == px && cy == py)
+		{
+			r = 0;
 		}
 		if (r)
 		{
@@ -2607,10 +2829,6 @@ void LuaScriptInterface::initRendererAPI()
 	};
 	luaL_register(l, "renderer", rendererAPIMethods);
 
-	//Ren shortcut
-	lua_getglobal(l, "renderer");
-	lua_setglobal(l, "ren");
-
 	//Static values
 	//Particle pixel modes/fire mode/effects
 	SETCONST(l, PMODE);
@@ -2658,6 +2876,12 @@ void LuaScriptInterface::initRendererAPI()
 	SETCONST(l, DISPLAY_WARP);
 	SETCONST(l, DISPLAY_PERS);
 	SETCONST(l, DISPLAY_EFFE);
+
+	lua_pop(l, 1);
+
+	//Ren shortcut
+	lua_getglobal(l, "renderer");
+	lua_setglobal(l, "ren");
 }
 
 //get/set render modes list
@@ -2884,10 +3108,6 @@ void LuaScriptInterface::initElementsAPI()
 	};
 	luaL_register(l, "elements", elementsAPIMethods);
 
-	//elem shortcut
-	lua_getglobal(l, "elements");
-	lua_setglobal(l, "elem");
-
 	//Static values
 	//Element types/properties/states
 	SETCONST(l, TYPE_PART);
@@ -2957,6 +3177,12 @@ void LuaScriptInterface::initElementsAPI()
 			}
 		}
 	}
+
+	lua_pop(l, 1);
+
+	//elem shortcut
+	lua_getglobal(l, "elements");
+	lua_setglobal(l, "elem");
 }
 
 void LuaScriptInterface::LuaGetProperty(lua_State* l, StructProperty property, intptr_t propertyAddress)
@@ -3785,12 +4011,14 @@ void LuaScriptInterface::initGraphicsAPI()
 	};
 	luaL_register(l, "graphics", graphicsAPIMethods);
 
+	lua_pushinteger(l, WINDOWW);	lua_setfield(l, -2, "WIDTH");
+	lua_pushinteger(l, WINDOWH);	lua_setfield(l, -2, "HEIGHT");
+
+	lua_pop(l, 1);
+
 	//elem shortcut
 	lua_getglobal(l, "graphics");
 	lua_setglobal(l, "gfx");
-
-	lua_pushinteger(l, WINDOWW);	lua_setfield(l, -2, "WIDTH");
-	lua_pushinteger(l, WINDOWH);	lua_setfield(l, -2, "HEIGHT");
 }
 
 int LuaScriptInterface::graphics_textSize(lua_State * l)
@@ -4037,6 +4265,7 @@ void LuaScriptInterface::initFileSystemAPI()
 		{NULL, NULL}
 	};
 	luaL_register(l, "fileSystem", fileSystemAPIMethods);
+	lua_pop(l, 1);
 
 	//elem shortcut
 	lua_getglobal(l, "fileSystem");
@@ -4093,7 +4322,7 @@ int LuaScriptInterface::fileSystem_makeDirectory(lua_State * l)
 
 	int ret = 0;
 	ret = Platform::MakeDirectory(dirname);
-	lua_pushboolean(l, ret == 0);
+	lua_pushboolean(l, ret);
 	return 1;
 }
 
@@ -4146,6 +4375,7 @@ void LuaScriptInterface::initPlatformAPI()
 		{NULL, NULL}
 	};
 	luaL_register(l, "platform", platformAPIMethods);
+	lua_pop(l, 1);
 
 	//elem shortcut
 	lua_getglobal(l, "platform");
@@ -4219,9 +4449,6 @@ void LuaScriptInterface::initEventAPI()
 	};
 	luaL_register(l, "event", eventAPIMethods);
 
-	lua_getglobal(l, "event");
-	lua_setglobal(l, "evt");
-
 	lua_pushinteger(l, VariantIndex<GameControllerEvent, TextInputEvent  >()); lua_setfield(l, -2, "textinput"  );
 	lua_pushinteger(l, VariantIndex<GameControllerEvent, TextEditingEvent>()); lua_setfield(l, -2, "textediting");
 	lua_pushinteger(l, VariantIndex<GameControllerEvent, KeyPressEvent   >()); lua_setfield(l, -2, "keypress"   );
@@ -4235,6 +4462,11 @@ void LuaScriptInterface::initEventAPI()
 	lua_pushinteger(l, VariantIndex<GameControllerEvent, CloseEvent      >()); lua_setfield(l, -2, "close"      );
 	lua_pushinteger(l, VariantIndex<GameControllerEvent, BeforeSimEvent  >()); lua_setfield(l, -2, "beforesim"  );
 	lua_pushinteger(l, VariantIndex<GameControllerEvent, AfterSimEvent   >()); lua_setfield(l, -2, "aftersim"   );
+
+	lua_pop(l, 1);
+
+	lua_getglobal(l, "event");
+	lua_setglobal(l, "evt");
 }
 
 int LuaScriptInterface::event_register(lua_State * l)
@@ -4396,8 +4628,96 @@ bool LuaScriptInterface::HandleEvent(const GameControllerEvent &event)
 	return cont;
 }
 
+struct GetScriptStatus
+{
+	struct Ok
+	{
+	};
+	struct Cancelled
+	{
+	};
+	struct GetFailed
+	{
+		String error;
+	};
+	struct RunFailed
+	{
+		String error;
+	};
+	using Value = std::variant<
+		Ok,
+		Cancelled,
+		GetFailed,
+		RunFailed
+	>;
+	Value value;
+};
+
 void LuaScriptInterface::OnTick()
 {
+	if (scriptDownload && scriptDownload->CheckDone())
+	{
+		auto ret = scriptDownload->StatusCode();
+		ByteString scriptData;
+		auto complete = [this](GetScriptStatus status) {
+			if (std::get_if<GetScriptStatus::Ok>(&status.value))
+			{
+				new InformationMessage("Script download", "Script successfully downloaded", false);
+			}
+			if (auto *requestFailed = std::get_if<GetScriptStatus::GetFailed>(&status.value))
+			{
+				new ErrorMessage("Script download", "Failed to get script: " + requestFailed->error);
+			}
+			if (auto *runFailed = std::get_if<GetScriptStatus::RunFailed>(&status.value))
+			{
+				new ErrorMessage("Script download", "Failed to run script: " + runFailed->error);
+			}
+			scriptDownloadComplete(status);
+		};
+		auto handleResponse = [this, &scriptData, &ret, &complete]() {
+			if (!scriptData.size())
+			{
+				complete({ GetScriptStatus::GetFailed{ "Server did not return data" } });
+				return;
+			}
+			if (ret != 200)
+			{
+				complete({ GetScriptStatus::GetFailed{ ByteString(http::StatusText(ret)).FromUtf8() } });
+				return;
+			}
+			if (Platform::FileExists(scriptDownloadFilename))
+			{
+				complete({ GetScriptStatus::GetFailed{ "File already exists" } });
+				return;
+			}
+			if (!Platform::WriteFile(std::vector<char>(scriptData.begin(), scriptData.end()), scriptDownloadFilename))
+			{
+				complete({ GetScriptStatus::GetFailed{ "Unable to write to file" } });
+				return;
+			}
+			if (scriptDownloadRunScript)
+			{
+				if (tpt_lua_dostring(l, ByteString::Build("dofile('", scriptDownloadFilename, "')")))
+				{
+					complete({ GetScriptStatus::RunFailed{ luacon_geterror() } });
+					return;
+				}
+			}
+			complete({ GetScriptStatus::Ok{} });
+		};
+		try
+		{
+			scriptData = scriptDownload->Finish().second;
+			handleResponse();
+		}
+		catch (const http::RequestError &ex)
+		{
+			complete({ GetScriptStatus::GetFailed{ ByteString(ex.what()).FromUtf8() } });
+		}
+		scriptDownload.reset();
+		scriptDownloadComplete = nullptr;
+		scriptDownloadPending = false;
+	}
 	lua_getglobal(l, "simulation");
 	if (lua_istable(l, -1))
 	{
@@ -4815,3 +5135,82 @@ CommandInterface *CommandInterface::Create(GameController * c, GameModel * m)
 	return new LuaScriptInterface(c, m);
 }
 
+int LuaScriptInterface::luatpt_getscript(lua_State* l)
+{
+	auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
+	if (luacon_ci->scriptDownloadPending)
+	{
+		new ErrorMessage("Script download", "A script download is already pending");
+		lua_pushnil(l);
+		lua_pushliteral(l, "pending");
+		return 2;
+	}
+
+	int scriptID = luaL_checkinteger(l, 1);
+	auto filename = tpt_lua_checkByteString(l, 2);
+	auto runScript = PickIfType(l, 3, false);
+
+	auto cb = std::make_shared<LuaSmartRef>(); // * Bind to main lua state (might be different from l).
+	cb->Assign(l, lua_gettop(l));
+	luacon_ci->scriptDownloadComplete = [cb](const GetScriptStatus &status) {
+		auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
+		auto l = luacon_ci->l;
+		cb->Push(l);
+		if (lua_isfunction(l, -1))
+		{
+			int nargs = 0;
+			if (std::get_if<GetScriptStatus::Ok>(&status.value))
+			{
+				lua_pushliteral(l, "ok");
+				nargs = 1;
+			}
+			if (std::get_if<GetScriptStatus::Cancelled>(&status.value))
+			{
+				lua_pushliteral(l, "cancelled");
+				nargs = 1;
+			}
+			if (auto *requestFailed = std::get_if<GetScriptStatus::GetFailed>(&status.value))
+			{
+				lua_pushliteral(l, "get_failed");
+				tpt_lua_pushString(l, requestFailed->error);
+				nargs = 2;
+			}
+			if (auto *runFailed = std::get_if<GetScriptStatus::RunFailed>(&status.value))
+			{
+				lua_pushliteral(l, "run_failed");
+				tpt_lua_pushString(l, runFailed->error);
+				nargs = 2;
+			}
+			if (tpt_lua_pcall(l, nargs, 0, 0, false))
+			{
+				luacon_ci->Log(CommandInterface::LogError, luacon_geterror());
+			}
+		}
+		else
+		{
+			lua_pop(l, 1);
+		}
+	};
+
+	ByteString url = ByteString::Build(SCHEME, "starcatcher.us/scripts/main.lua?get=", scriptID);
+	new ConfirmPrompt("Do you want to install this script?", url.FromUtf8(), {
+		[filename, runScript, url]() {
+			auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
+			luacon_ci->scriptDownload = std::make_unique<http::Request>(url);
+			luacon_ci->scriptDownload->Start();
+			luacon_ci->scriptDownloadFilename = filename;
+			luacon_ci->scriptDownloadRunScript = runScript;
+			luacon_controller->HideConsole();
+		},
+		[]() {
+			auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
+			luacon_ci->scriptDownloadComplete({ GetScriptStatus::Cancelled{} });
+			luacon_ci->scriptDownloadComplete = nullptr;
+			luacon_ci->scriptDownloadPending = false;
+		},
+	}, "Install");
+
+	luacon_ci->scriptDownloadPending = true;
+	lua_pushboolean(l, 1);
+	return 1;
+}

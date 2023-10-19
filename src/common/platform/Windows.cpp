@@ -1,9 +1,6 @@
 #include "Platform.h"
 #include "resource.h"
 #include "Config.h"
-#ifndef NOMINMAX
-# define NOMINMAX
-#endif
 #include <iostream>
 #include <sys/stat.h>
 #include <io.h>
@@ -406,6 +403,10 @@ void SetupCrt()
 	if constexpr (DEBUG)
 	{
 		_CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_DEBUG);
+	}
+	if (GetACP() != CP_UTF8)
+	{
+		std::cerr << "failed to set codepage to utf-8, expect breakage" << std::endl;
 	}
 }
 }

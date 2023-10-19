@@ -5,6 +5,9 @@
 #include "common/ExplicitSingleton.h"
 #include "graphics/Pixel.h"
 #include "gui/interface/Point.h"
+#include "gui/WindowFrameOps.h"
+#include <climits>
+#include "FpsLimit.h"
 
 class Graphics;
 namespace ui
@@ -39,25 +42,12 @@ namespace ui
 
 		void Begin();
 		inline bool Running() { return running_; }
-		inline bool Broken() { return break_; }
 		inline long unsigned int LastTick() { return lastTick; }
 		void Exit();
 		void ConfirmExit();
-		void Break();
-		void UnBreak();
 
 		void SetDrawingFrequencyLimit(int limit) {drawingFrequencyLimit = limit;}
 		inline int GetDrawingFrequencyLimit() {return drawingFrequencyLimit;}
-		void SetFullscreen(bool fullscreen) { Fullscreen = fullscreen; }
-		inline bool GetFullscreen() { return Fullscreen; }
-		void SetAltFullscreen(bool altFullscreen) { this->altFullscreen = altFullscreen; }
-		inline bool GetAltFullscreen() { return altFullscreen; }
-		void SetForceIntegerScaling(bool forceIntegerScaling) { this->forceIntegerScaling = forceIntegerScaling; }
-		inline bool GetForceIntegerScaling() { return forceIntegerScaling; }
-		void SetScale(int scale) { Scale = scale; }
-		inline int GetScale() { return Scale; }
-		void SetResizable(bool resizable) { this->resizable = resizable; }
-		inline bool GetResizable() { return resizable; }
 		void SetFastQuit(bool fastquit) { FastQuit = fastquit; }
 		inline bool GetFastQuit() {return FastQuit; }
 
@@ -78,19 +68,23 @@ namespace ui
 		//void SetState(Window* state);
 		//inline State* GetState() { return state_; }
 		inline Window* GetWindow() { return state_; }
-		float FpsLimit;
+
+		void SetFpsLimit(FpsLimit newFpsLimit);
+		FpsLimit GetFpsLimit() const
+		{
+			return fpsLimit;
+		}
+
 		int drawingFrequencyLimit;
 		Graphics * g;
-		int Scale;
-		bool Fullscreen;
+		bool GraveExitsConsole;
 
 		unsigned int FrameIndex;
 	private:
-		bool altFullscreen;
-		bool forceIntegerScaling = true;
-		bool resizable;
+		FpsLimit fpsLimit;
 
 		bool textInput = false;
+		int lastTextEditingStart = INT_MAX;
 
 		float dt;
 		float fps;
@@ -112,7 +106,6 @@ namespace ui
 		std::stack<FrozenGraphics> frozenGraphics;
 
 		bool running_;
-		bool break_;
 		bool FastQuit;
 
 		long unsigned int lastTick;
@@ -127,6 +120,20 @@ namespace ui
 	public:
 		bool MomentumScroll = true;
 		bool ShowAvatars = true;
-	};
+		bool TouchUI = false;
+		WindowFrameOps windowFrameOps;
 
+		void SetScale              (int newScale               ) { windowFrameOps.scale               = newScale;               }
+		void SetFullscreen         (bool newFullscreen         ) { windowFrameOps.fullscreen          = newFullscreen;          }
+		void SetChangeResolution   (bool setChangeResolution   ) { windowFrameOps.changeResolution    = setChangeResolution;    }
+		void SetForceIntegerScaling(bool newForceIntegerScaling) { windowFrameOps.forceIntegerScaling = newForceIntegerScaling; }
+		void SetResizable          (bool newResizable          ) { windowFrameOps.resizable           = newResizable;           }
+		void SetBlurryScaling      (bool newBlurryScaling      ) { windowFrameOps.blurryScaling       = newBlurryScaling;       }
+		int  GetScale              () const { return windowFrameOps.scale;               }
+		bool GetFullscreen         () const { return windowFrameOps.fullscreen;          }
+		bool GetChangeResolution   () const { return windowFrameOps.changeResolution;    }
+		bool GetForceIntegerScaling() const { return windowFrameOps.forceIntegerScaling; }
+		bool GetResizable          () const { return windowFrameOps.resizable;           }
+		bool GetBlurryScaling      () const { return windowFrameOps.blurryScaling;       }
+	};
 }

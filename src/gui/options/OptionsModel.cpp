@@ -156,6 +156,18 @@ void OptionsModel::SetScale(int scale)
 	notifySettingsChanged();
 }
 
+bool OptionsModel::GetGraveExitsConsole()
+{
+	return ui::Engine::Ref().GraveExitsConsole;
+}
+
+void OptionsModel::SetGraveExitsConsole(bool graveExitsConsole)
+{
+	ui::Engine::Ref().GraveExitsConsole = graveExitsConsole;
+	GlobalPrefs::Ref().Set("GraveExitsConsole", graveExitsConsole);
+	notifySettingsChanged();
+}
+
 bool OptionsModel::GetResizable()
 {
 	return ui::Engine::Ref().GetResizable();
@@ -179,15 +191,15 @@ void OptionsModel::SetFullscreen(bool fullscreen)
 	notifySettingsChanged();
 }
 
-bool OptionsModel::GetAltFullscreen()
+bool OptionsModel::GetChangeResolution()
 {
-	return ui::Engine::Ref().GetAltFullscreen();
+	return ui::Engine::Ref().GetChangeResolution();
 }
 
-void OptionsModel::SetAltFullscreen(bool altFullscreen)
+void OptionsModel::SetChangeResolution(bool newChangeResolution)
 {
-	ui::Engine::Ref().SetAltFullscreen(altFullscreen);
-	GlobalPrefs::Ref().Set("AltFullscreen", altFullscreen);
+	ui::Engine::Ref().SetChangeResolution(newChangeResolution);
+	GlobalPrefs::Ref().Set("AltFullscreen", newChangeResolution);
 	notifySettingsChanged();
 }
 
@@ -200,6 +212,18 @@ void OptionsModel::SetForceIntegerScaling(bool forceIntegerScaling)
 {
 	ui::Engine::Ref().SetForceIntegerScaling(forceIntegerScaling);
 	GlobalPrefs::Ref().Set("ForceIntegerScaling", forceIntegerScaling);
+	notifySettingsChanged();
+}
+
+bool OptionsModel::GetBlurryScaling()
+{
+	return ui::Engine::Ref().GetBlurryScaling();
+}
+
+void OptionsModel::SetBlurryScaling(bool newBlurryScaling)
+{
+	ui::Engine::Ref().SetBlurryScaling(newBlurryScaling);
+	GlobalPrefs::Ref().Set("BlurryScaling", newBlurryScaling);
 	notifySettingsChanged();
 }
 

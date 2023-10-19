@@ -3,6 +3,7 @@
 #include "client/http/Request.h"
 #include "CurlError.h"
 #include "Config.h"
+#include <iostream>
 
 #if defined(CURL_AT_LEAST_VERSION) && CURL_AT_LEAST_VERSION(7, 55, 0)
 # define REQUEST_USE_CURL_OFFSET_T
@@ -14,9 +15,9 @@
 # define REQUEST_USE_CURL_TLSV13CL
 #endif
 
-const long curlMaxHostConnections   = 1;
-const long curlMaxConcurrentStreams = 50;
-const long curlConnectTimeoutS      = 15;
+constexpr long curlMaxHostConnections   = 1;
+constexpr long curlMaxConcurrentStreams = httpMaxConcurrentStreams;
+constexpr long curlConnectTimeoutS      = httpConnectTimeoutS;
 
 namespace http
 {
@@ -58,6 +59,7 @@ namespace http
 		CURL *curlEasy = NULL;
 		char curlErrorBuffer[CURL_ERROR_SIZE];
 		bool curlAddedToMulti = false;
+		bool gotStatusLine = false;
 
 		RequestHandleHttp() : RequestHandle(CtorTag{})
 		{
@@ -69,10 +71,28 @@ namespace http
 			auto bytes = size * count;
 			if (bytes >= 2 && ptr[bytes - 2] == '\r' && ptr[bytes - 1] == '\n')
 			{
-				if (bytes > 2) // Don't include header list terminator (but include the status line).
+				if (bytes > 2 && handle->gotStatusLine) // Don't include header list terminator or the status line.
 				{
-					handle->responseHeaders.push_back(ByteString(ptr, ptr + bytes - 2));
+					auto line = ByteString(ptr, ptr + bytes - 2);
+					if (auto split = line.SplitBy(':'))
+					{
+						auto value = split.After();
+						while (value.size() && (value.front() == ' ' || value.front() == '\t'))
+						{
+							value = value.Substr(1);
+						}
+						while (value.size() && (value.back() == ' ' || value.back() == '\t'))
+						{
+							value = value.Substr(0, value.size() - 1);
+						}
+						handle->responseHeaders.push_back({ split.Before().ToLower(), value });
+					}
+					else
+					{
+						std::cerr << "skipping weird header: " << line << std::endl;
+					}
 				}
+				handle->gotStatusLine = true;
 				return bytes;
 			}
 			return 0;
@@ -221,8 +241,8 @@ namespace http
 				HandleCURLcode(curl_easy_getinfo(handle->curlEasy, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &total)); // stores -1 if unknown
 				HandleCURLcode(curl_easy_getinfo(handle->curlEasy, CURLINFO_SIZE_DOWNLOAD, &done));
 #endif
-				handle->bytesTotal = int(total);
-				handle->bytesDone = int(done);
+				handle->bytesTotal = int64_t(total);
+				handle->bytesDone = int64_t(done);
 			}
 			else
 			{
@@ -255,6 +275,8 @@ namespace http
 				}
 				for (auto &requestHandle : requestHandlesToRegister)
 				{
+					// Must not be present
+					assert(std::find(requestHandles.begin(), requestHandles.end(), requestHandle) == requestHandles.end());
 					requestHandles.push_back(requestHandle);
 					RegisterRequestHandle(requestHandle);
 				}
@@ -262,8 +284,10 @@ namespace http
 				for (auto &requestHandle : requestHandlesToUnregister)
 				{
 					auto eraseFrom = std::remove(requestHandles.begin(), requestHandles.end(), requestHandle);
+					// Must either not be present
 					if (eraseFrom != requestHandles.end())
 					{
+						// Or be present exactly once
 						assert(eraseFrom + 1 == requestHandles.end());
 						UnregisterRequestHandle(requestHandle);
 						requestHandles.erase(eraseFrom, requestHandles.end());
@@ -285,16 +309,20 @@ namespace http
 	void RequestManager::RegisterRequestImpl(Request &request)
 	{
 		auto manager = static_cast<RequestManagerImpl *>(this);
-		std::lock_guard lk(manager->sharedStateMx);
-		manager->requestHandlesToRegister.push_back(request.handle);
+		{
+			std::lock_guard lk(manager->sharedStateMx);
+			manager->requestHandlesToRegister.push_back(request.handle);
+		}
 		curl_multi_wakeup(manager->curlMulti);
 	}
 
 	void RequestManager::UnregisterRequestImpl(Request &request)
 	{
 		auto manager = static_cast<RequestManagerImpl *>(this);
-		std::lock_guard lk(manager->sharedStateMx);
-		manager->requestHandlesToUnregister.push_back(request.handle);
+		{
+			std::lock_guard lk(manager->sharedStateMx);
+			manager->requestHandlesToUnregister.push_back(request.handle);
+		}
 		curl_multi_wakeup(manager->curlMulti);
 	}
 
@@ -323,7 +351,7 @@ namespace http
 			} 
 			for (auto &header : handle->headers)
 			{
-				auto *newHeaders = curl_slist_append(handle->curlHeaders, header.c_str());
+				auto *newHeaders = curl_slist_append(handle->curlHeaders, (header.name + ": " + header.value).c_str());
 				if (!newHeaders)
 				{
 					// Hopefully this is what a NULL from curl_slist_append means.
@@ -351,36 +379,32 @@ namespace http
 							// Hopefully this is what a NULL from curl_mime_addpart means.
 							HandleCURLcode(CURLE_OUT_OF_MEMORY);
 						}
-						HandleCURLcode(curl_mime_data(part, &field.second[0], field.second.size()));
-						if (auto split = field.first.SplitBy(':'))
+						HandleCURLcode(curl_mime_data(part, &field.value[0], field.value.size()));
+						HandleCURLcode(curl_mime_name(part, field.name.c_str()));
+						if (field.filename.has_value())
 						{
-							HandleCURLcode(curl_mime_name(part, split.Before().c_str()));
-							HandleCURLcode(curl_mime_filename(part, split.After().c_str()));
-						}
-						else
-						{
-							HandleCURLcode(curl_mime_name(part, field.first.c_str()));
+							HandleCURLcode(curl_mime_filename(part, field.filename->c_str()));
 						}
 					}
 					HandleCURLcode(curl_easy_setopt(handle->curlEasy, CURLOPT_MIMEPOST, handle->curlPostFields));
 #else
 					for (auto &field : formData)
 					{
-						if (auto split = field.first.SplitBy(':'))
+						if (field.filename.has_value())
 						{
 							HandleCURLFORMcode(curl_formadd(&handle->curlPostFieldsFirst, &handle->curlPostFieldsLast,
-								CURLFORM_COPYNAME, split.Before().c_str(),
-								CURLFORM_BUFFER, split.After().c_str(),
-								CURLFORM_BUFFERPTR, &field.second[0],
-								CURLFORM_BUFFERLENGTH, field.second.size(),
+								CURLFORM_COPYNAME, field.name.c_str(),
+								CURLFORM_BUFFER, field.filename->c_str(),
+								CURLFORM_BUFFERPTR, &field.value[0],
+								CURLFORM_BUFFERLENGTH, field.value.size(),
 							CURLFORM_END));
 						}
 						else
 						{
 							HandleCURLFORMcode(curl_formadd(&handle->curlPostFieldsFirst, &handle->curlPostFieldsLast,
-								CURLFORM_COPYNAME, field.first.c_str(),
-								CURLFORM_PTRCONTENTS, &field.second[0],
-								CURLFORM_CONTENTLEN, field.second.size(),
+								CURLFORM_COPYNAME, field.name.c_str(),
+								CURLFORM_PTRCONTENTS, &field.value[0],
+								CURLFORM_CONTENTLEN, field.value.size(),
 							CURLFORM_END));
 						}
 					}
@@ -402,9 +426,9 @@ namespace http
 				{
 					HandleCURLcode(curl_easy_setopt(handle->curlEasy, CURLOPT_HTTPGET, 1L));
 				}
-				if (handle->verb.size())
+				if (handle->verb)
 				{
-					HandleCURLcode(curl_easy_setopt(handle->curlEasy, CURLOPT_CUSTOMREQUEST, handle->verb.c_str()));
+					HandleCURLcode(curl_easy_setopt(handle->curlEasy, CURLOPT_CUSTOMREQUEST, handle->verb->c_str()));
 				}
 				HandleCURLcode(curl_easy_setopt(handle->curlEasy, CURLOPT_FOLLOWLOCATION, 1L));
 				if constexpr (ENFORCE_HTTPS)
@@ -437,14 +461,6 @@ namespace http
 				if (proxy.size())
 				{
 					HandleCURLcode(curl_easy_setopt(handle->curlEasy, CURLOPT_PROXY, proxy.c_str()));
-				}
-				if (cafile.size())
-				{
-					HandleCURLcode(curl_easy_setopt(handle->curlEasy, CURLOPT_CAINFO, cafile.c_str()));
-				}
-				if (capath.size())
-				{
-					HandleCURLcode(curl_easy_setopt(handle->curlEasy, CURLOPT_CAPATH, capath.c_str()));
 				}
 				HandleCURLcode(curl_easy_setopt(handle->curlEasy, CURLOPT_PRIVATE, (void *)handle));
 				HandleCURLcode(curl_easy_setopt(handle->curlEasy, CURLOPT_USERAGENT, userAgent.c_str()));
@@ -492,44 +508,45 @@ namespace http
 
 	void SetupCurlEasyCiphers(CURL *easy)
 	{
-#ifdef SECURE_CIPHERS_ONLY
-		curl_version_info_data *version_info = curl_version_info(CURLVERSION_NOW);
-		ByteString ssl_type = version_info->ssl_version;
-		if (ssl_type.Contains("OpenSSL"))
+		if constexpr (SECURE_CIPHERS_ONLY)
 		{
-			HandleCURLcode(curl_easy_setopt(easy, CURLOPT_SSL_CIPHER_LIST,
-				"ECDHE-ECDSA-AES256-GCM-SHA384" ":"
-				"ECDHE-ECDSA-AES128-GCM-SHA256" ":"
-				"ECDHE-ECDSA-AES256-SHA384"     ":"
-				"DHE-RSA-AES256-GCM-SHA384"     ":"
-				"ECDHE-RSA-AES256-GCM-SHA384"   ":"
-				"ECDHE-RSA-AES128-GCM-SHA256"   ":"
-				"ECDHE-ECDSA-AES128-SHA"        ":"
-				"ECDHE-ECDSA-AES128-SHA256"     ":"
-				"ECDHE-RSA-CHACHA20-POLY1305"   ":"
-				"ECDHE-RSA-AES256-SHA384"       ":"
-				"ECDHE-RSA-AES128-SHA256"       ":"
-				"ECDHE-ECDSA-CHACHA20-POLY1305" ":"
-				"ECDHE-ECDSA-AES256-SHA"        ":"
-				"ECDHE-RSA-AES128-SHA"          ":"
-				"DHE-RSA-AES128-GCM-SHA256"
-			));
+			curl_version_info_data *version_info = curl_version_info(CURLVERSION_NOW);
+			ByteString ssl_type = version_info->ssl_version;
+			if (ssl_type.Contains("OpenSSL") || ssl_type.Contains("mbedTLS"))
+			{
+				HandleCURLcode(curl_easy_setopt(easy, CURLOPT_SSL_CIPHER_LIST,
+					"ECDHE-ECDSA-AES256-GCM-SHA384" ":"
+					"ECDHE-ECDSA-AES128-GCM-SHA256" ":"
+					"ECDHE-ECDSA-AES256-SHA384"     ":"
+					"DHE-RSA-AES256-GCM-SHA384"     ":"
+					"ECDHE-RSA-AES256-GCM-SHA384"   ":"
+					"ECDHE-RSA-AES128-GCM-SHA256"   ":"
+					"ECDHE-ECDSA-AES128-SHA"        ":"
+					"ECDHE-ECDSA-AES128-SHA256"     ":"
+					"ECDHE-RSA-CHACHA20-POLY1305"   ":"
+					"ECDHE-RSA-AES256-SHA384"       ":"
+					"ECDHE-RSA-AES128-SHA256"       ":"
+					"ECDHE-ECDSA-CHACHA20-POLY1305" ":"
+					"ECDHE-ECDSA-AES256-SHA"        ":"
+					"ECDHE-RSA-AES128-SHA"          ":"
+					"DHE-RSA-AES128-GCM-SHA256"
+				));
 #ifdef REQUEST_USE_CURL_TLSV13CL
-			HandleCURLcode(curl_easy_setopt(easy, CURLOPT_TLS13_CIPHERS,
-				"TLS_AES_256_GCM_SHA384"       ":"
-				"TLS_CHACHA20_POLY1305_SHA256" ":"
-				"TLS_AES_128_GCM_SHA256"       ":"
-				"TLS_AES_128_CCM_8_SHA256"     ":"
-				"TLS_AES_128_CCM_SHA256"
-			));
+				HandleCURLcode(curl_easy_setopt(easy, CURLOPT_TLS13_CIPHERS,
+					"TLS_AES_256_GCM_SHA384"       ":"
+					"TLS_CHACHA20_POLY1305_SHA256" ":"
+					"TLS_AES_128_GCM_SHA256"       ":"
+					"TLS_AES_128_CCM_8_SHA256"     ":"
+					"TLS_AES_128_CCM_SHA256"
+				));
 #endif
+			}
+			else if (ssl_type.Contains("Schannel"))
+			{
+				// TODO: add more cipher algorithms
+				HandleCURLcode(curl_easy_setopt(easy, CURLOPT_SSL_CIPHER_LIST, "CALG_ECDH_EPHEM"));
+			}
 		}
-		else if (ssl_type.Contains("Schannel"))
-		{
-			// TODO: add more cipher algorithms
-			HandleCURLcode(curl_easy_setopt(easy, CURLOPT_SSL_CIPHER_LIST, "CALG_ECDH_EPHEM"));
-		}
-#endif
 		// TODO: Find out what TLS1.2 is supported on, might need to also allow TLS1.0
 		HandleCURLcode(curl_easy_setopt(easy, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2));
 #if defined(CURL_AT_LEAST_VERSION) && CURL_AT_LEAST_VERSION(7, 70, 0)
@@ -537,5 +554,20 @@ namespace http
 #elif defined(CURL_AT_LEAST_VERSION) && CURL_AT_LEAST_VERSION(7, 44, 0)
 		HandleCURLcode(curl_easy_setopt(easy, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE));
 #endif
+
+		auto &capath = http::RequestManager::Ref().Capath();
+		auto &cafile = http::RequestManager::Ref().Cafile();
+		if (capath.size())
+		{
+			HandleCURLcode(curl_easy_setopt(easy, CURLOPT_CAPATH, capath.c_str()));
+		}
+		else if (cafile.size())
+		{
+			HandleCURLcode(curl_easy_setopt(easy, CURLOPT_CAINFO, cafile.c_str()));
+		}
+		else if constexpr (USE_SYSTEM_CERT_PROVIDER)
+		{
+			UseSystemCertProvider(easy);
+		}
 	}
 }

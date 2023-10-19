@@ -19,10 +19,9 @@ extern int Element_LOLZ_lolz[XRES/9][YRES/9];
 extern int Element_LOVE_RuleTable[9][9];
 extern int Element_LOVE_love[XRES/9][YRES/9];
 
-void Simulation::Load(const GameSave *originalSave, bool includePressure, Vec2<int> blockP) // block coordinates
+std::vector<ByteString> Simulation::Load(const GameSave *save, bool includePressure, Vec2<int> blockP) // block coordinates
 {
-	auto save = std::unique_ptr<GameSave>(new GameSave(*originalSave));
-
+	std::vector<ByteString> missingElementTypes;
 	auto partP = blockP * CELL;
 	unsigned int pmapmask = (1<<save->pmapbits)-1;
 
@@ -33,6 +32,10 @@ void Simulation::Load(const GameSave *originalSave, bool includePressure, Vec2<i
 	}
 	if(save->palette.size())
 	{
+		for(int i = 0; i < PT_NUM; i++)
+		{
+			partMap[i] = 0;
+		}
 		for(auto &pi : save->palette)
 		{
 			if (pi.second > 0 && pi.second < PT_NUM)
@@ -41,13 +44,18 @@ void Simulation::Load(const GameSave *originalSave, bool includePressure, Vec2<i
 				for (int i = 0; i < PT_NUM; i++)
 				{
 					if (elements[i].Enabled && elements[i].Identifier == pi.first)
+					{
 						myId = i;
+					}
 				}
-				// if this is a custom element, set the ID to the ID we found when comparing identifiers in the palette map
-				// set type to 0 if we couldn't find an element with that identifier present when loading,
-				//  unless this is a default element, in which case keep the current ID, because otherwise when an element is renamed it wouldn't show up anymore in older saves
-				if (myId != 0 || !pi.first.BeginsWith("DEFAULT_PT_"))
+				if (myId)
+				{
 					partMap[pi.second] = myId;
+				}
+				else
+				{
+					missingElementTypes.push_back(pi.first);
+				}
 			}
 		}
 	}
@@ -57,40 +65,33 @@ void Simulation::Load(const GameSave *originalSave, bool includePressure, Vec2<i
 	auto &possiblyCarriesType = Particle::PossiblyCarriesType();
 	auto &properties = Particle::GetProperties();
 
-	bool doFullScan = false;
+	std::map<unsigned int, unsigned int> soapList;
 	for (int n = 0; n < NPART && n < save->particlesCount; n++)
 	{
-		Particle *tempPart = &save->particles[n];
-		auto &type = tempPart->type;
-		if (!type)
+		Particle tempPart = save->particles[n];
+		if (tempPart.type <= 0 || tempPart.type >= PT_NUM)
 		{
 			continue;
 		}
 
-		tempPart->x += (float)partP.X;
-		tempPart->y += (float)partP.Y;
-		int x = int(tempPart->x + 0.5f);
-		int y = int(tempPart->y + 0.5f);
+		tempPart.x += (float)partP.X;
+		tempPart.y += (float)partP.Y;
+		int x = int(tempPart.x + 0.5f);
+		int y = int(tempPart.y + 0.5f);
 
 
 		// Check various scenarios where we are unable to spawn the element, and set type to 0 to block spawning later
 		if (!InBounds(x, y))
 		{
-			type = 0;
 			continue;
 		}
 
-		if (type < 0 || type >= PT_NUM)
-		{
-			type = 0;
-			continue;
-		}
-		type = partMap[type];
+		tempPart.type = partMap[tempPart.type];
 		for (auto index : possiblyCarriesType)
 		{
-			if (elements[type].CarriesTypeIn & (1U << index))
+			if (elements[tempPart.type].CarriesTypeIn & (1U << index))
 			{
-				auto *prop = reinterpret_cast<int *>(reinterpret_cast<char *>(tempPart) + properties[index].Offset);
+				auto *prop = reinterpret_cast<int *>(reinterpret_cast<char *>(&tempPart) + properties[index].Offset);
 				auto carriedType = *prop & int(pmapmask);
 				auto extra = *prop >> save->pmapbits;
 				if (carriedType >= 0 && carriedType < PT_NUM)
@@ -102,73 +103,26 @@ void Simulation::Load(const GameSave *originalSave, bool includePressure, Vec2<i
 		}
 
 		// Ensure we can spawn this element
-		if ((player.spwn == 1 && type==PT_STKM) || (player2.spwn == 1 && type==PT_STKM2))
+		if ((player.spwn == 1 && tempPart.type==PT_STKM) || (player2.spwn == 1 && tempPart.type==PT_STKM2))
 		{
-			type = 0;
 			continue;
 		}
-		if ((type == PT_SPAWN || type == PT_SPAWN2) && elementCount[type])
+		if ((tempPart.type == PT_SPAWN || tempPart.type == PT_SPAWN2) && elementCount[tempPart.type])
 		{
-			type = 0;
 			continue;
 		}
 		bool Element_FIGH_CanAlloc(Simulation *sim);
-		if (type == PT_FIGH && !Element_FIGH_CanAlloc(this))
-		{
-			type = 0;
-			continue;
-		}
-		if (!elements[type].Enabled)
-		{
-			type = 0;
-			continue;
-		}
-
-		if (pmap[y][x])
-		{
-			// Particle already exists in this location. Set pmap to 0, then kill it and all stacked particles in the loop below
-			pmap[y][x] = 0;
-			doFullScan = true;
-		}
-		else if (photons[y][x])
-		{
-			// Particle already exists in this location. Set photons to 0, then kill it and all stacked particles in the loop below
-			photons[y][x] = 0;
-			doFullScan = true;
-		}
-	}
-
-	if (doFullScan)
-	{
-		// Loop through particles to find particles in need of being killed
-		for (int i = 0; i <= parts_lastActiveIndex; i++) {
-			if (parts[i].type)
-			{
-				int x = int(parts[i].x + 0.5f);
-				int y = int(parts[i].y + 0.5f);
-				if (elements[parts[i].type].Properties & TYPE_ENERGY)
-				{
-					if (!photons[y][x])
-						kill_part(i);
-				}
-				else
-				{
-					if (!pmap[y][x])
-						kill_part(i);
-				}
-			}
-		}
-	}
-
-	// Map of soap particles loaded into this save, old ID -> new ID
-	std::map<unsigned int, unsigned int> soapList;
-	for (int n = 0; n < NPART && n < save->particlesCount; n++)
-	{
-		Particle tempPart = save->particles[n];
-		if (!tempPart.type)
+		if (tempPart.type == PT_FIGH && !Element_FIGH_CanAlloc(this))
 		{
 			continue;
 		}
+		if (!elements[tempPart.type].Enabled)
+		{
+			continue;
+		}
+
+		// Mark location to be cleaned of existing particles.
+		pmap[y][x] = -1;
 
 		if (elements[tempPart.type].CreateAllowed)
 		{
@@ -272,10 +226,35 @@ void Simulation::Load(const GameSave *originalSave, bool includePressure, Vec2<i
 		{
 			parts[i].tmp3 = 0;
 		}
+
+		if (!parts[i].type)
+		{
+			continue;
+		}
+
+		// Mark to be preserved in the loop below.
+		parts[i].type |= 1 << PMAPBITS;
 	}
 	parts_lastActiveIndex = NPART-1;
 	force_stacking_check = true;
 	Element_PPIP_ppip_changed = 1;
+
+	// Loop through particles to find particles in need of being killed
+	for (int i = 0; i <= parts_lastActiveIndex; i++)
+	{
+		if (parts[i].type)
+		{
+			int x = int(parts[i].x + 0.5f);
+			int y = int(parts[i].y + 0.5f);
+			bool preserve = parts[i].type & (1 << PMAPBITS);
+			parts[i].type &= ~(1 << PMAPBITS);
+			if (pmap[y][x] == -1 && !preserve)
+			{
+				kill_part(i);
+			}
+		}
+	}
+
 	RecalcFreeParticles(false);
 
 	// fix SOAP links using soapList, a map of old particle ID -> new particle ID
@@ -349,6 +328,8 @@ void Simulation::Load(const GameSave *originalSave, bool includePressure, Vec2<i
 	{
 		air->ApproximateBlockAirMaps();
 	}
+
+	return missingElementTypes;
 }
 
 std::unique_ptr<GameSave> Simulation::Save(bool includePressure, Rect<int> partR) // particle coordinates
@@ -520,7 +501,7 @@ CoordStack& Simulation::getCoordStackSingleton()
 	return cs;
 }
 
-int Simulation::flood_prop(int x, int y, size_t propoffset, PropertyValue propvalue, StructProperty::PropertyType proptype)
+int Simulation::flood_prop(int x, int y, StructProperty prop, PropertyValue propvalue)
 {
 	int i, x1, x2, dy = 1;
 	int did_something = 0;
@@ -562,18 +543,18 @@ int Simulation::flood_prop(int x, int y, size_t propoffset, PropertyValue propva
 					i = photons[y][x];
 				if (!i)
 					continue;
-				switch (proptype) {
+				switch (prop.Type) {
 					case StructProperty::Float:
-						*((float*)(((char*)&parts[ID(i)])+propoffset)) = propvalue.Float;
+						*((float*)(((char*)&parts[ID(i)])+prop.Offset)) = std::get<float>(propvalue);
 						break;
 
 					case StructProperty::ParticleType:
 					case StructProperty::Integer:
-						*((int*)(((char*)&parts[ID(i)])+propoffset)) = propvalue.Integer;
+						*((int*)(((char*)&parts[ID(i)])+prop.Offset)) = std::get<int>(propvalue);
 						break;
 
 					case StructProperty::UInteger:
-						*((unsigned int*)(((char*)&parts[ID(i)])+propoffset)) = propvalue.UInteger;
+						*((unsigned int*)(((char*)&parts[ID(i)])+prop.Offset)) = std::get<unsigned int>(propvalue);
 						break;
 
 					default:
@@ -784,8 +765,8 @@ void Simulation::SetEdgeMode(int newEdgeMode)
 	edgeMode = newEdgeMode;
 	switch(edgeMode)
 	{
-	case 0:
-	case 2:
+	case EDGE_VOID:
+	case EDGE_LOOP:
 		for(int i = 0; i<XCELLS; i++)
 		{
 			bmap[0][i] = 0;
@@ -797,7 +778,7 @@ void Simulation::SetEdgeMode(int newEdgeMode)
 			bmap[i][XCELLS-1] = 0;
 		}
 		break;
-	case 1:
+	case EDGE_SOLID:
 		int i;
 		for(i=0; i<XCELLS; i++)
 		{
@@ -811,7 +792,7 @@ void Simulation::SetEdgeMode(int newEdgeMode)
 		}
 		break;
 	default:
-		SetEdgeMode(0);
+		SetEdgeMode(EDGE_VOID);
 	}
 }
 
@@ -1678,7 +1659,7 @@ int Simulation::try_move(int i, int x, int y, int nx, int ny)
 int Simulation::do_move(int i, int x, int y, float nxf, float nyf)
 {
 	int nx = (int)(nxf+0.5f), ny = (int)(nyf+0.5f), result;
-	if (edgeMode == 2)
+	if (edgeMode == EDGE_LOOP)
 	{
 		bool x_ok = (nx >= CELL && nx < XRES-CELL);
 		bool y_ok = (ny >= CELL && ny < YRES-CELL);
@@ -2107,15 +2088,15 @@ void Simulation::GetGravityField(int x, int y, float particleGrav, float newtonG
 	switch (gravityMode)
 	{
 	default:
-	case 0: //normal, vertical gravity
+	case GRAV_VERTICAL: //normal, vertical gravity
 		pGravX = 0;
 		pGravY = particleGrav;
 		break;
-	case 1: //no gravity
+	case GRAV_OFF: //no gravity
 		pGravX = 0;
 		pGravY = 0;
 		break;
-	case 2: //radial gravity
+	case GRAV_RADIAL: //radial gravity
 		{
 			pGravX = 0;
 			pGravY = 0;
@@ -2129,7 +2110,7 @@ void Simulation::GetGravityField(int x, int y, float particleGrav, float newtonG
 			}
 		}
 		break;
-	case 3: //custom gravity
+	case GRAV_CUSTOM: //custom gravity
 		pGravX = particleGrav * customGravityX;
 		pGravY = particleGrav * customGravityY;
 		break;
@@ -2895,11 +2876,11 @@ killed:
 			}
 			else
 			{
-				if (mv > SIM_MAXVELOCITY)
+				if (mv > MAX_VELOCITY)
 				{
-					parts[i].vx *= SIM_MAXVELOCITY/mv;
-					parts[i].vy *= SIM_MAXVELOCITY/mv;
-					mv = SIM_MAXVELOCITY;
+					parts[i].vx *= MAX_VELOCITY/mv;
+					parts[i].vy *= MAX_VELOCITY/mv;
+					mv = MAX_VELOCITY;
 				}
 				// interpolate to see if there is anything in the way
 				dx = parts[i].vx*ISTP/mv;
@@ -2908,7 +2889,7 @@ killed:
 				fin_yf = parts[i].y;
 				fin_x = (int)(fin_xf+0.5f);
 				fin_y = (int)(fin_yf+0.5f);
-				bool closedEholeStart = this->InBounds(fin_x, fin_y) && (bmap[fin_y/CELL][fin_x/CELL] == WL_EHOLE && !emap[fin_y/CELL][fin_x/CELL]);
+				bool closedEholeStart = InBounds(fin_x, fin_y) && (bmap[fin_y/CELL][fin_x/CELL] == WL_EHOLE && !emap[fin_y/CELL][fin_x/CELL]);
 				while (1)
 				{
 					mv -= ISTP;
@@ -2916,7 +2897,7 @@ killed:
 					fin_yf += dy;
 					fin_x = (int)(fin_xf+0.5f);
 					fin_y = (int)(fin_yf+0.5f);
-					if (edgeMode == 2)
+					if (edgeMode == EDGE_LOOP)
 					{
 						bool x_ok = (fin_xf >= CELL-.5f && fin_xf < XRES-CELL-.5f);
 						bool y_ok = (fin_yf >= CELL-.5f && fin_yf < YRES-CELL-.5f);
@@ -2932,7 +2913,7 @@ killed:
 						// nothing found
 						fin_xf = parts[i].x + parts[i].vx;
 						fin_yf = parts[i].y + parts[i].vy;
-						if (edgeMode == 2)
+						if (edgeMode == EDGE_LOOP)
 						{
 							bool x_ok = (fin_xf >= CELL-.5f && fin_xf < XRES-CELL-.5f);
 							bool y_ok = (fin_yf >= CELL-.5f && fin_yf < YRES-CELL-.5f);
@@ -2976,7 +2957,7 @@ killed:
 				parts[i].y += parts[i].vy;
 				int nx = (int)((float)parts[i].x+0.5f);
 				int ny = (int)((float)parts[i].y+0.5f);
-				if (edgeMode == 2)
+				if (edgeMode == EDGE_LOOP)
 				{
 					bool x_ok = (nx >= CELL && nx < XRES-CELL);
 					bool y_ok = (ny >= CELL && ny < YRES-CELL);
@@ -3249,7 +3230,7 @@ killed:
 								goto movedone;
 							}
 						}
-						if (elements[t].Falldown>1 && !grav->IsEnabled() && gravityMode==0 && parts[i].vy>fabsf(parts[i].vx))
+						if (elements[t].Falldown>1 && !grav->IsEnabled() && gravityMode==GRAV_VERTICAL && parts[i].vy>fabsf(parts[i].vx))
 						{
 							s = 0;
 							// stagnant is true if FLAG_STAGNANT was set for this particle in previous frame
@@ -3973,8 +3954,8 @@ Simulation::Simulation():
 	gravWallChanged(false),
 	CGOL(0),
 	GSPEED(1),
-	edgeMode(0),
-	gravityMode(0),
+	edgeMode(EDGE_VOID),
+	gravityMode(GRAV_VERTICAL),
 	customGravityX(0),
 	customGravityY(0),
 	legacy_enable(0),

@@ -148,7 +148,14 @@ void SaveButton::Tick(float dt)
 
 		if (thumbnailRequest && thumbnailRequest->CheckDone())
 		{
-			thumbnail = thumbnailRequest->Finish();
+			try
+			{
+				thumbnail = thumbnailRequest->Finish();
+			}
+			catch (const http::RequestError &ex)
+			{
+				// TODO: handle
+			}
 			thumbnailRequest.reset();
 		}
 
@@ -224,7 +231,7 @@ void SaveButton::Draw(const Point& screenPos)
 			g->BlendText({ x, y }, votesBackground2, 0xC0C0C0_rgb .WithAlpha(255));
 			g->BlendText({ x+3, y }, votesString, 0xFFFFFF_rgb .WithAlpha(255));
 		}
-		if (isMouseInsideHistory && showVotes)
+		if (isMouseInside)
 		{
 			int x = screenPos.X;
 			int y = screenPos.Y-15+(Size.Y-thumbBoxSize.Y)/2+thumbBoxSize.Y;
@@ -261,7 +268,7 @@ void SaveButton::OnMouseUnclick(int x, int y, unsigned int button)
 	{
 		return; //left click only!
 	}
-	if (file && !file->GetGameSave())
+	if (file && !file->LazyGetGameSave())
 	{
 		new ErrorMessage(ByteString("无法加载此沙盘").FromUtf8(), file->GetError());
 		return;

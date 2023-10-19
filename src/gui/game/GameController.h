@@ -1,7 +1,9 @@
 #pragma once
 #include "client/ClientListener.h"
+#include "client/StartupInfo.h"
 #include "gui/interface/Point.h"
 #include "gui/interface/Colour.h"
+#include "gui/SavePreviewType.h"
 #include "simulation/Sign.h"
 #include "simulation/Particle.h"
 #include "Misc.h"
@@ -114,6 +116,8 @@ public:
 	bool GetDebugHUD();
 	void SetTemperatureScale(int temperatureScale);
 	int GetTemperatureScale();
+	int GetEdgeMode();
+	void SetEdgeMode(int edgeMode);
 	void SetDebugFlags(unsigned int flags) { debugFlags = flags; }
 	void SetActiveMenu(int menuID);
 	std::vector<Menu*> GetMenuList();
@@ -134,7 +138,7 @@ public:
 	void OpenLogin();
 	void OpenProfile();
 	void OpenTags();
-	void OpenSavePreview(int saveID, int saveDate, bool instant);
+	void OpenSavePreview(int saveID, int saveDate, SavePreviewType savePreiviewType);
 	void OpenSavePreview();
 	void OpenLocalSaveWindow(bool asCurrent);
 	void OpenLocalBrowse();
@@ -181,8 +185,8 @@ public:
 
 	void NotifyUpdateAvailable(Client * sender) override;
 	void NotifyAuthUserChanged(Client * sender) override;
-	void NotifyNewNotification(Client * sender, std::pair<String, ByteString> notification) override;
-	void RunUpdater();
+	void NotifyNewNotification(Client * sender, ServerNotification notification) override;
+	void RunUpdater(UpdateInfo info);
 	bool GetMouseClickRequired();
 
 	void RemoveCustomGOLType(const ByteString &identifier);

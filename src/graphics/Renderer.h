@@ -1,12 +1,14 @@
 #pragma once
-#include <array>
-#include <memory>
-#include <mutex>
-#include <vector>
 #include "Graphics.h"
 #include "gui/interface/Point.h"
 #include "common/tpt-rand.h"
 #include "SimulationConfig.h"
+#include "FindingElement.h"
+#include <optional>
+#include <array>
+#include <memory>
+#include <mutex>
+#include <vector>
 
 class RenderPreset;
 class Simulation;
@@ -42,7 +44,7 @@ class Renderer: public RasterDrawMethods<Renderer>
 	std::array<pixel, WINDOW.X * RES.Y> persistentVideo;
 	Video warpVideo;
 
-	Rect<int> getClipRect() const
+	Rect<int> GetClipRect() const
 	{
 		return video.Size().OriginRect();
 	}
@@ -83,7 +85,7 @@ public:
 	bool blackDecorations;
 	bool debugLines;
 	pixel sampleColor;
-	int findingElement;
+	std::optional<FindingElement> findingElement;
 	int foundElements;
 
 	//Mouse position for debug information

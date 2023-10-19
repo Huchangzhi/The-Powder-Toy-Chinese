@@ -17,6 +17,7 @@
 #include "client/GameSave.h"
 #include "client/SaveFile.h"
 #include "client/SaveInfo.h"
+#include "client/http/ExecVoteRequest.h"
 #include "common/platform/Platform.h"
 #include "graphics/Renderer.h"
 #include "simulation/Air.h"
@@ -30,6 +31,7 @@
 #include "simulation/ToolClasses.h"
 #include "gui/game/DecorationTool.h"
 #include "gui/interface/Engine.h"
+#include "gui/dialogues/ErrorMessage.h"
 #include <iostream>
 #include <algorithm>
 #include <optional>
@@ -49,7 +51,7 @@ GameModel::GameModel():
 	activeColourPreset(0),
 	colourSelector(false),
 	colour(255, 0, 0, 255),
-	edgeMode(0),
+	edgeMode(EDGE_VOID),
 	ambientAirTemp(R_TEMP + 273.15f),
 	decoSpace(0)
 {
@@ -89,7 +91,7 @@ GameModel::GameModel():
 	ren->decorations_enable = prefs.Get("Renderer.Decorations", true);
 
 	//Load config into simulation
-	edgeMode = prefs.Get("Simulation.EdgeMode", 0); // TODO: EdgeMode enum
+	edgeMode = prefs.Get("Simulation.EdgeMode", (int)EDGE_VOID);
 	sim->SetEdgeMode(edgeMode);
 	ambientAirTemp = float(R_TEMP) + 273.15f;
 	{
@@ -787,18 +789,33 @@ void GameModel::SetUndoHistoryLimit(unsigned int undoHistoryLimit_)
 
 void GameModel::SetVote(int direction)
 {
-	if(currentSave)
+	queuedVote = direction;
+}
+
+void GameModel::Tick()
+{
+	if (execVoteRequest && execVoteRequest->CheckDone())
 	{
-		RequestStatus status = Client::Ref().ExecVote(currentSave->GetID(), direction);
-		if(status == RequestOkay)
+		try
 		{
-			currentSave->vote = direction;
+			execVoteRequest->Finish();
+			currentSave->vote = execVoteRequest->Direction();
 			notifySaveChanged();
 		}
-		else
+		catch (const http::RequestError &ex)
 		{
-			throw GameModelException("Could not vote: "+Client::Ref().GetLastError());
+			new ErrorMessage("Error while voting", ByteString(ex.what()).FromUtf8());
 		}
+		execVoteRequest.reset();
+	}
+	if (!execVoteRequest && queuedVote)
+	{
+		if (currentSave)
+		{
+			execVoteRequest = std::make_unique<http::ExecVoteRequest>(currentSave->GetID(), *queuedVote);
+			execVoteRequest->Start();
+		}
+		queuedVote.reset();
 	}
 }
 
@@ -822,7 +839,9 @@ int GameModel::GetBrushID()
 
 void GameModel::SetBrushID(int i)
 {
+	auto prevRadius = brushList[currentBrush]->GetRadius();
 	currentBrush = i%brushList.size();
+	brushList[currentBrush]->SetRadius(prevRadius);
 	notifyBrushChanged();
 }
 
@@ -994,7 +1013,7 @@ void GameModel::SetSave(std::unique_ptr<SaveInfo> newSave, bool invertIncludePre
 			gameSave->authors["title"] = currentSave->name.ToUtf8();
 			gameSave->authors["description"] = currentSave->Description.ToUtf8();
 			gameSave->authors["published"] = (int)currentSave->Published;
-			gameSave->authors["date"] = currentSave->updatedDate;
+			gameSave->authors["date"] = (Json::Value::UInt64)currentSave->updatedDate;
 			currentSave->SetGameSave(std::move(gameSave));
 		}
 		// This save was probably just created, and we didn't know the ID when creating it
@@ -1320,10 +1339,10 @@ void GameModel::FrameStep(int frames)
 void GameModel::ClearSimulation()
 {
 	//Load defaults
-	sim->gravityMode = 0;
+	sim->gravityMode = GRAV_VERTICAL;
 	sim->customGravityX = 0.0f;
 	sim->customGravityY = 0.0f;
-	sim->air->airMode = 0;
+	sim->air->airMode = AIR_ON;
 	sim->legacy_enable = false;
 	sim->water_equal_test = false;
 	sim->SetEdgeMode(edgeMode);

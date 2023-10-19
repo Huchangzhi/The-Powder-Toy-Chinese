@@ -10,7 +10,7 @@ project(
 		'build.cpp_std=c++17', # used by to_array
 		'build.cpp_rtti=false', # used by to_array
 	],
-	meson_version: '>=0.61.0',
+	meson_version: '>=0.63.0',
 )
 
 if get_option('prepare')
@@ -18,6 +18,7 @@ if get_option('prepare')
 	subdir_done()
 endif
 
+fs = import('fs')
 to_array = generator(
 	executable('toarray', sources: 'resources/ToArray.cpp', native: true),
 	output: [ '@PLAINNAME@.cpp', '@PLAINNAME@.h' ],
@@ -48,6 +49,9 @@ elif c_compiler.get_id() in [ 'gcc' ] and host_platform == 'windows'
 	endif
 elif host_platform in [ 'darwin' ]
 	host_libc = 'macos'
+elif host_platform in [ 'emscripten' ]
+	host_platform = 'emscripten'
+	host_libc = 'emscripten'
 elif host_platform in [ 'android' ]
 	host_platform = 'android'
 	host_libc = 'bionic'
@@ -85,7 +89,7 @@ tpt_libs_debug = is_debug ? 'debug' : 'release'
 tpt_libs_variant = '@0@-@1@-@2@-@3@'.format(host_arch, host_platform, host_libc, tpt_libs_static)
 tpt_libs_vtag = get_option('tpt_libs_vtag')
 if tpt_libs_vtag == ''
-	tpt_libs_vtag = 'v20230205154205'
+	tpt_libs_vtag = 'v20231003175140'
 endif
 if tpt_libs_static != 'none'
 	if tpt_libs_variant not in [
@@ -102,6 +106,7 @@ if tpt_libs_static != 'none'
 		'x86_64-android-bionic-static',
 		'arm-android-bionic-static',
 		'aarch64-android-bionic-static',
+		'wasm32-emscripten-emscripten-static',
 	]
 		error('no prebuilt @0@ libraries are currently provided'.format(tpt_libs_variant))
 	endif
@@ -144,7 +149,14 @@ endif
 
 lua_variant = get_option('lua')
 if lua_variant == 'auto'
-	lua_variant = 'luajit'
+	if host_platform == 'emscripten'
+		lua_variant = 'lua5.2'
+	else
+		lua_variant = 'luajit'
+	endif
+endif
+if lua_variant == 'luajit' and host_platform == 'emscripten'
+	error('luajit does not work with emscripten')
 endif
 if lua_variant == 'none'
 	lua_dep = []
@@ -162,9 +174,6 @@ endif
 
 enable_http = get_option('http')
 if host_platform == 'android'
-	enable_http = false
-endif
-if host_platform == 'android'
 	android_ndk_toolchain_prefix = meson.get_external_property('android_ndk_toolchain_prefix')
 	android_platform = meson.get_external_property('android_platform')
 	tpt_libs_android_toolchain_prefix = tpt_libs.get_variable('android_toolchain_prefix')
@@ -177,19 +186,56 @@ if host_platform == 'android'
 		error('tpt-libs android platform mismatch')
 	endif
 endif
-curl_dep = enable_http ? dependency('libcurl', static: is_static) : []
-
-fftw_dep = dependency('fftw3f', static: is_static)
-threads_dep = dependency('threads')
-zlib_dep = dependency('zlib', static: is_static)
-png_dep = dependency('libpng16', static: is_static)
-sdl2_dep = dependency('sdl2', static: is_static)
-bzip2_dep = dependency('bzip2', static: is_static)
-json_dep = dependency('jsoncpp', static: is_static)
+curl_dep = []
+if enable_http and host_platform != 'emscripten'
+	curl_dep = dependency('libcurl', static: is_static)
+endif
 
 project_link_args = []
 project_c_args = []
 project_cpp_args = []
+
+fftw_dep = dependency('fftw3f', static: is_static)
+threads_dep = dependency('threads')
+if host_platform == 'emscripten'
+	zlib_dep = []
+	png_dep = []
+	sdl2_dep = []
+	bzip2_dep = []
+	project_link_args += [
+		'--no-heap-copy',
+		'-s', 'WASM=1',
+		'-s', 'ALLOW_MEMORY_GROWTH=1',
+		'-s', 'FORCE_FILESYSTEM=1',
+		'-s', 'EXIT_RUNTIME=0',
+		'-s', 'EXPORTED_RUNTIME_METHODS=ccall,cwrap',
+		'-s', 'FS_DEBUG',
+		'-s', 'MODULARIZE',
+		'-s', 'EXPORT_NAME=create_' + app_exe,
+		'-lidbfs.js',
+	]
+	emcc_args = [
+		'-s', 'USE_SDL=2',
+		'-s', 'USE_BZIP2=1',
+		'-s', 'USE_LIBPNG',
+		'-s', 'USE_ZLIB=1',
+		'-s', 'DISABLE_EXCEPTION_CATCHING=0',
+	]
+	if is_debug
+		project_link_args += [ '--source-map-base=./' ]
+		emcc_args += [ '-gsource-map' ]
+	endif
+	project_link_args += emcc_args
+	project_c_args += emcc_args
+	project_cpp_args += emcc_args
+else
+	zlib_dep = dependency('zlib', static: is_static)
+	png_dep = dependency('libpng16', static: is_static)
+	sdl2_dep = dependency('sdl2', static: is_static)
+	bzip2_dep = dependency('bzip2', static: is_static)
+endif
+json_dep = dependency('jsoncpp', static: is_static)
+
 if is_msvc
 	if x86_sse_level >= 30
 		warning('SSE3 configured to be enabled but unavailable in msvc')
@@ -275,7 +321,7 @@ else
 endif
 
 if host_platform == 'windows'
-	args_ccomp_win = [ '-D_WIN32_WINNT=0x0501' ]
+	args_ccomp_win = [ '-D_WIN32_WINNT=0x0501', '-DNOMINMAX' ]
 	windows_mod = import('windows')
 	if is_static
 		args_ccomp_win += [ '-DCURL_STATICLIB' ]
@@ -294,7 +340,7 @@ if host_platform == 'windows'
 				do_copy = true
 			endif
 			if do_copy
-				configure_file(input: dll_input, output: dll_output, copy: true)
+				fs.copyfile(dll_input, dll_output)
 			endif
 		endforeach
 	endif
@@ -322,6 +368,12 @@ subdir('resources')
 powder_files += data_files
 render_files += data_files
 font_files += data_files
+
+if host_platform == 'emscripten'
+	project_link_args += [
+		'-o', app_exe + '.js', # so we get a .wasm, and a .js
+	]
+endif
 
 if get_option('build_powder')
 	powder_deps = [
@@ -356,11 +408,15 @@ if get_option('build_powder')
 			win_subsystem: is_debug ? 'console' : 'windows',
 			link_args: project_link_args,
 			dependencies: powder_deps,
+			install: true,
 		)
 	endif
 endif
 
 if get_option('build_render')
+	if host_platform == 'emscripten'
+		error('render does not target emscripten')
+	endif
 	render_deps = [
 		threads_dep,
 		zlib_dep,
@@ -384,6 +440,9 @@ if get_option('build_render')
 endif
 
 if get_option('build_font')
+	if host_platform == 'emscripten'
+		error('font does not target emscripten')
+	endif
 	font_deps = [
 		threads_dep,
 		zlib_dep,

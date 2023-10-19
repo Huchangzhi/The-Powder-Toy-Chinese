@@ -11,14 +11,9 @@
 #include "simulation/gravity/Gravity.h"
 #include "simulation/Simulation.h"
 #include "simulation/SimulationData.h"
-#include "gui/dialogues/ConfirmPrompt.h"
-#include "gui/dialogues/ErrorMessage.h"
-#include "gui/dialogues/InformationMessage.h"
-#include "gui/dialogues/TextPrompt.h"
 #include "gui/game/GameController.h"
 #include "gui/game/GameModel.h"
 #include "gui/interface/Engine.h"
-#include "client/http/Request.h"
 #include <iomanip>
 #include <vector>
 #include <algorithm>
@@ -254,7 +249,8 @@ int luacon_elementwrite(lua_State* l)
 	LuaScriptInterface::LuaSetProperty(l, prop, propertyAddress, 3);
 
 	luacon_model->BuildMenus();
-	luacon_sim->init_can_move();
+	auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
+	luacon_ci->custom_init_can_move();
 	std::fill(&luacon_ren->graphicscache[0], &luacon_ren->graphicscache[0] + PT_NUM, gcache_item());
 
 	return 0;
@@ -263,10 +259,9 @@ int luacon_elementwrite(lua_State* l)
 void luacon_hook(lua_State * l, lua_Debug * ar)
 {
 	auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
-	if (ar->event == LUA_HOOKCOUNT && Platform::GetTime() - luacon_ci->luaExecutionStart > 3000)
+	if (ar->event == LUA_HOOKCOUNT && int(Platform::GetTime() - luacon_ci->luaExecutionStart) > luacon_ci->luaHookTimeout)
 	{
-		if(ConfirmPrompt::Blocking("Script not responding", "The Lua script may have stopped responding. There might be an infinite loop. Press \"Stop\" to stop it", "Stop"))
-			luaL_error(l, "Error: Script not responding");
+		luaL_error(l, "Error: Script not responding");
 		luacon_ci->luaExecutionStart = Platform::GetTime();
 	}
 }
@@ -302,13 +297,6 @@ int luatpt_getelement(lua_State *l)
 		lua_pushinteger(l, t);
 	}
 	return 1;
-}
-
-int luatpt_error(lua_State* l)
-{
-	String errorMessage = tpt_lua_optString(l, 1, "Error text");
-	ErrorMessage::Blocking("Error", errorMessage);
-	return 0;
 }
 
 int luatpt_drawtext(lua_State* l)
@@ -1039,38 +1027,6 @@ int luatpt_delete(lua_State* l)
 	return luaL_error(l,"Invalid coordinates or particle ID");
 }
 
-int luatpt_input(lua_State* l)
-{
-	String title = tpt_lua_optString(l, 1, "Title");
-	String prompt = tpt_lua_optString(l, 2, "Enter some text:");
-	String text = tpt_lua_optString(l, 3, "");
-	String shadow = tpt_lua_optString(l, 4, "");
-
-	String result = TextPrompt::Blocking(title, prompt, text, shadow, false);
-
-	tpt_lua_pushString(l, result);
-	return 1;
-}
-
-int luatpt_message_box(lua_State* l)
-{
-	String title = tpt_lua_optString(l, 1, "Title");
-	String message = tpt_lua_optString(l, 2, "Message");
-	int large = lua_toboolean(l, 3);
-	new InformationMessage(title, message, large);
-	return 0;
-}
-
-int luatpt_confirm(lua_State *l)
-{
-	String title = tpt_lua_optString(l, 1, "Title");
-	String message = tpt_lua_optString(l, 2, "Message");
-	String buttonText = tpt_lua_optString(l, 3, ByteString("继续").FromUtf8());
-	bool ret = ConfirmPrompt::Blocking(title, message, buttonText);
-	lua_pushboolean(l, ret ? 1 : 0);
-	return 1;
-}
-
 int luatpt_get_numOfParts(lua_State* l)
 {
 	lua_pushinteger(l, luacon_sim->NUM_PARTS);
@@ -1267,13 +1223,37 @@ int luatpt_setfpscap(lua_State* l)
 	int acount = lua_gettop(l);
 	if (acount == 0)
 	{
-		lua_pushnumber(l, ui::Engine::Ref().FpsLimit);
+		auto fpsLimit = ui::Engine::Ref().GetFpsLimit();
+		if (std::holds_alternative<FpsLimitVsync>(fpsLimit))
+		{
+			lua_pushliteral(l, "vsync");
+		}
+		else if (std::holds_alternative<FpsLimitNone>(fpsLimit))
+		{
+			lua_pushnumber(l, 2);
+		}
+		else
+		{
+			lua_pushnumber(l, std::get<FpsLimitExplicit>(fpsLimit).value);
+		}
 		return 1;
+	}
+	if (lua_isstring(l, 1) && byteStringEqualsLiteral(tpt_lua_toByteString(l, 1), "vsync"))
+	{
+		ui::Engine::Ref().SetFpsLimit(FpsLimitVsync{});
+		return 0;
 	}
 	float fpscap = luaL_checknumber(l, 1);
 	if (fpscap < 2)
+	{
 		return luaL_error(l, "fps cap too small");
-	ui::Engine::Ref().FpsLimit = fpscap;
+	}
+	if (fpscap == 2)
+	{
+		ui::Engine::Ref().SetFpsLimit(FpsLimitNone{});
+		return 0;
+	}
+	ui::Engine::Ref().SetFpsLimit(FpsLimitExplicit{ fpscap });
 	return 0;
 }
 
@@ -1289,57 +1269,6 @@ int luatpt_setdrawcap(lua_State* l)
 	if(drawcap < 0)
 		return luaL_error(l, "draw cap too small");
 	ui::Engine::Ref().SetDrawingFrequencyLimit(drawcap);
-	return 0;
-}
-
-int luatpt_getscript(lua_State* l)
-{
-	int scriptID = luaL_checkinteger(l, 1);
-	auto filename = tpt_lua_checkByteString(l, 2);
-	int runScript = luaL_optint(l, 3, 0);
-	int confirmPrompt = luaL_optint(l, 4, 1);
-
-	// ByteString url = ByteString::Build(SCHEME, "pan.dragonrster.top/Game/ThePowderToy/scripts/", scriptID,".html");
-	// if (confirmPrompt && !ConfirmPrompt::Blocking(ByteString("确定要安装此脚本吗?").FromUtf8(), url.FromUtf8(), ByteString("安装").FromUtf8()))
-
-	ByteString url;
-	if (scriptID == 1) {
-	url = ByteString::Build(SCHEME, "pan.dragonrster.top/Game/ThePowderToy/scripts/autorun.lua");
-	} else if (scriptID > 1) {
-	url = ByteString::Build(SCHEME, "starcatcher.us/scripts/main.lua?get=", scriptID);
-	}
-	if (confirmPrompt && !ConfirmPrompt::Blocking(ByteString("确定要安装此脚本吗?").FromUtf8(), url.FromUtf8(), ByteString("安装").FromUtf8())) 
-	// handle installation confirmation
-		return 0;
-
-	auto [ ret, scriptData ] = http::Request::Simple(url);
-	if (!scriptData.size())
-	{
-		return luaL_error(l, "Server did not return data");
-	}
-	if (ret != 200)
-	{
-		return luaL_error(l, http::StatusText(ret).ToUtf8().c_str());
-	}
-
-	if (scriptData.Contains("Invalid script ID"))
-	{
-		return luaL_error(l, "Invalid Script ID");
-	}
-
-	if (Platform::FileExists(filename) && confirmPrompt && !ConfirmPrompt::Blocking( ByteString("文件已存在,是否覆盖").FromUtf8(), filename.FromUtf8(), ByteString("覆盖").FromUtf8() ))
-	{
-		return 0;
-	}
-	if (!Platform::WriteFile(std::vector<char>(scriptData.begin(), scriptData.end()), filename))
-	{
-		return luaL_error(l, "Unable to write to file");
-	}
-	if (runScript)
-	{
-		tpt_lua_dostring(l, ByteString::Build("dofile('", filename, "')"));
-	}
-
 	return 0;
 }
 

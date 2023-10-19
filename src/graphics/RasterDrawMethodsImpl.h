@@ -5,7 +5,7 @@
 #include "Graphics.h"
 #include "RasterDrawMethods.h"
 
-#define clipRect() (static_cast<Derived const &>(*this).getClipRect())
+#define clipRect() (static_cast<Derived const &>(*this).GetClipRect())
 
 template<typename Derived, typename V>
 static inline void drawPixelUnchecked(RasterDrawMethods<Derived> &self, V Derived::*video, Vec2<int> pos, RGB<uint8_t> colour)
@@ -52,6 +52,16 @@ inline void RasterDrawMethods<Derived>::AddPixel(Vec2<int> pos, RGBA<uint8_t> co
 	{
 		pixel &px = (static_cast<Derived &>(*this).video)[pos];
 		px = RGB<uint8_t>::Unpack(px).Add(colour).Pack();
+	}
+}
+
+template<typename Derived>
+inline void RasterDrawMethods<Derived>::AddFirePixel(Vec2<int> pos, RGB<uint8_t> colour, int fireAlpha)
+{
+	if (clipRect().Contains(pos))
+	{
+		pixel &px = (static_cast<Derived &>(*this).video)[pos];
+		px = RGB<uint8_t>::Unpack(px).AddFire(colour, fireAlpha).Pack();
 	}
 }
 

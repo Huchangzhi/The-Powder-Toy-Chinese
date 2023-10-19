@@ -5,6 +5,12 @@
 #include "common/String.h"
 #include "gui/interface/Window.h"
 
+namespace http
+{
+	class AddCommentRequest;
+	class ReportSaveRequest;
+}
+
 namespace ui
 {
 	class Button;
@@ -20,25 +26,28 @@ class PreviewModel;
 class PreviewController;
 class PreviewView: public ui::Window
 {
-	PreviewController * c;
+	PreviewController *c{};
+	std::vector<ByteString> missingElementTypes;
 	std::unique_ptr<VideoBuffer> savePreview;
-	ui::Button * openButton;
-	ui::Button * browserOpenButton;
-	ui::Button * favButton;
-	ui::Button * reportButton;
-	ui::Button * submitCommentButton;
-	ui::Textbox * addCommentBox;
-	ui::Label * commentWarningLabel;
-	ui::Label * saveNameLabel;
-	ui::Label * authorDateLabel;
-	ui::AvatarButton * avatarButton;
-	ui::Label * pageInfo;
-	ui::Label * saveDescriptionLabel;
-	ui::Label * viewsLabel;
-	ui::Label * saveIDLabel;
-	ui::Label * saveIDLabel2;
-	ui::CopyTextButton * saveIDButton;
-	ui::ScrollPanel * commentsPanel;
+	ui::Button *openButton{};
+	ui::Button *browserOpenButton{};
+	ui::Button *favButton{};
+	ui::Button *reportButton{};
+	ui::Button *submitCommentButton{};
+	ui::Button *loadErrorButton{};
+	ui::Button *missingElementsButton{};
+	ui::Textbox *addCommentBox{};
+	ui::Label *commentWarningLabel{};
+	ui::Label *saveNameLabel{};
+	ui::Label *authorDateLabel{};
+	ui::AvatarButton *avatarButton{};
+	ui::Label *pageInfo{};
+	ui::Label *saveDescriptionLabel{};
+	ui::Label *viewsLabel{};
+	ui::Label *saveIDLabel{};
+	ui::Label *saveIDLabel2{};
+	ui::CopyTextButton *saveIDButton{};
+	ui::ScrollPanel *commentsPanel{};
 	std::vector<ui::Component*> commentComponents;
 	std::vector<ui::Component*> commentTextComponents;
 	int votesUp;
@@ -64,6 +73,13 @@ class PreviewView: public ui::Window
 	void submitComment();
 	bool CheckSwearing(String text);
 	void CheckComment();
+	void ShowMissingCustomElements();
+	void ShowLoadError();
+	void UpdateLoadStatus();
+
+	std::unique_ptr<http::AddCommentRequest> addCommentRequest;
+	std::unique_ptr<http::ReportSaveRequest> reportSaveRequest;
+
 public:
 	void AttachController(PreviewController * controller);
 	PreviewView(std::unique_ptr<VideoBuffer> newSavePreviev);

@@ -203,6 +203,12 @@ option(
 	description: 'Enforce encrypted HTTP traffic, may be disabled for debugging'
 )
 option(
+	'secure_ciphers_only',
+	type: 'boolean',
+	value: false,
+	description: 'Use only secure ciphers for encrypted HTTP traffic, please review cipher list before enabling'
+)
+option(
 	'prepare',
 	type: 'boolean',
 	value: false,
@@ -213,4 +219,11 @@ option(
 	type: 'feature',
 	value: 'disabled',
 	description: 'Render icons with Inkscape (inkscape binary needs to be in PATH)'
+)
+option(
+	'resolve_vcs_tag',
+	type: 'combo',
+	choices: [ 'no', 'static_release_only', 'yes' ],
+	value: 'static_release_only',
+	description: 'Enable VCS tag resolution, introduces an always-stale custom target'
 )

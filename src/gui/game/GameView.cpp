@@ -40,10 +40,6 @@
 #include <iostream>
 #include <SDL.h>
 
-#ifdef GetUserName
-# undef GetUserName // dammit windows
-#endif
-
 class SplitButton : public ui::Button
 {
 	bool rightDown;
@@ -521,11 +517,7 @@ void GameView::NotifyActiveToolsChanged(GameModel * sender)
 
 	if (sender->GetRenderer()->findingElement)
 	{
-		Tool *active = sender->GetActiveTool(0);
-		if (!active->Identifier.Contains("_PT_"))
-			ren->findingElement = 0;
-		else
-			ren->findingElement = sender->GetActiveTool(0)->ToolID;
+		ren->findingElement = FindingElementCandidate();
 	}
 }
 
@@ -605,10 +597,9 @@ void GameView::NotifyToolListChanged(GameModel * sender)
 					}
 					else if (identifier.BeginsWith("DEFAULT_PT_LIFECUST_"))
 					{
-						if (ConfirmPrompt::Blocking("Remove custom GOL type", "Are you sure you want to remove " + identifier.Substr(20).FromUtf8() + "?"))
-						{
+						new ConfirmPrompt("Remove custom GOL type", "Are you sure you want to remove " + identifier.Substr(20).FromUtf8() + "?", { [this, identifier]() {
 							c->RemoveCustomGOLType(identifier);
-						}
+						} });
 					}
 				}
 			}
@@ -995,17 +986,12 @@ int GameView::Record(bool record)
 	}
 	else if (!recording)
 	{
-		// block so that the return value is correct
-		bool record = ConfirmPrompt::Blocking("Recording", "You're about to start recording all drawn frames. This will use a load of disk space.");
-		if (record)
-		{
-			time_t startTime = time(NULL);
-			recordingFolder = startTime;
-			Platform::MakeDirectory("recordings");
-			Platform::MakeDirectory(ByteString::Build("recordings", PATH_SEP_CHAR, recordingFolder));
-			recording = true;
-			recordingIndex = 0;
-		}
+		time_t startTime = time(NULL);
+		recordingFolder = startTime;
+		Platform::MakeDirectory("recordings");
+		Platform::MakeDirectory(ByteString::Build("recordings", PATH_SEP_CHAR, recordingFolder));
+		recording = true;
+		recordingIndex = 0;
 	}
 	return recordingFolder;
 }
@@ -1427,8 +1413,7 @@ void GameView::OnKeyPress(int key, int scan, bool repeat, bool shift, bool ctrl,
 		c->ReloadSim();
 		break;
 	case SDL_SCANCODE_A:
-		if ((Client::Ref().GetAuthUser().UserElevation == User::ElevationModerator
-		     || Client::Ref().GetAuthUser().UserElevation == User::ElevationAdmin) && ctrl)
+		if (Client::Ref().GetAuthUser().UserElevation != User::ElevationNone && ctrl)
 		{
 			ByteString authorString = Client::Ref().GetAuthorInfo().toStyledString();
 			new InformationMessage("Save authorship info", authorString.FromUtf8(), true);
@@ -1439,16 +1424,23 @@ void GameView::OnKeyPress(int key, int scan, bool repeat, bool shift, bool ctrl,
 			c->ReloadSim();
 		break;
 	case SDL_SCANCODE_E:
-		c->OpenElementSearch();
+		if (ctrl)
+			c->SetEdgeMode(c->GetEdgeMode() + 1);
+		else
+			c->OpenElementSearch();
 		break;
 	case SDL_SCANCODE_F:
 		if (ctrl)
 		{
-			Tool *active = c->GetActiveTool(0);
-			if (!active->Identifier.Contains("_PT_") || (ren->findingElement == active->ToolID))
-				ren->findingElement = 0;
+			auto findingElementCandidate = FindingElementCandidate();
+			if (ren->findingElement == findingElementCandidate)
+			{
+				ren->findingElement = std::nullopt;
+			}
 			else
-				ren->findingElement = active->ToolID;
+			{
+				ren->findingElement = findingElementCandidate;
+			}
 		}
 		else
 			c->FrameStep();
@@ -1466,6 +1458,9 @@ void GameView::OnKeyPress(int key, int scan, bool repeat, bool shift, bool ctrl,
 			introText = 8047;
 		else
 			introText = 0;
+		break;
+	case SDL_SCANCODE_F11:
+		ui::Engine::Ref().SetFullscreen(!ui::Engine::Ref().GetFullscreen());
 		break;
 	case SDL_SCANCODE_H:
 		if(ctrl)
@@ -1503,7 +1498,10 @@ void GameView::OnKeyPress(int key, int scan, bool repeat, bool shift, bool ctrl,
 		break;
 	case SDL_SCANCODE_ESCAPE:
 	case SDL_SCANCODE_Q:
-		ui::Engine::Ref().ConfirmExit();
+		if (ALLOW_QUIT)
+		{
+			ui::Engine::Ref().ConfirmExit();
+		}
 		break;
 	case SDL_SCANCODE_U:
 		if (ctrl)
@@ -1600,6 +1598,12 @@ void GameView::OnKeyPress(int key, int scan, bool repeat, bool shift, bool ctrl,
 	{
 		switch (key)
 		{
+		case SDLK_AC_BACK:
+			if (ALLOW_QUIT)
+			{
+				ui::Engine::Ref().ConfirmExit();
+			}
+			break;
 		case SDLK_TAB: //Tab
 			c->ChangeBrush();
 			break;
@@ -1661,9 +1665,21 @@ void GameView::OnFileDrop(ByteString filename)
 		new ErrorMessage(ByteString("加载沙盘错误").FromUtf8(), ByteString("无法加载已删除的沙盘文件: ").FromUtf8() + saveFile->GetError());
 		return;
 	}
-	c->LoadSaveFile(std::move(saveFile));
+	if (filename.EndsWith(".stm"))
+	{
+		c->LoadStamp(saveFile->TakeGameSave());
+	}
+	else
+	{
+		c->LoadSaveFile(std::move(saveFile));
+	}
 
 	// hide the info text if it's not already hidden
+	SkipIntroText();
+}
+
+void GameView::SkipIntroText()
+{
 	introText = 0;
 }
 
@@ -1949,7 +1965,7 @@ void GameView::NotifyTransformedPlaceSaveChanged(GameModel *sender)
 {
 	if (sender->GetTransformedPlaceSave())
 	{
-		placeSaveThumb = SaveRenderer::Ref().Render(sender->GetTransformedPlaceSave(), true, true, sender->GetRenderer());
+		std::tie(placeSaveThumb, std::ignore) = SaveRenderer::Ref().Render(sender->GetTransformedPlaceSave(), true, true, sender->GetRenderer());
 		selectMode = PlaceSave;
 		selectPoint2 = mousePosition;
 	}
@@ -2505,4 +2521,22 @@ ui::Point GameView::rectSnapCoords(ui::Point point1, ui::Point point2)
 		return point1 + ui::Point((diff.X + diff.Y)/2, (diff.X + diff.Y)/2);
 	// SW-NE
 	return point1 + ui::Point((diff.X - diff.Y)/2, (diff.Y - diff.X)/2);
+}
+
+std::optional<FindingElement> GameView::FindingElementCandidate() const
+{
+	Tool *active = c->GetActiveTool(0);
+	if (active->Identifier.Contains("_PT_"))
+	{
+		return FindingElement{ Particle::GetProperties()[FIELD_TYPE], active->ToolID };
+	}
+	else if (active->Identifier == "DEFAULT_UI_PROPERTY")
+	{
+		auto configuration = static_cast<PropertyTool *>(active)->GetConfiguration();
+		if (configuration)
+		{
+			return FindingElement{ configuration->prop, configuration->propValue };
+		}
+	}
+	return std::nullopt;
 }
