@@ -403,20 +403,19 @@ LuaScriptInterface::LuaScriptInterface(GameController * c, GameModel * m):
 
 	lua_newtable(l);
 	tptPropertiesVersion = lua_gettop(l);
-	lua_pushinteger(l, SAVE_VERSION);
+	lua_pushinteger(l, DISPLAY_VERSION[0]);
 	lua_setfield(l, tptPropertiesVersion, "major");
-	lua_pushinteger(l, MINOR_VERSION);
+	lua_pushinteger(l, DISPLAY_VERSION[1]);
 	lua_setfield(l, tptPropertiesVersion, "minor");
-	lua_pushinteger(l, BUILD_NUM);
+	lua_pushinteger(l, APP_VERSION.build);
 	lua_setfield(l, tptPropertiesVersion, "build");
-	if constexpr (SNAPSHOT || MOD)
-	{
-		lua_pushinteger(l, SNAPSHOT_ID);
-	}
-	else
-	{
-		lua_pushinteger(l, 0);
-	}
+	lua_pushinteger(l, UPSTREAM_VERSION.displayVersion[0]);
+	lua_setfield(l, tptPropertiesVersion, "upstream_major");
+	lua_pushinteger(l, UPSTREAM_VERSION.displayVersion[1]);
+	lua_setfield(l, tptPropertiesVersion, "upstream_minor");
+	lua_pushinteger(l, UPSTREAM_VERSION.build);
+	lua_setfield(l, tptPropertiesVersion, "upstream_build");
+	lua_pushboolean(l, SNAPSHOT);
 	lua_setfield(l, tptPropertiesVersion, "snapshot");
 	lua_pushinteger(l, MOD_ID);
 	lua_setfield(l, tptPropertiesVersion, "modid");

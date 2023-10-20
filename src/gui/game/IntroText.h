@@ -5,14 +5,19 @@
 inline ByteString VersionInfo()
 {
 	ByteStringBuilder sb;
-	sb << SAVE_VERSION << "." << MINOR_VERSION << "." << BUILD_NUM << " " << IDENT;
+	sb << DISPLAY_VERSION[0] << "." << DISPLAY_VERSION[1];
+	if constexpr (!SNAPSHOT)
+	{
+		sb << "." << APP_VERSION.build;
+	}
+	sb << " " << IDENT;
+	if constexpr (MOD)
+	{
+		sb << " MOD " << MOD_ID << " UPSTREAM " << UPSTREAM_VERSION.build;
+	}
 	if constexpr (SNAPSHOT)
 	{
-		sb << " SNAPSHOT " << SNAPSHOT_ID;
-	}
-	else if constexpr (MOD)
-	{
-		sb << " MODVER " << SNAPSHOT_ID;
+		sb << " SNAPSHOT " << APP_VERSION.build;
 	}
 	if constexpr (LUACONSOLE)
 	{
@@ -39,7 +44,7 @@ inline ByteString VersionInfo()
 inline ByteString IntroText()
 {
 	ByteStringBuilder sb;
-	sb << "\bl\bU" << APPNAME << "\bU - Version " << SAVE_VERSION << "." << MINOR_VERSION << " - https://powdertoy.co.uk, irc.libera.chat #powder, https://tpt.io/discord\n"
+	sb << "\bl\bU" << APPNAME << "\bU - Version " << DISPLAY_VERSION[0] << "." << DISPLAY_VERSION[1] << " - https://powdertoy.co.uk, irc.libera.chat #powder, https://tpt.io/discord\n"
 	      "\n"
 	      "\n"
 		"\bgCtrl+C/V/X 复制,粘贴,剪切\n"
