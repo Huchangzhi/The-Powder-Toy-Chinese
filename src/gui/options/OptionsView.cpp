@@ -214,14 +214,14 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 			new GravityWindow(ui::Point(-1, -1), 0.05f, 40, customGravityX, customGravityY, c);
 		}
 	});
-	edgeMode = addDropDown(ByteString("引力模拟模式").FromUtf8(), {
+	edgeMode = addDropDown(ByteString("边界模式").FromUtf8(), {
 		{ ByteString("虚空").FromUtf8(), 0 },
 		{ ByteString("固体").FromUtf8(), 1 },
 		{ ByteString("循环").FromUtf8(), 2 },
 	}, [this] {
 		c->SetEdgeMode(edgeMode->GetOption().second);
 	});
-	temperatureScale = addDropDown(ByteString("边界模式").FromUtf8(), {
+	temperatureScale = addDropDown(ByteString("温度单位").FromUtf8(), {
 		{ ByteString("开尔文").FromUtf8(), 0 },
 		{ ByteString("摄氏度").FromUtf8(), 1 },
 		{ ByteString("华氏度").FromUtf8(), 2 },

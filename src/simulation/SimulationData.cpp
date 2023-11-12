@@ -57,7 +57,7 @@ std::vector<wall_type> LoadWalls()
 		{0xFF8080_rgb, 0xFF2008_rgb, 1, Renderer::WallIcon, String("DETECTOR"),        "DEFAULT_WL_DTECT",  String(ByteString("检测器,内部存在物质时,发出电脉冲").FromUtf8()) },
 		{0x808080_rgb, 0x000000_rgb, 0, Renderer::WallIcon, String("STREAMLINE"),      "DEFAULT_WL_STRM",   String(ByteString("风向计,设置一个风向计的起始点").FromUtf8()) },
 		{0x8080FF_rgb, 0x000000_rgb, 1, Renderer::WallIcon, String("FAN"),             "DEFAULT_WL_FAN",    String(ByteString("风扇,风扇产生气压使用直线工具设置方向和强度").FromUtf8()) },
-		{0xC0C0C0_rgb, 0x101010_rgb, 2, Renderer::WallIcon, String("LIQUID WALL"),     "DEFAULT_WL_LIQD",   String(ByteString("液体强,阻挡大多数物体,除了液体,可以导电").FromUtf8()) },
+		{0xC0C0C0_rgb, 0x101010_rgb, 2, Renderer::WallIcon, String("LIQUID WALL"),     "DEFAULT_WL_LIQD",   String(ByteString("液体墙,阻挡大多数物体,除了液体,可以导电").FromUtf8()) },
 		{0x808080_rgb, 0x000000_rgb, 1, Renderer::WallIcon, String("ABSORB WALL"),     "DEFAULT_WL_ABSRB",  String(ByteString("吸收墙,吸收物质,允许气压通过").FromUtf8()) },
 		{0x808080_rgb, 0x000000_rgb, 3, Renderer::WallIcon, String("WALL"),            "DEFAULT_WL_WALL",   String(ByteString("基础墙,阻挡一切").FromUtf8()) },
 		{0x3C3C3C_rgb, 0x000000_rgb, 1, Renderer::WallIcon, String("AIRONLY WALL"),    "DEFAULT_WL_AIR",    String(ByteString("压力墙,允许压力通过,阻挡一切物质").FromUtf8()) },
