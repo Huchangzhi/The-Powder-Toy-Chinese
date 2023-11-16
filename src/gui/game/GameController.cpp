@@ -249,7 +249,7 @@ void GameController::Install()
 {
 	if constexpr (CAN_INSTALL)
 	{
-		new ConfirmPrompt( ByteString("安装").FromUtf8() + String(APPNAME), ByteString("确定要安装 ").FromUtf8() + String(APPNAME) + ByteString(" 在这台电脑上?\n这允许关联沙盘文件或直接从网站打开沙盘").FromUtf8(), { [] {
+		new ConfirmPrompt( ByteString("安装 ").FromUtf8() + String(APPNAME), ByteString("确定要在此电脑上安装 ").FromUtf8() + String(APPNAME) + ByteString("? \n这允许关联沙盘文件或直接从网站打开沙盘").FromUtf8(), { [] {
 			if (Platform::Install())
 			{
 				new InformationMessage(ByteString("成功").FromUtf8(), ByteString("安装完成").FromUtf8(), false);

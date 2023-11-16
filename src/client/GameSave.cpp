@@ -478,7 +478,7 @@ void GameSave::readOPS(const std::vector<char> &data)
 									{
 										if (tempSign.text == "{t}")
 										{
-											tempSign.text = "Temp: {t}";
+											tempSign.text = ByteString("温度: {t}").FromUtf8();
 										}
 										else if (tempSign.text == "{p}")
 										{
@@ -1803,7 +1803,7 @@ void GameSave::readPSv(const std::vector<char> &dataVec)
 		tempSign.text = format::CleanString(ByteString(tempSignText).FromUtf8(), true, true, true).Substr(0, 45);
 		if (tempSign.text == "{t}")
 		{
-			tempSign.text = "Temp: {t}";
+			tempSign.text = ByteString("温度: {t}").FromUtf8();
 		}
 		else if (tempSign.text == "{p}")
 		{

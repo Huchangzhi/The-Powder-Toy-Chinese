@@ -82,10 +82,10 @@ void LargeScreenDialog()
 {
 	StringBuilder message;
 	auto scale = ui::Engine::Ref().windowFrameOps.scale;
-	message <<  ByteString("切换到 ").FromUtf8() << scale <<  ByteString("x 模式，因为你的屏幕已经够大了:").FromUtf8();
+	message <<  ByteString("切换到 ").FromUtf8() << scale <<  ByteString("x 模式，满足倍数缩放要求:").FromUtf8();
 	message << desktopWidth << "x" << desktopHeight <<  ByteString("<-检测到 ,").FromUtf8() << WINDOWW * scale << "x" << WINDOWH * scale <<  ByteString("<-要求").FromUtf8();
-	message <<  ByteString("\n要撤销此操作，请点击\"取消\"。可以随时在设置中更改它。”").FromUtf8();
-	new ConfirmPrompt(ByteString("检测到可缩放屏幕").FromUtf8(), message.Build(), { nullptr, []() {
+	message <<  ByteString("\n要取消此操作，请点击\"取消\"。可以随时在设置中更改。").FromUtf8();
+	new ConfirmPrompt(ByteString("检测到高分辨率屏幕").FromUtf8(), message.Build(), { nullptr, []() {
 		GlobalPrefs::Ref().Set("Scale", 1);
 		ui::Engine::Ref().windowFrameOps.scale = 1;
 	} });
