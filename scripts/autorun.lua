@@ -1029,23 +1029,23 @@ local function smallstep()
 	check_req_status()
 end
 
-	--安装元素说明
-function ui_button.downloadtpt(self)
-	--安装元素说明
-local function uiinstalltptinstruction(location)
-	local file = download_file("https://pan.dragonrster.top/Game/ThePowderToy/scripts/123.txt")
-	if file then
-		f=io.open("./scripts/".. location,"wb")
-		f:write(file)
-		f:close()
-		running["123.lua"] = true
-		do_restart()
-		return true
-	end
-	return false
-end
-uiinstalltptinstruction("123.lua")
-end
+-- 	--安装元素说明
+-- function ui_button.downloadtpt(self)
+-- 	--安装元素说明
+-- local function uiinstalltptinstruction(location)
+-- 	local file = download_file("https://pan.dragonrster.top/Game/ThePowderToy/scripts/123.txt")
+-- 	if file then
+-- 		f=io.open("./scripts/".. location,"wb")
+-- 		f:write(file)
+-- 		f:close()
+-- 		running["123.lua"] = true
+-- 		do_restart()
+-- 		return true
+-- 	end
+-- 	return false
+-- end
+-- uiinstalltptinstruction("123.lua")
+-- end
 local function reload_action()
 	load_filenames()
 	load_downloaded()
