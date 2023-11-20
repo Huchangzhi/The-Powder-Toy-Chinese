@@ -28,13 +28,13 @@ config.log
 /generated/
 
 # User data
-/stamps/
+# /stamps/
 /Saves/
 /scripts/
 /recordings/
 *.def
 *.pref
-*.lua
+# *.lua
 screenshot_*
 
 # Visual studio
