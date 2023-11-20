@@ -70,7 +70,7 @@ ServerSaveActivity::ServerSaveActivity(std::unique_ptr<SaveInfo> newSave, OnUplo
 	previewLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	AddComponent(previewLabel);
 
-	nameField = new ui::Textbox(ui::Point(8, 25), ui::Point((Size.X / 2) - 16, 16), save->GetName(), ByteString("[沙盘名]").FromUtf8());
+	nameField = new ui::Textbox(ui::Point(8, 25), ui::Point((Size.X / 2) - 16, 16), save->GetName(), ByteString("[沙盘名称]").FromUtf8());
 	nameField->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	nameField->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	nameField->SetActionCallback({[this]
@@ -175,7 +175,7 @@ void ServerSaveActivity::NotifyDone(Task *task)
 	if (!task->GetSuccess())
 	{
 		Exit();
-		new ErrorMessage("Error", task->GetError());
+		new ErrorMessage(ByteString("错误").FromUtf8(), task->GetError());
 	}
 	else
 	{
@@ -191,15 +191,15 @@ void ServerSaveActivity::Save()
 {
 	if (!nameField->GetText().length())
 	{
-		new ErrorMessage("Error", "You must specify a save name.");
+		new ErrorMessage(ByteString("错误").FromUtf8(), ByteString("必须为沙盘指定一个名称").FromUtf8());
 		return;
 	}
 	if (Client::Ref().GetAuthUser().Username != save->GetUserName() && publishedCheckbox->GetChecked())
 	{
-		new ConfirmPrompt("Publish", "This save was created by " + save->GetUserName().FromUtf8() + ", you're about to publish this under your own name; If you haven't been given permission by the author to do so, please uncheck the publish box, otherwise continue", {[this]
-																																																																			{
-																																																																				saveUpload();
-																																																																			}});
+		new ConfirmPrompt(ByteString("发布").FromUtf8(), ByteString("此沙盘由").FromUtf8() + save->GetUserName().FromUtf8() + ByteString("发布,即将以自己的名义发布此沙盘:如没有获得授予,请取消选中发布框,否则继续").FromUtf8(), {[this]
+																																																								  {
+																																																									  saveUpload();
+																																																								  }});
 	}
 	else
 	{
@@ -250,18 +250,18 @@ void ServerSaveActivity::Exit()
 
 void ServerSaveActivity::ShowPublishingInfo()
 {
-	String info =
-		"In The Powder Toy, one can save simulations to their account in two privacy levels: Published and unpublished. You can choose which one by checking or unchecking the 'publish' checkbox. Saves are unpublished by default, so if you do not check publish nobody will be able to see your saves.\n"
-		"\n"
-		"\btPublished saves\bw will appear on the 'By Date' feed and will be seen by many people. These saves also contribute to your Average Score, which is displayed publicly on your profile page on the website. Publish saves that you want people to see so they can comment and vote on.\n"
-		"\btUnpublished saves\bw will not be shown on the 'By Date' feed. These will not contribute to your Average Score. They are not completely private though, as anyone who knows the save id will be able to view it. You can give the save id out to show specific people the save but not allow just everyone to see it.\n"
-		"\n"
-		"To quickly resave a save, open it and click the left side of the split resave button to \bt'Reupload the current simulation'\bw. If you want to change the description or change the published status, you can click the right side to \bt'Modify simulation properties'\bw. Note that you can't change the name of saves; this will create an entirely new save with no comments, votes, or tags; separate from the original.\n"
-		"You may want to publish an unpublished save after it is finished, or to unpublish some currently published ones. You can do this by opening the save, selecting the 'Modify simulation properties' button, and changing the published status there. You can also \btunpublish or delete saves\bw by selecting them in the 'my own' section of the browser and clicking either one of the buttons that appear on bottom.\n"
-		"If a save is under a week old and gains popularity fast, it will be automatically placed on the \btfront page\bw. Only published saves will be able to get here. Moderators can also choose to promote any save onto the front page, but this happens rarely. They can also demote any save from the front page that breaks a rule or they feel doesn't belong.\n"
-		"Once you make a save, you can resave it as many times as you want. A short previous \btsave history\bw is saved, just right click any save in the save browser and select 'View History' to view it. This is useful for when you accidentally save something you didn't mean to and want to go back to the old version.\n";
+	// String info =
+	// 	"In The Powder Toy, one can save simulations to their account in two privacy levels: Published and unpublished. You can choose which one by checking or unchecking the 'publish' checkbox. Saves are unpublished by default, so if you do not check publish nobody will be able to see your saves.\n"
+	// 	"\n"
+	// 	"\btPublished saves\bw will appear on the 'By Date' feed and will be seen by many people. These saves also contribute to your Average Score, which is displayed publicly on your profile page on the website. Publish saves that you want people to see so they can comment and vote on.\n"
+	// 	"\btUnpublished saves\bw will not be shown on the 'By Date' feed. These will not contribute to your Average Score. They are not completely private though, as anyone who knows the save id will be able to view it. You can give the save id out to show specific people the save but not allow just everyone to see it.\n"
+	// 	"\n"
+	// 	"To quickly resave a save, open it and click the left side of the split resave button to \bt'Reupload the current simulation'\bw. If you want to change the description or change the published status, you can click the right side to \bt'Modify simulation properties'\bw. Note that you can't change the name of saves; this will create an entirely new save with no comments, votes, or tags; separate from the original.\n"
+	// 	"You may want to publish an unpublished save after it is finished, or to unpublish some currently published ones. You can do this by opening the save, selecting the 'Modify simulation properties' button, and changing the published status there. You can also \btunpublish or delete saves\bw by selecting them in the 'my own' section of the browser and clicking either one of the buttons that appear on bottom.\n"
+	// 	"If a save is under a week old and gains popularity fast, it will be automatically placed on the \btfront page\bw. Only published saves will be able to get here. Moderators can also choose to promote any save onto the front page, but this happens rarely. They can also demote any save from the front page that breaks a rule or they feel doesn't belong.\n"
+	// 	"Once you make a save, you can resave it as many times as you want. A short previous \btsave history\bw is saved, just right click any save in the save browser and select 'View History' to view it. This is useful for when you accidentally save something you didn't mean to and want to go back to the old version.\n";
 
-	new InformationMessage(ByteString("发布须知").FromUtf8(), info, true);
+	new InformationMessage(ByteString("发布须知").FromUtf8(), ByteString("在TPT中，可以使用两种方式上传沙盘:\n公开和私人，通过选择(默认关闭)是否公开来设置，私人沙盘只能由本人或沙盘ID访问。\n\n\n\bt公开沙盘\bw会立即被使用按日期排布沙盘的人看到，公开沙盘后沙盘的评分将影响个人平均评分(显示在个人档案上)。公开的沙盘能被所有人评论和评分。\n\n\bt私人沙盘\bw不会出现在云沙盘更新中，这些沙盘也不会影响平均评分，尽管设置为私人，但别人仍然可以通过沙盘ID来访问他们。\n\n\n打开沙盘井点击沙盘名左侧的按钮\bt“重新上传当前沙盘”\bw，可以快速更改已经上传的沙盘，如果需更改沙盘描述或沙盘属性，可以点击右侧按钮\bt“修改沙盘属性”\bw，注意不能更改沙盘名称，这会重新创建一个全新的沙盘,如需发布一个设置为私人的沙盘，或将以前发布过的沙盘设置为私人，打开沙盘，选择“修改沙盘属性”按钮，在弹出的对话框中修改属性，在“个人沙盘”页面中选择所需要的沙盘来\bt删除沙盘或转为私人\bw。\n\n如果沙盘已经发布，并且短时间内拥有较高人气，它会自动出现在\bt首页(FP)\bw上。只有设置为公开的沙盘才有机会登上首页(FP)，版主同样有权限使某个沙盘在首页上显示，但这种情况非常少见，如果某沙盘被认为触犯了条例或不适合放在首页，版主同样有权限撤下它。\n\n沙盘发布后，可以不限次数的修改，服务器会保存\bt沙盘历史\bw，在沙盘浏览器中右键沙盘井选择“查看历史”就能找到它，这一功能可以帮助你找回以前的版本并修复错误。").FromUtf8(), true);
 }
 
 void ServerSaveActivity::ShowRules()
@@ -343,7 +343,7 @@ void ServerSaveActivity::ShowRules()
 void ServerSaveActivity::CheckName(String newname)
 {
 	if (newname.length() && newname == save->GetName() && save->GetUserName() == Client::Ref().GetAuthUser().Username)
-		titleLabel->SetText("Modify simulation properties:");
+		titleLabel->SetText(ByteString("修改沙盘属性:").FromUtf8());
 	else
 		titleLabel->SetText(ByteString("保存到云端").FromUtf8());
 }
@@ -375,7 +375,7 @@ void ServerSaveActivity::OnTick(float dt)
 		}
 		catch (const http::RequestError &ex)
 		{
-			new ErrorMessage("Error", "Upload failed with error:\n" + ByteString(ex.what()).FromUtf8());
+			new ErrorMessage(ByteString("错误").FromUtf8(), ByteString("上传失败:\n").FromUtf8() + ByteString(ex.what()).FromUtf8());
 		}
 		uploadSaveRequest.reset();
 	}

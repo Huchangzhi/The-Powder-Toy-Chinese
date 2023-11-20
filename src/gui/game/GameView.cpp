@@ -749,7 +749,7 @@ void GameView::NotifyUserChanged(GameModel * sender)
 	{
 		loginButton->SetText(sender->GetUser().Username.FromUtf8());
 		loginButton->SetShowSplit(true);
-		loginButton->SetRightToolTip(ByteString("编辑配置").FromUtf8());
+		loginButton->SetRightToolTip(ByteString("编辑个人配置").FromUtf8());
 	}
 	// saveSimulationButtonEnabled = sender->GetUser().ID;
 	saveSimulationButtonEnabled = true;
@@ -1416,7 +1416,7 @@ void GameView::OnKeyPress(int key, int scan, bool repeat, bool shift, bool ctrl,
 		if (Client::Ref().GetAuthUser().UserElevation != User::ElevationNone && ctrl)
 		{
 			ByteString authorString = Client::Ref().GetAuthorInfo().toStyledString();
-			new InformationMessage("Save authorship info", authorString.FromUtf8(), true);
+			new InformationMessage( ByteString("保存作者信息").FromUtf8(), authorString.FromUtf8(), true);
 		}
 		break;
 	case SDL_SCANCODE_R:
@@ -2093,7 +2093,7 @@ void GameView::SetSaveButtonTooltips()
 	else if (ctrlBehaviour)
 		saveSimulationButton->SetToolTips(ByteString("覆盖本地的沙盘").FromUtf8(), ByteString("将沙盘保存到本地").FromUtf8());
 	else if (saveSimulationButton->GetShowSplit())
-		saveSimulationButton->SetToolTips(ByteString("重新上传当前沙盘").FromUtf8(), ByteString("修改模拟属性").FromUtf8());
+		saveSimulationButton->SetToolTips(ByteString("重新上传当前沙盘").FromUtf8(), ByteString("修改沙盘属性").FromUtf8());
 	else
 		saveSimulationButton->SetToolTips(ByteString("重新上传当前沙盘").FromUtf8(), ByteString("上传一个新沙盘,按住Ctrl保存到本地").FromUtf8());
 }

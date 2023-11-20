@@ -67,7 +67,7 @@ PreviewView::PreviewView(std::unique_ptr<VideoBuffer> newSavePreview):
 	reportButton->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	reportButton->SetIcon(IconReport);
 	reportButton->SetActionCallback({ [this] {
-		new TextPrompt("Report Save", "Things to consider when reporting:\n\bw1)\bg When reporting stolen saves, please include the ID of the original save.\n\bw2)\bg Do not ask for saves to be removed from front page unless they break the rules.\n\bw3)\bg You may report saves for comments or tags too (including your own saves)", "", "[reason]", true, { [this](String const &resultText) {
+		new TextPrompt(ByteString("举报沙盘").FromUtf8(), ByteString("举报时需注意:\n\bw1)\bg 举报抄袭行为时请附上被抄袭沙盘ID\n\bw2)\bg 除非违反规则,否则不要要求从首页删除沙盘\n\bw3)\bg 可以举报沙盘的评论或标签(包括本人沙盘)").FromUtf8(), "", ByteString("[原因]").FromUtf8(), true, { [this](String const &resultText) {
 			if (reportSaveRequest)
 			{
 				return;
@@ -93,7 +93,7 @@ PreviewView::PreviewView(std::unique_ptr<VideoBuffer> newSavePreview):
 	browserOpenButton->SetActionCallback({ [this] { c->OpenInBrowser(); } });
 	AddComponent(browserOpenButton);
 
-	loadErrorButton = new ui::Button({ 0, 0 }, ui::Point(148, 19), "Error loading save");
+	loadErrorButton = new ui::Button({ 0, 0 }, ui::Point(148, 19), ByteString("加载沙盘时出错").FromUtf8());
 	loadErrorButton->Appearance.HorizontalAlign = ui::Appearance::AlignCentre;
 	loadErrorButton->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	loadErrorButton->SetIcon(IconDelete);
@@ -101,7 +101,7 @@ PreviewView::PreviewView(std::unique_ptr<VideoBuffer> newSavePreview):
 	loadErrorButton->Visible = false;
 	AddComponent(loadErrorButton);
 
-	missingElementsButton = new ui::Button({ 0, 0 }, ui::Point(148, 19), "Missing custom elements");
+	missingElementsButton = new ui::Button({ 0, 0 }, ui::Point(148, 19), ByteString("缺少自定义元素").FromUtf8());
 	missingElementsButton->Appearance.HorizontalAlign = ui::Appearance::AlignCentre;
 	missingElementsButton->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	missingElementsButton->SetIcon(IconReport);
@@ -245,7 +245,7 @@ void PreviewView::CheckComment()
 	String text = addCommentBox->GetText().ToLower();
 	if (addCommentRequest)
 	{
-		commentWarningLabel->SetText("Submitting comment...");
+		commentWarningLabel->SetText(ByteString("正在提交评论...").FromUtf8());
 		commentHelpText = true;
 	}
 	else if (!userIsAuthor && (text.Contains("stolen") || text.Contains("copied")))
@@ -253,15 +253,15 @@ void PreviewView::CheckComment()
 		if (!commentHelpText)
 		{
 			if (interfaceRng()%2)
-				commentWarningLabel->SetText("Stolen? Report the save instead");
+				commentWarningLabel->SetText(ByteString("抄袭? 请举报抄袭沙盘").FromUtf8());
 			else
-				commentWarningLabel->SetText("Please report stolen saves");
+				commentWarningLabel->SetText(ByteString("抄袭? 请举报抄袭沙盘").FromUtf8());
 			commentHelpText = true;
 		}
 	}
 	else if (userIsAuthor && text.Contains("vote"))
 	{
-		commentWarningLabel->SetText("Do not ask for votes");
+		commentWarningLabel->SetText(ByteString("请勿拉赞").FromUtf8());
 		commentHelpText = true;
 	}
 	else if (CheckSwearing(text))
@@ -269,9 +269,9 @@ void PreviewView::CheckComment()
 		if (!commentHelpText)
 		{
 			if (interfaceRng()%2)
-				commentWarningLabel->SetText("Please do not swear");
+				commentWarningLabel->SetText(ByteString("请文明发言").FromUtf8());
 			else
-				commentWarningLabel->SetText("Bad language may be deleted");
+				commentWarningLabel->SetText(ByteString("将删除不文明发言").FromUtf8());
 			commentHelpText = true;
 		}
 	}
@@ -414,11 +414,11 @@ void PreviewView::OnTick(float dt)
 		{
 			reportSaveRequest->Finish();
 			c->Exit();
-			new InformationMessage("Information", "Report submitted", false);
+			new InformationMessage(ByteString("信息").FromUtf8(), ByteString("已提交举报").FromUtf8(), false);
 		}
 		catch (const http::RequestError &ex)
 		{
-			new ErrorMessage("Error", "Unable to file report: " + ByteString(ex.what()).FromUtf8());
+			new ErrorMessage(ByteString("错误").FromUtf8(), ByteString("无法提交举报: ").FromUtf8() + ByteString(ex.what()).FromUtf8());
 		}
 		reportSaveRequest.reset();
 	}
@@ -431,7 +431,7 @@ void PreviewView::OnTick(float dt)
 		}
 		catch (const http::RequestError &ex)
 		{
-			new ErrorMessage("Error submitting comment", ByteString(ex.what()).FromUtf8());
+			new ErrorMessage(ByteString("提交评论时出错").FromUtf8(), ByteString(ex.what()).FromUtf8());
 		}
 		submitCommentButton->Enabled = true;
 		commentBoxAutoHeight();
@@ -482,18 +482,18 @@ void PreviewView::OnKeyPress(int key, int scan, bool repeat, bool shift, bool ct
 
 void PreviewView::ShowLoadError()
 {
-	new ErrorMessage("Error loading save", doErrorMessage, {});
+	new ErrorMessage(ByteString("加载沙盘时出错").FromUtf8(), doErrorMessage, {});
 }
 
 void PreviewView::ShowMissingCustomElements()
 {
 	StringBuilder sb;
-	sb << "This save uses custom elements that are not currently available. Make sure that you use the mod and/or have all the scripts the save requires to fully load. A list of identifiers of missing custom elements follows, which may help you determine how to fix this problem.\n";
+	sb << ByteString("此沙盘使用了当前不可用的自定义元素。确保使用mod和/或拥有沙盘所需的所有脚本以完全加载。下面列出了缺少的自定义元素的标识符列表，这可能有助于确定如何解决此问题").FromUtf8();
 	for (auto &identifier : missingElementTypes)
 	{
 		sb << "\n - " << identifier.FromUtf8();
 	}
-	new InformationMessage("Missing custom elements", sb.Build(), true);
+	new InformationMessage(ByteString("缺少自定义元素").FromUtf8(), sb.Build(), true);
 }
 
 void PreviewView::UpdateLoadStatus()
@@ -586,7 +586,7 @@ void PreviewView::submitComment()
 		String comment = addCommentBox->GetText();
 		if (comment.length() < 4)
 		{
-			new ErrorMessage("Error", "Comment is too short");
+			new ErrorMessage(ByteString("错误").FromUtf8(), ByteString("评论过短").FromUtf8());
 			return;
 		}
 
@@ -642,7 +642,7 @@ void PreviewView::NotifyCommentBoxEnabledChanged(PreviewModel * sender)
 	}
 	else
 	{
-		submitCommentButton = new ui::Button(ui::Point(XRES/2, Size.Y-19), ui::Point(Size.X-(XRES/2), 19),  ByteString("登陆后评论").FromUtf8());
+		submitCommentButton = new ui::Button(ui::Point(XRES/2, Size.Y-19), ui::Point(Size.X-(XRES/2), 19),  ByteString("请登陆后评论").FromUtf8());
 		submitCommentButton->SetActionCallback({ [this] { c->ShowLogin(); } });
 		AddComponent(submitCommentButton);
 	}
@@ -657,7 +657,7 @@ void PreviewView::SaveLoadingError(String errorMessage)
 
 void PreviewView::NotifyCommentsPageChanged(PreviewModel * sender)
 {
-	pageInfo->SetText(String::Build("Page ", sender->GetCommentsPageNum(), " of ", sender->GetCommentsPageCount()));
+	pageInfo->SetText(String::Build(ByteString("第 ").FromUtf8(), sender->GetCommentsPageNum(), ByteString(" 共 ").FromUtf8(), sender->GetCommentsPageCount()));
 }
 
 void PreviewView::NotifyCommentsChanged(PreviewModel * sender)
