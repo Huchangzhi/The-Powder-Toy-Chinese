@@ -1152,7 +1152,7 @@ function ui_button.downloadpressed(self)
 	local any_failed = false
 	for i,but in ipairs(mainwindow.checkbox.list) do
 		if but.selected then
-			local displayName = "下载完成"..PATH_SEP..but.ID.." "..onlinescripts[but.ID].author:gsub("[^%w _-]", "_").."-"..onlinescripts[but.ID].name:gsub("[^%w _-]", "_")..".lua"
+			local displayName = "downloaded"..PATH_SEP..but.ID.." "..onlinescripts[but.ID].author:gsub("[^%w _-]", "_").."-"..onlinescripts[but.ID].name:gsub("[^%w _-]", "_")..".lua"
 			local name = TPT_LUA_PATH..PATH_SEP..displayName
 			if not fs.exists(TPT_LUA_PATH..PATH_SEP.."downloaded") then
 				fs.makeDirectory(TPT_LUA_PATH..PATH_SEP.."downloaded")
