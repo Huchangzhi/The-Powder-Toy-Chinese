@@ -28,9 +28,9 @@ config.log
 /generated/
 
 # User data
-# /stamps/
+/stamps/
 /Saves/
-/scripts/
+# /scripts/
 /recordings/
 *.def
 *.pref
