@@ -90,6 +90,7 @@ screenshot_*
 *.opensdf
 *.sdf
 /font/
+/TPT/
 compile_commands.json
 ignore/
 Downloads/zpix.bdf
