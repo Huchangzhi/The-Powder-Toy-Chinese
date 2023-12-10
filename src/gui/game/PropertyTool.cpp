@@ -53,7 +53,7 @@ sim(sim_)
 {
 	properties = Particle::GetProperties();
 
-	ui::Label * messageLabel = new ui::Label(ui::Point(4, 5), ui::Point(Size.X-8, 14), "Edit property");
+	ui::Label * messageLabel = new ui::Label(ui::Point(4, 5), ui::Point(Size.X-8, 14), ByteString("属性笔工具").FromUtf8());
 	messageLabel->SetTextColour(style::Colour::InformationTitle);
 	messageLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	messageLabel->Appearance.VerticalAlign = ui::Appearance::AlignTop;
@@ -84,7 +84,7 @@ sim(sim_)
 	auto &prefs = GlobalPrefs::Ref();
 	property->SetOption(prefs.Get("Prop.Type", 0));
 
-	textField = new ui::Textbox(ui::Point(8, 46), ui::Point(Size.X-16, 16), "", "[value]");
+	textField = new ui::Textbox(ui::Point(8, 46), ui::Point(Size.X-16, 16), "", ByteString("[值]").FromUtf8());
 	textField->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	textField->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	textField->SetText(prefs.Get("Prop.Value", String("")));

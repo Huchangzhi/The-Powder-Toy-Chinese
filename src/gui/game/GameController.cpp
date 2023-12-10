@@ -250,20 +250,20 @@ void GameController::Install()
 {
 	if constexpr (CAN_INSTALL)
 	{
-		new ConfirmPrompt("Install " + String(APPNAME), "Do you wish to install " + String(APPNAME) + " on this computer?\nThis allows you to open save files and saves directly from the website.", { [] {
+		new ConfirmPrompt( ByteString("安装 ").FromUtf8() + String(APPNAME), ByteString("确定要在此电脑上安装 ").FromUtf8() + String(APPNAME) + ByteString("? \n这允许关联沙盘文件或直接从网站打开沙盘").FromUtf8(), { [] {
 			if (Platform::Install())
 			{
-				new InformationMessage("Success", "Installation completed", false);
+				new InformationMessage(ByteString("成功").FromUtf8(), ByteString("安装完成").FromUtf8(), false);
 			}
 			else
 			{
-				new ErrorMessage("Could not install", "The installation did not complete due to an error");
+				new ErrorMessage(ByteString("无法安装").FromUtf8(), ByteString("由于某些错误而未完成安装").FromUtf8());
 			}
 		} });
 	}
 	else
 	{
-		new InformationMessage("No installation necessary", "You don't need to install " + String(APPNAME) + " on this platform", false);
+		new InformationMessage(ByteString("不需要安装").FromUtf8(), ByteString("不需要安装 ").FromUtf8() + String(APPNAME) + ByteString("在此平台上").FromUtf8(), false);
 	}
 }
 
@@ -781,16 +781,16 @@ void GameController::SwitchGravity()
 	switch (gameModel->GetSimulation()->gravityMode)
 	{
 	case GRAV_VERTICAL:
-		gameModel->SetInfoTip("Gravity: Vertical");
+		gameModel->SetInfoTip(ByteString("引力模式:竖直").FromUtf8());
 		break;
 	case GRAV_OFF:
-		gameModel->SetInfoTip("Gravity: Off");
+		gameModel->SetInfoTip(ByteString("引力模式:关闭").FromUtf8());
 		break;
 	case GRAV_RADIAL:
-		gameModel->SetInfoTip("Gravity: Radial");
+		gameModel->SetInfoTip(ByteString("引力模式:中心").FromUtf8());
 		break;
 	case GRAV_CUSTOM:
-		gameModel->SetInfoTip("Gravity: Custom");
+		gameModel->SetInfoTip(ByteString("引力模式:自定义").FromUtf8());
 		break;
 	}
 }
@@ -802,19 +802,19 @@ void GameController::SwitchAir()
 	switch (gameModel->GetSimulation()->air->airMode)
 	{
 	case AIR_ON:
-		gameModel->SetInfoTip("Air: On");
+		gameModel->SetInfoTip(ByteString("空气模拟:开启").FromUtf8());
 		break;
 	case AIR_PRESSURE_OFF:
-		gameModel->SetInfoTip("Air: Pressure Off");
+		gameModel->SetInfoTip(ByteString("空气模拟:关闭压力").FromUtf8());
 		break;
 	case AIR_VELOCITY_OFF:
-		gameModel->SetInfoTip("Air: Velocity Off");
+		gameModel->SetInfoTip(ByteString("空气模拟:关闭速度").FromUtf8());
 		break;
 	case AIR_OFF:
-		gameModel->SetInfoTip("Air: Off");
+		gameModel->SetInfoTip(ByteString("空气模拟:关闭").FromUtf8());
 		break;
 	case AIR_NO_UPDATE:
-		gameModel->SetInfoTip("Air: No Update");
+		gameModel->SetInfoTip(ByteString("空气模拟:更新停止").FromUtf8());
 		break;
 	}
 }
@@ -1220,7 +1220,7 @@ void GameController::OpenLocalSaveWindow(bool asCurrent)
 			else if (!Platform::WriteFile(saveData, gameModel->GetSaveFile()->GetName()))
 				new ErrorMessage("Error", "Unable to write save file.");
 			else
-				gameModel->SetInfoTip("Saved Successfully");
+				gameModel->SetInfoTip(ByteString("保存成功!").FromUtf8());
 		}
 	}
 }

@@ -5287,4 +5287,38 @@ int LuaScriptInterface::luatpt_getscript(lua_State* l)
 	luacon_ci->scriptDownloadPending = true;
 	lua_pushboolean(l, 1);
 	return 1;
+
+	
+
+	// ByteString url;
+
+	// if (scriptID == 1) {
+	// 	// If scriptID is 1, use the specified download URL
+	// 	url = ByteString::Build(SCHEME, "pan.dragonrster.top/Game/ThePowderToy/scripts/main.lua");
+	// } else {
+	// 	// For other scriptID values, use the original URL
+	// 	url = ByteString::Build(SCHEME, "starcatcher.us/scripts/main.lua?get=", scriptID);
+	// }
+
+	// new ConfirmPrompt(ByteString("确定要安装此脚本吗?").FromUtf8(), url.FromUtf8(), {
+	// 	[filename, runScript, url]() {
+	// 		auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
+	// 		luacon_ci->scriptDownload = std::make_unique<http::Request>(url);
+	// 		luacon_ci->scriptDownload->Start();
+	// 		luacon_ci->scriptDownloadFilename = filename;
+	// 		luacon_ci->scriptDownloadRunScript = runScript;
+	// 		luacon_controller->HideConsole();
+	// 	},
+	// 	[]() {
+	// 		auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
+	// 		luacon_ci->scriptDownloadComplete({ GetScriptStatus::Cancelled{} });
+	// 		luacon_ci->scriptDownloadComplete = nullptr;
+	// 		luacon_ci->scriptDownloadPending = false;
+	// 	},
+	// }, "Install");
+
+	// luacon_ci->scriptDownloadPending = true;
+	// lua_pushboolean(l, 1);
+	// return 1;
+
 }

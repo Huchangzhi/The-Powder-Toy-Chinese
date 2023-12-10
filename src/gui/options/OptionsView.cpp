@@ -31,7 +31,7 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 	};
 	
 	{
-		auto *label = new ui::Label(ui::Point(4, 1), ui::Point(Size.X-8, 22), "Simulation Options");
+		auto *label = new ui::Label(ui::Point(4, 1), ui::Point(Size.X-8, 22), ByteString("设置").FromUtf8());
 		label->SetTextColour(style::Colour::InformationTitle);
 		label->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 		label->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -100,24 +100,24 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 		currentY += 11;
 	};
 
-	heatSimulation = addCheckbox(0, "Heat simulation \bgIntroduced in version 34", "Can cause odd behaviour when disabled", [this] {
+	heatSimulation = addCheckbox(0, ByteString("热模拟 \bg34.0版本后加入").FromUtf8(), ByteString("\bg 关闭此选项可能导致一些奇怪的问题").FromUtf8(), [this] {
 		c->SetHeatSimulation(heatSimulation->GetChecked());
 	});
-	newtonianGravity = addCheckbox(0, "Newtonian gravity \bgIntroduced in version 48", "May cause poor performance on older computers", [this] {
+	newtonianGravity = addCheckbox(0, ByteString("牛顿引力模拟 \bg48.0版本后加入").FromUtf8(), ByteString("\bg 可能会降低游戏运行的效能").FromUtf8(), [this] {
 		c->SetNewtonianGravity(newtonianGravity->GetChecked());
 	});
-	ambientHeatSimulation = addCheckbox(0, "Ambient heat simulation \bgIntroduced in version 50", "Can cause odd / broken behaviour with many saves", [this] {
+	ambientHeatSimulation = addCheckbox(0, ByteString("环境热模拟 \bg50.0版本后加入").FromUtf8(), ByteString("\bg 关闭此项可能导致一些沙盘不能正常运行").FromUtf8(), [this] {
 		c->SetAmbientHeatSimulation(ambientHeatSimulation->GetChecked());
 	});
-	waterEqualisation = addCheckbox(0, "Water equalisation \bgIntroduced in version 61", "May cause poor performance with a lot of water", [this] {
+	waterEqualisation = addCheckbox(0, ByteString("连通器模拟 \bg61.0版本后加入 ").FromUtf8(), ByteString("\bg 有大量液体存在时会降低游戏运行的效能").FromUtf8(), [this] {
 		c->SetWaterEqualisation(waterEqualisation->GetChecked());
 	});
-	airMode = addDropDown("Air simulation mode", {
-		{ "On", 0 },
-		{ "Pressure off", 1 },
-		{ "Velocity off", 2 },
-		{ "Off", 3 },
-		{ "No update", 4 },
+	airMode = addDropDown(ByteString("空气模拟模式").FromUtf8(), {
+		{ ByteString("开启").FromUtf8(), 0 },
+		{ ByteString("关闭压力").FromUtf8(), 1 },
+		{ ByteString("关闭速度").FromUtf8(), 2 },
+		{ ByteString("关闭").FromUtf8(), 3 },
+		{ ByteString("更新停止").FromUtf8(), 4 },
 	}, [this] {
 		c->SetAirMode(airMode->GetOption().second);
 	});
@@ -130,9 +130,9 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 			UpdateAirTemp(ambientAirTemp->GetText(), true);
 		}});
 		scrollPanel->AddChild(ambientAirTemp);
-		ambientAirTempPreview = new ui::Button(ui::Point(Size.X-31, currentY), ui::Point(16, 16), "", "Preview");
+		ambientAirTempPreview = new ui::Button(ui::Point(Size.X-31, currentY), ui::Point(16, 16), "", ByteString("预览").FromUtf8());
 		scrollPanel->AddChild(ambientAirTempPreview);
-		auto *label = new ui::Label(ui::Point(8, currentY), ui::Point(Size.X-96, 16), "Ambient air temperature");
+		auto *label = new ui::Label(ui::Point(8, currentY), ui::Point(Size.X-96, 16), ByteString("环境空气温度").FromUtf8());
 		label->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 		label->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 		scrollPanel->AddChild(label);
@@ -165,7 +165,7 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 			gravityDirection(new ui::DirectionSelector(ui::Point(10, 32), scale, radius, radius / 4, 2, 5)),
 			c(c_)
 			{
-				ui::Label * tempLabel = new ui::Label(ui::Point(4, 1), ui::Point(Size.X - 8, 22), "Custom Gravity");
+				ui::Label * tempLabel = new ui::Label(ui::Point(4, 1), ui::Point(Size.X - 8, 22),  ByteString("自定义引力").FromUtf8());
 				tempLabel->SetTextColour(style::Colour::InformationTitle);
 				tempLabel->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 				tempLabel->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
@@ -202,11 +202,11 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 				MakeActiveWindow();
 			}
 	};
-	gravityMode = addDropDown("Gravity simulation mode", {
-		{ "Vertical", 0 },
-		{ "Off", 1 },
-		{ "Radial", 2 },
-		{ "Custom", 3 },
+	gravityMode = addDropDown(ByteString("重力模拟模式").FromUtf8(), {
+		{ ByteString("竖直").FromUtf8(), 0 },
+		{ ByteString("关闭").FromUtf8(), 1 },
+		{ ByteString("中心").FromUtf8(), 2 },
+		{ ByteString("自定义").FromUtf8(), 3 },
 	}, [this] {
 		c->SetGravityMode(gravityMode->GetOption().second);
 		if (gravityMode->GetOption().second == 3)
@@ -214,17 +214,17 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 			new GravityWindow(ui::Point(-1, -1), 0.05f, 40, customGravityX, customGravityY, c);
 		}
 	});
-	edgeMode = addDropDown("Edge mode", {
-		{ "Void", 0 },
-		{ "Solid", 1 },
-		{ "Loop", 2 },
+	edgeMode = addDropDown(ByteString("边界模式").FromUtf8(), {
+		{ ByteString("虚空").FromUtf8(), 0 },
+		{ ByteString("固体").FromUtf8(), 1 },
+		{ ByteString("循环").FromUtf8(), 2 },
 	}, [this] {
 		c->SetEdgeMode(edgeMode->GetOption().second);
 	});
-	temperatureScale = addDropDown("Temperature scale", {
-		{ "Kelvin", 0 },
-		{ "Celsius", 1 },
-		{ "Fahrenheit", 2 },
+	temperatureScale = addDropDown(ByteString("温度单位").FromUtf8(), {
+		{ ByteString("开尔文").FromUtf8(), 0 },
+		{ ByteString("摄氏度").FromUtf8(), 1 },
+		{ ByteString("华氏度").FromUtf8(), 2 },
 	}, [this] {
 		c->SetTemperatureScale(temperatureScale->GetOption().second);
 	});
@@ -247,56 +247,56 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 		while (desktopWidth >= GetGraphics()->Size().X * scaleIndex && desktopHeight >= GetGraphics()->Size().Y * scaleIndex);
 		if (!currentScaleValid)
 		{
-			options.push_back({ "current", currentScale });
+			options.push_back({ ByteString("当前").FromUtf8(), currentScale });
 		}
-		scale = addDropDown("Window scale factor for larger screens", options, [this] {
+		scale = addDropDown(ByteString("\bg缩放屏幕的窗口比例因子").FromUtf8(), options, [this] {
 			c->SetScale(scale->GetOption().second);
 		});
 	}
 	if (FORCE_WINDOW_FRAME_OPS == forceWindowFrameOpsNone)
 	{
-		resizable = addCheckbox(0, "Resizable \bg- allow resizing and maximizing window", "", [this] {
+		resizable = addCheckbox(0, ByteString("可调整大小 \bg - 允许调整大小和最大化窗口").FromUtf8(), "", [this] {
 			c->SetResizable(resizable->GetChecked());
 		});
-		fullscreen = addCheckbox(0, "Fullscreen \bg- fill the entire screen", "", [this] {
+		fullscreen = addCheckbox(0, ByteString("全屏 \bg - 进入全屏模式").FromUtf8(), "", [this] {
 			c->SetFullscreen(fullscreen->GetChecked());
 		});
-		changeResolution = addCheckbox(1, "Set optimal screen resolution", "", [this] {
+		changeResolution = addCheckbox(1, ByteString("设置最佳屏幕分辨率").FromUtf8(), "", [this] {
 			c->SetChangeResolution(changeResolution->GetChecked());
 		});
-		forceIntegerScaling = addCheckbox(1, "Force integer scaling \bg- less blurry", "", [this] {
+		forceIntegerScaling = addCheckbox(1, ByteString("强制整数倍缩放 \bg - 不再那么模糊").FromUtf8(), "", [this] {
 			c->SetForceIntegerScaling(forceIntegerScaling->GetChecked());
 		});
 	}
-	blurryScaling = addCheckbox(0, "Blurry scaling \bg- more blurry, better on very big screens", "", [this] {
+	blurryScaling = addCheckbox(0, ByteString("模糊缩放 \bg - 启用此项加强在超大屏幕上效果").FromUtf8(), "", [this] {
 		c->SetBlurryScaling(blurryScaling->GetChecked());
 	});
 	addSeparator();
 	if (ALLOW_QUIT)
 	{
-		fastquit = addCheckbox(0, "Fast quit", "Always exit completely when hitting close", [this] {
+		fastquit = addCheckbox(0, ByteString("快速退出").FromUtf8(), ByteString("点击关闭按钮时总是完全退出游戏").FromUtf8(), [this] {
 			c->SetFastQuit(fastquit->GetChecked());
 		});
 	}
-	showAvatars = addCheckbox(0, "Show avatars", "Disable if you have a slow connection", [this] {
+	showAvatars = addCheckbox(0, ByteString("显示头像").FromUtf8(), ByteString("禁用此项可减少使用的网络带宽").FromUtf8(), [this] {
 		c->SetShowAvatars(showAvatars->GetChecked());
 	});
-	momentumScroll = addCheckbox(0, "Momentum (old) scrolling", "Accelerating instead of step scroll", [this] {
+	momentumScroll = addCheckbox(0, ByteString("加速/旧版滚动").FromUtf8(), ByteString("启用此项时将步进滚动改为加速").FromUtf8(), [this] {
 		c->SetMomentumScroll(momentumScroll->GetChecked());
 	});
-	mouseClickRequired = addCheckbox(0, "Sticky categories", "Switch between categories by clicking", [this] {
+	mouseClickRequired = addCheckbox(0, ByteString("置顶类别").FromUtf8(), ByteString("启用此项时将滑动切换类别改为点击").FromUtf8(), [this] {
 		c->SetMouseClickrequired(mouseClickRequired->GetChecked());
 	});
-	includePressure = addCheckbox(0, "Include pressure", "When saving, copying, stamping, etc.", [this] {
+	includePressure = addCheckbox(0, ByteString("压力数据").FromUtf8(), ByteString("沙盘,Stamps,复制时保存压力数据").FromUtf8(), [this] {
 		c->SetIncludePressure(includePressure->GetChecked());
 	});
-	perfectCircle = addCheckbox(0, "Perfect circle brush", "Better circle brush, without incorrect points on edges", [this] {
+	perfectCircle = addCheckbox(0, ByteString("完美的圆").FromUtf8(), ByteString("由Notch创造的最完美的圆").FromUtf8(), [this] {
 		c->SetPerfectCircle(perfectCircle->GetChecked());
 	});
 	graveExitsConsole = addCheckbox(0, "Key under Esc exits console", "Disable if that key is 0 on your keyboard", [this] {
 		c->SetGraveExitsConsole(graveExitsConsole->GetChecked());
 	});
-	decoSpace = addDropDown("Colour space used by decoration tools", {
+	decoSpace = addDropDown(ByteString("\bg装饰工具使用的颜色空间").FromUtf8(), {
 		{ "sRGB", 0 },
 		{ "Linear", 1 },
 		{ "Gamma 2.2", 2 },
@@ -308,7 +308,7 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 	currentY += 4;
 	if (ALLOW_DATA_FOLDER)
 	{
-		auto *dataFolderButton = new ui::Button(ui::Point(10, currentY), ui::Point(90, 16), "Open data folder");
+		auto *dataFolderButton = new ui::Button(ui::Point(10, currentY), ui::Point(90, 16), ByteString("打开数据目录").FromUtf8());
 		dataFolderButton->SetActionCallback({ [] {
 			ByteString cwd = Platform::GetCwd();
 			if (!cwd.empty())
@@ -321,7 +321,7 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 			}
 		} });
 		scrollPanel->AddChild(dataFolderButton);
-		auto *migrationButton = new ui::Button(ui::Point(Size.X - 178, currentY), ui::Point(163, 16), "Migrate to shared data directory");
+		auto *migrationButton = new ui::Button(ui::Point(Size.X - 178, currentY), ui::Point(163, 16), ByteString("迁移至用户共享数据目录").FromUtf8());
 		migrationButton->SetActionCallback({ [] {
 			ByteString from = Platform::originalCwd;
 			ByteString to = Platform::sharedCwd;
