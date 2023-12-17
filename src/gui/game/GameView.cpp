@@ -1651,20 +1651,26 @@ void GameView::OnFileDrop(ByteString filename)
 		return;
 	}
 
-	auto saveFile = Client::Ref().LoadSaveFile(filename);
-	if (!saveFile)
-		return;
-	if (saveFile->GetError().length())
-	{
-		new ErrorMessage(ByteString("加载沙盘错误").FromUtf8(), ByteString("无法加载已删除的沙盘文件: ").FromUtf8() + saveFile->GetError());
-		return;
-	}
 	if (filename.EndsWith(".stm"))
 	{
+		auto saveFile = Client::Ref().GetStamp(filename);
+		if (!saveFile || !saveFile->GetGameSave())
+		{
+			new ErrorMessage(ByteString("加载沙盘错误").FromUtf8(), ByteString("无法加载已删除的沙盘文件: ").FromUtf8() + saveFile->GetError());
+			return;
+		}
 		c->LoadStamp(saveFile->TakeGameSave());
 	}
 	else
 	{
+		auto saveFile = Client::Ref().LoadSaveFile(filename);
+		if (!saveFile)
+			return;
+		if (saveFile->GetError().length())
+		{
+			new ErrorMessage("Error loading save", "Dropped save file could not be loaded: " + saveFile->GetError());
+			return;
+		}
 		c->LoadSaveFile(std::move(saveFile));
 	}
 

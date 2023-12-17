@@ -30,11 +30,7 @@ SearchView::SearchView():
 	nextButton = new ui::Button(ui::Point(WINDOWW-62, WINDOWH-18), ui::Point(60, 16), String(ByteString("下一页").FromUtf8()) + 0xE015);
 	previousButton = new ui::Button(ui::Point(2, WINDOWH-18), ui::Point(60, 16), 0xE016 + String(ByteString("上一页").FromUtf8()));
 	tagsLabel  = new ui::Label(ui::Point(270, WINDOWH-18), ui::Point(WINDOWW-540, 16), ByteString("\bo热门标签").FromUtf8());
-	try
-	{
-		motdLabel  = new ui::RichLabel(ui::Point(51, WINDOWH-18), ui::Point(WINDOWW-102, 16), Client::Ref().GetMessageOfTheDay());
-	}
-	catch (std::exception & e) { }
+	motdLabel  = new ui::RichLabel(ui::Point(51, WINDOWH-18), ui::Point(WINDOWW-102, 16), Client::Ref().GetMessageOfTheDay());
 
 	pageTextbox = new ui::Textbox(ui::Point(283, WINDOWH-18), ui::Point(41, 16), "");
 	pageTextbox->SetActionCallback({ [this] { textChanged(); } });
