@@ -88,7 +88,7 @@ void LoginView::NotifyStatusChanged(LoginModel * sender)
 	auto userID = Client::Ref().GetAuthUser().UserID;
 	if (!statusText.size() && !userID && notWorking)
 	{
-		statusText = String::Build("Don't have an account? {a:https://", SERVER, "/Register.html", "|\btRegister here\x0E}.");
+		statusText = String::Build("\u6ca1\u6709\u8d26\u6237? {a:https://powdertoy.co.uk/Register.html", "|\bt\u5728\u6b64\u5904\u6ce8\u518c\x0E}.");
 	}
 	infoLabel->Visible = statusText.size();
 	infoLabel->SetText(statusText);

@@ -504,7 +504,7 @@ void SearchView::NotifySaveListChanged(SearchModel * sender)
 			if(sender->GetLastError().length())
 				errorLabel->SetText("\bo" + sender->GetLastError());
 			else
-				errorLabel->SetText("\boNo saves found");
+				errorLabel->SetText(ByteString("\bo没有找到沙盘").FromUtf8());
 		}
 	}
 	else
