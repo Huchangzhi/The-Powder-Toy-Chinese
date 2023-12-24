@@ -413,6 +413,8 @@ LuaScriptInterface::LuaScriptInterface(GameController * c, GameModel * m):
 	lua_setfield(l, tptPropertiesVersion, "upstreamBuild");
 	lua_pushboolean(l, SNAPSHOT);
 	lua_setfield(l, tptPropertiesVersion, "snapshot");
+	lua_pushboolean(l, BETA);
+	lua_setfield(l, tptPropertiesVersion, "beta");
 	lua_pushinteger(l, MOD_ID);
 	lua_setfield(l, tptPropertiesVersion, "modid");
 	auto vcsTag = ByteString(VCS_TAG);
@@ -1113,6 +1115,8 @@ int simulation_deletesign(lua_State *l)
 
 //// Begin Simulation API
 
+static int simulation_listStamps(lua_State *l);
+
 void LuaScriptInterface::initSimulationAPI()
 {
 	auto &sd = SimulationData::CRef();
@@ -1157,6 +1161,7 @@ void LuaScriptInterface::initSimulationAPI()
 		{"saveStamp", simulation_saveStamp},
 		{"loadStamp", simulation_loadStamp},
 		{"deleteStamp", simulation_deleteStamp},
+		{"listStamps", simulation_listStamps},
 		{"loadSave", simulation_loadSave},
 		{"reloadSave", simulation_reloadSave},
 		{"getSaveID", simulation_getSaveID},
@@ -2263,6 +2268,21 @@ int LuaScriptInterface::simulation_deleteStamp(lua_State * l)
 		return 0;
 	}
 	lua_pushnumber(l, -1);
+	return 1;
+}
+
+static int simulation_listStamps(lua_State *l)
+{
+	lua_newtable(l);
+	auto &client = Client::Ref();
+	auto &stampIDs = client.GetStamps();
+	auto i = 0;
+	for (auto &stampID : stampIDs)
+	{
+		tpt_lua_pushByteString(l, stampID);
+		i += 1;
+		lua_rawseti(l, -2, i);
+	}
 	return 1;
 }
 
