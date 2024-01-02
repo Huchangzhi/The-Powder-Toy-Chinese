@@ -298,11 +298,11 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 	});
 	if constexpr (PLATFORM_CLIPBOARD)
 	{
-		nativeClipoard = addCheckbox(0, "Use platform clipboard", "Allows copying and pasting across TPT instances", [this] {
+		nativeClipoard = addCheckbox(0, ByteString("使用全局剪贴板").FromUtf8(), ByteString("允许跨TPT实例进行复制和粘贴").FromUtf8(), [this] {
 			c->SetNativeClipoard(nativeClipoard->GetChecked());
 		});
 	}
-	decoSpace = addDropDown("Colour space used by decoration tools", {
+	decoSpace = addDropDown(ByteString("\bg装饰工具使用的颜色空间").FromUtf8(), {
 		{ "sRGB", 0 },
 		{ "Linear", 1 },
 		{ "Gamma 2.2", 2 },
