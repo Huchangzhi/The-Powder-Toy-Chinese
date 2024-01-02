@@ -296,6 +296,12 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 	graveExitsConsole = addCheckbox(0, "Key under Esc exits console", "Disable if that key is 0 on your keyboard", [this] {
 		c->SetGraveExitsConsole(graveExitsConsole->GetChecked());
 	});
+	if constexpr (PLATFORM_CLIPBOARD)
+	{
+		nativeClipoard = addCheckbox(0, ByteString("使用全局剪贴板").FromUtf8(), ByteString("允许跨TPT实例进行复制和粘贴").FromUtf8(), [this] {
+			c->SetNativeClipoard(nativeClipoard->GetChecked());
+		});
+	}
 	decoSpace = addDropDown(ByteString("\bg装饰工具使用的颜色空间").FromUtf8(), {
 		{ "sRGB", 0 },
 		{ "Linear", 1 },
@@ -458,6 +464,10 @@ void OptionsView::NotifySettingsChanged(OptionsModel * sender)
 	if (fastquit)
 	{
 		fastquit->SetChecked(sender->GetFastQuit());
+	}
+	if (nativeClipoard)
+	{
+		nativeClipoard->SetChecked(sender->GetNativeClipoard());
 	}
 	showAvatars->SetChecked(sender->GetShowAvatars());
 	mouseClickRequired->SetChecked(sender->GetMouseClickRequired());
