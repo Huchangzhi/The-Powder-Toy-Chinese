@@ -495,7 +495,7 @@ int Main(int argc, char *argv[])
 				std::vector<char> gameSaveData;
 				if (!Platform::ReadFile(gameSaveData, openArg.value()))
 				{
-					new ErrorMessage("Error", "Could not read file");
+					new ErrorMessage(ByteString("错误").FromUtf8(), ByteString("无法读取文件").FromUtf8());
 				}
 				else
 				{
@@ -508,12 +508,12 @@ int Main(int argc, char *argv[])
 			}
 			catch (std::exception & e)
 			{
-				new ErrorMessage("Error", "Could not open save file:\n" + ByteString(e.what()).FromUtf8()) ;
+				new ErrorMessage(ByteString("错误").FromUtf8(), ByteString("无法加载沙盘文件:\n").FromUtf8() + ByteString(e.what()).FromUtf8()) ;
 			}
 		}
 		else
 		{
-			new ErrorMessage("Error", "Could not open file");
+			new ErrorMessage(ByteString("错误").FromUtf8(), ByteString("无法加载此文件").FromUtf8());
 		}
 	}
 
@@ -556,7 +556,7 @@ int Main(int argc, char *argv[])
 		}
 		catch (std::exception & e)
 		{
-			new ErrorMessage("Error", ByteString(e.what()).FromUtf8());
+			new ErrorMessage(ByteString("错误").FromUtf8(), ByteString(e.what()).FromUtf8());
 			Platform::MarkPresentable();
 		}
 	}

@@ -251,7 +251,7 @@ namespace http
 		}
 		if (status != 200)
 		{
-			throw RequestError(ByteString::Build("HTTP Error ", status, ": ", http::StatusText(status)));
+			throw RequestError(ByteString::Build("HTTP \u9519\u8BEF ", status, ": ", http::StatusText(status)));
 		}
 
 		switch (responseType)
