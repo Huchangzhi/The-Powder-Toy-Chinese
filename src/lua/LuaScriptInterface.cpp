@@ -556,7 +556,7 @@ void LuaScriptInterface::Init()
 		if(luaL_loadfile(l, "autorun.lua") || tpt_lua_pcall(l, 0, 0, 0, eventTraitNone))
 			Log(CommandInterface::LogError, luacon_geterror());
 		else
-			Log(CommandInterface::LogWarning, "Loaded autorun.lua");
+			Log(CommandInterface::LogWarning, ByteString("已加载 autorun.lua").FromUtf8());
 	}
 }
 
@@ -710,7 +710,7 @@ static int beginThrowError(lua_State* l)
 	auto errorMessage = PickIfType(l, 1, String("Error text"));
 	auto cb = std::make_shared<LuaSmartRef>(); // * Bind to main lua state (might be different from l).
 	cb->Assign(l, lua_gettop(l));
-	new ErrorMessage("Error", errorMessage, { [cb]() {
+	new ErrorMessage(ByteString("错误").FromUtf8(), errorMessage, { [cb]() {
 		auto *luacon_ci = static_cast<LuaScriptInterface *>(commandInterface);
 		auto l = luacon_ci->l;
 		cb->Push(l);

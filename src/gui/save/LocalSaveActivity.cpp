@@ -118,9 +118,9 @@ void LocalSaveActivity::saveWrite(ByteString finalFilename)
 	std::vector<char> saveData;
 	std::tie(std::ignore, saveData) = save->GetGameSave()->Serialise();
 	if (saveData.size() == 0)
-		new ErrorMessage("Error", "Unable to serialize game data.");
+		new ErrorMessage(ByteString("错误").FromUtf8(), ByteString("无法序列化游戏数据").FromUtf8());
 	else if (!Platform::WriteFile(saveData, finalFilename))
-		new ErrorMessage("Error", "Unable to write save file.");
+		new ErrorMessage(ByteString("错误").FromUtf8(), ByteString("无法读取沙盘数据").FromUtf8());
 	else
 	{
 		if (onSaved)

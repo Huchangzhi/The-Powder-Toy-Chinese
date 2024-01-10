@@ -90,7 +90,7 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 	currentY += 23;
 
 	// age
-	ui::Label * ageTitle = new ui::Label(ui::Point(4, currentY), ui::Point(18, 15), ByteString("Age: ").FromUtf8());
+	ui::Label * ageTitle = new ui::Label(ui::Point(4, currentY), ui::Point(33, 15), ByteString("年龄:").FromUtf8());
 	ageTitle->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	ageTitle->SetTextColour(ui::Colour(180, 180, 180));
 	scrollPanel->AddChild(ageTitle);
@@ -102,7 +102,7 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 	currentY += 2+age->Size.Y;
 
 	// location
-	ui::Label * locationTitle = new ui::Label(ui::Point(4, currentY), ui::Point(45, 15), ByteString("位置: ").FromUtf8());
+	ui::Label * locationTitle = new ui::Label(ui::Point(4, currentY), ui::Point(35, 15), ByteString("位置: ").FromUtf8());
 	locationTitle->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	locationTitle->SetTextColour(ui::Colour(180, 180, 180));
 	scrollPanel->AddChild(locationTitle);
@@ -116,7 +116,7 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 	currentY += 2+location->Size.Y;
 
 	// website
-	ui::Label * websiteTitle = new ui::Label(ui::Point(4, currentY), ui::Point(38, 15), ByteString("网站:").FromUtf8());
+	ui::Label * websiteTitle = new ui::Label(ui::Point(4, currentY), ui::Point(35, 15), ByteString("网站:").FromUtf8());
 	websiteTitle->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	websiteTitle->SetTextColour(ui::Colour(180, 180, 180));
 	scrollPanel->AddChild(websiteTitle);
@@ -134,7 +134,7 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 	currentY += savesTitle->Size.Y;
 
 		// saves count
-		ui::Label * saveCountTitle = new ui::Label(ui::Point(12, currentY), ui::Point(30, 15), ByteString("数量:").FromUtf8());
+		ui::Label * saveCountTitle = new ui::Label(ui::Point(12, currentY), ui::Point(34, 15), ByteString("数量:").FromUtf8());
 		saveCountTitle->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 		saveCountTitle->SetTextColour(ui::Colour(180, 180, 180));
 		scrollPanel->AddChild(saveCountTitle);
@@ -145,7 +145,7 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 		currentY += savesCount->Size.Y;
 
 		// average score
-		ui::Label * averageScoreTitle = new ui::Label(ui::Point(12, currentY), ui::Point(70, 15), ByteString("平均评分:").FromUtf8());
+		ui::Label * averageScoreTitle = new ui::Label(ui::Point(12, currentY), ui::Point(60, 15), ByteString("平均评分:").FromUtf8());
 		averageScoreTitle->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 		averageScoreTitle->SetTextColour(ui::Colour(180, 180, 180));
 		scrollPanel->AddChild(averageScoreTitle);
@@ -156,7 +156,7 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 		currentY += averageScore->Size.Y;
 
 		// highest score
-		ui::Label * highestScoreTitle = new ui::Label(ui::Point(12, currentY), ui::Point(69, 15), ByteString("最高评分:").FromUtf8());
+		ui::Label * highestScoreTitle = new ui::Label(ui::Point(12, currentY), ui::Point(60, 15), ByteString("最高评分:").FromUtf8());
 		highestScoreTitle->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 		highestScoreTitle->SetTextColour(ui::Colour(180, 180, 180));
 		scrollPanel->AddChild(highestScoreTitle);
@@ -167,7 +167,7 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 		currentY += 2+highestScore->Size.Y;
 
 	// biograhy
-	ui::Label * bioTitle = new ui::Label(ui::Point(4, currentY), ui::Point(50, 15), ByteString("个人档案:").FromUtf8());
+	ui::Label * bioTitle = new ui::Label(ui::Point(4, currentY), ui::Point(60, 15), ByteString("个人档案:").FromUtf8());
 	bioTitle->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	bioTitle->SetTextColour(ui::Colour(180, 180, 180));
 	scrollPanel->AddChild(bioTitle);
@@ -196,7 +196,7 @@ void ProfileActivity::OnTick(float dt)
 {
 	if (doError)
 	{
-		new ErrorMessage("Error", doErrorMessage, { [this]() {
+		new ErrorMessage(ByteString("错误").FromUtf8(), doErrorMessage, { [this]() {
 			Exit();
 		} });
 	}
