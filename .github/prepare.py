@@ -17,7 +17,7 @@ match_stable     = re.fullmatch(r'refs/tags/v([0-9]+)\.([0-9]+)\.([0-9]+)', ref)
 match_beta       = re.fullmatch(r'refs/tags/v([0-9]+)\.([0-9]+)\.([0-9]+)b', ref)
 match_snapshot   = re.fullmatch(r'refs/tags/snapshot-([0-9]+)', ref)
 match_tptlibsdev = re.fullmatch(r'refs/heads/tptlibsdev-(.*)', ref)
-do_release       = False
+do_release       = true
 do_priority      = 10
 if event_name == 'pull_request':
 	do_priority = 0
