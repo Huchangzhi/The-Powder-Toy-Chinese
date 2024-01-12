@@ -44,7 +44,7 @@ jobs:
           GITHUB_REF: ${{ github.ref }}
       - if: steps.prepare.outputs.do_release == 'yes'
         id: create_release
-        uses: LBPHacker/create-release@v2
+        uses: Dragonrster/create-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
