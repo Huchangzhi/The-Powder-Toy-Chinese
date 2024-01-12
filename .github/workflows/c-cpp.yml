@@ -1,0 +1,39 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: sudo apt update
+      run: sudo apt update
+    - name: sudo apt install g++
+      run: sudo apt install g++
+    - name: sudo apt install git
+      run: sudo apt install git
+    - name: sudo pip3 install meson
+      run: sudo pip3 install meson
+    - name: sudo pip3 install ninja
+      run: sudo pip3 install ninja
+    - name: sudo apt install ccache
+      run: sudo apt install ccache
+    - name: sudo apt install pkg-config
+      run: sudo apt install pkg-config
+    - name: lib
+      run: sudo apt install libluajit-5.1-dev libcurl4-openssl-dev libssl-dev libfftw3-dev zlib1g-dev libsdl2-dev libbz2-dev libjsoncpp-dev libpng-dev
+    - name: cd The-Powder-Toy-Chinese
+      run: cd The-Powder-Toy-Chinese
+    - name: meson setup -Dbuildtype=release -Dstatic=prebuilt build-release-static
+      run: meson setup -Dbuildtype=release -Dstatic=prebuilt build-release-static
+    - name: cd ./build-release-static
+      run: cd ./build-release-static
+    - name: meson compile
+      run: meson compile
