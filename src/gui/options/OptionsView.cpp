@@ -8,6 +8,7 @@
 #include "graphics/Renderer.h"
 #include "gui/Style.h"
 #include "simulation/ElementDefs.h"
+#include "simulation/SimulationData.h"
 #include "client/Client.h"
 #include "gui/dialogues/ConfirmPrompt.h"
 #include "gui/dialogues/InformationMessage.h"
@@ -120,11 +121,11 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 		c->SetWaterEqualisation(waterEqualisation->GetChecked());
 	});
 	airMode = addDropDown(ByteString("空气模拟模式").FromUtf8(), {
-		{ ByteString("开启").FromUtf8(), 0 },
-		{ ByteString("关闭压力").FromUtf8(), 1 },
-		{ ByteString("关闭速度").FromUtf8(), 2 },
-		{ ByteString("关闭").FromUtf8(), 3 },
-		{ ByteString("更新停止").FromUtf8(), 4 },
+		{ ByteString("开启").FromUtf8(), AIR_ON },
+		{ ByteString("关闭压力").FromUtf8(), AIR_PRESSUREOFF },
+		{ ByteString("关闭速度").FromUtf8(), AIR_VELOCITYOFF },
+		{ ByteString("关闭").FromUtf8(), AIR_OFF },
+		{ ByteString("更新停止").FromUtf8(), AIR_NOUPDATE },
 	}, [this] {
 		c->SetAirMode(airMode->GetOption().second);
 	});
@@ -210,10 +211,10 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 			}
 	};
 	gravityMode = addDropDown(ByteString("重力模拟模式").FromUtf8(), {
-		{ ByteString("竖直").FromUtf8(), 0 },
-		{ ByteString("关闭").FromUtf8(), 1 },
-		{ ByteString("中心").FromUtf8(), 2 },
-		{ ByteString("自定义").FromUtf8(), 3 },
+		{ ByteString("竖直").FromUtf8(), GRAV_VERTICAL },
+		{ ByteString("关闭").FromUtf8(), GRAV_OFF },
+		{ ByteString("中心").FromUtf8(), GRAV_RADIAL },
+		{ ByteString("自定义").FromUtf8(), GRAV_CUSTOM },
 	}, [this] {
 		c->SetGravityMode(gravityMode->GetOption().second);
 		if (gravityMode->GetOption().second == 3)
@@ -222,9 +223,9 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 		}
 	});
 	edgeMode = addDropDown(ByteString("边界模式").FromUtf8(), {
-		{ ByteString("虚空").FromUtf8(), 0 },
-		{ ByteString("固体").FromUtf8(), 1 },
-		{ ByteString("循环").FromUtf8(), 2 },
+		{ ByteString("虚空").FromUtf8(), EDGE_VOID },
+		{ ByteString("固体").FromUtf8(), EDGE_SOLID },
+		{ ByteString("循环").FromUtf8(), EDGE_LOOP },
 	}, [this] {
 		c->SetEdgeMode(edgeMode->GetOption().second);
 	});
@@ -317,10 +318,10 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 		currentY += 4; // and then undo the undo
 	}
 	decoSpace = addDropDown(ByteString("\bg装饰工具使用的颜色空间").FromUtf8(), {
-		{ "sRGB", 0 },
-		{ "Linear", 1 },
-		{ "Gamma 2.2", 2 },
-		{ "Gamma 1.8", 3 },
+		{ "sRGB", DECOSPACE_SRGB },
+		{ "Linear", DECOSPACE_LINEAR },
+		{ "Gamma 2.2", DECOSPACE_GAMMA22 },
+		{ "Gamma 1.8", DECOSPACE_GAMMA18 },
 	}, [this] {
 		c->SetDecoSpace(decoSpace->GetOption().second);
 	});
