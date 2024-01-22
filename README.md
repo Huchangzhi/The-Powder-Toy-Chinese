@@ -5,10 +5,7 @@ The Powder Toy - January 2023
 
 从[汉化 Github](https://github.com/Dragonrster/The-Powder-Toy-Chinese) 获取最新汉化版本
 
-
-要使用保存等在线功能，您需要 [注册一个帐户](https://powdertoy.co.uk/Register.html)
-
-您也可以访问 [官方 TPT 论坛](https://powdertoy.co.uk/Discussions/Categories/Index.html)
+要使用保存等在线功能，您需要 [注册一个帐户](https://powdertoy.co.uk/Register.html)，也可以访问 [官方 TPT 论坛](https://powdertoy.co.uk/Discussions/Categories/Index.html)
 
 你有没有想过炸毁什么东西？或者，也许您一直梦想着经营一座原子能发电厂？您是否有开发自己的 CPU 的意愿？Powder Toy 让您可以做到所有这些，甚至更多！
 
@@ -117,22 +114,23 @@ Powder Toy 是一款免费的物理沙盒游戏，它模拟气压和速度、热
 命令行
 ---------------------------------------------------------------------------
 
-| 命令               | 描述                                      | 例子                                     |
-| --------------------- | ------------------------------------------------ | --------------------------------------------|
-| `scale:SIZE`          | 更改窗口比例                       | `scale:2`                                   |
-| `kiosk`               | 全屏模式                                  |                                             |
-| `proxy:SERVER[:PORT]` | 使用代理服务器                              | `proxy:wwwcache.lancs.ac.uk:8080`           |
-| `open FILE`           | 将文件打开为 Stamps 或游戏沙盘           |                                             |
-| `ddir DIRECTORY`      | 用于保存 Stamps 和首选项的目录 |                                             |
-| `ptsave:SAVEID`       | 打开在线保存，由 ptsave 使用：URL           | `ptsave:2198`                               |
-| `disable-network`     | 禁用互联网连接                    |                                             |
+| 命令                  | 描述                                   | 例子                                        |
+| --------------------- | -------------------------------------- | ------------------------------------------- |
+| `scale:SIZE`          | 更改窗口比例                           | `scale:2`                                   |
+| `kiosk`               | 全屏模式                               |                                             |
+| `proxy:SERVER[:PORT]` | 使用代理服务器                         | `proxy:wwwcache.lancs.ac.uk:8080`           |
+| `open FILE`           | 将文件打开为 Stamps 或游戏沙盘         |                                             |
+| `ddir DIRECTORY`      | 用于保存 Stamps 和首选项的目录         |                                             |
+| `ptsave:SAVEID`       | 打开在线保存，由 ptsave 使用：URL      | `ptsave:2198`                               |
+| `disable-network`     | 禁用互联网连接                         |                                             |
 | `disable-bluescreen`  | 禁用蓝屏处理程序                       |                                             |
-| `redirect`            | 将输出重定向到 stdout.txt / stderr.txt      |                                             |
-| `cafile:CAFILE`       | 设置证书路径                      | `cafile:/etc/ssl/certs/ca-certificates.crt` |
-| `capath:CAPATH`       | 设置证书目录路径                   | `capath:/etc/ssl/certs`                     |
+| `redirect`            | 将输出重定向到 stdout.txt / stderr.txt |                                             |
+| `cafile:CAFILE`       | 设置证书路径                           | `cafile:/etc/ssl/certs/ca-certificates.crt` |
+| `capath:CAPATH`       | 设置证书目录路径                       | `capath:/etc/ssl/certs`                     |
 
 参考资料
 ===========================================================================
+
 * [Lemon-2333/The-Powder-Toy-Chinese](https://github.com/Lemon-2333/The-Powder-Toy-Chinese)
 * [Dragonrster/The-Powder-Toy-Chinese-Instruction](https://github.com/Dragonrster/The-Powder-Toy-Chinese-Instruction)
 * [ByteString::FromUtf8方法代碼示例](https://vimsky.com/zh-tw/examples/detail/cpp-ex---ByteString-FromUtf8-method.html)
