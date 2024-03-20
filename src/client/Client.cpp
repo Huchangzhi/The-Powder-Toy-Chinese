@@ -118,7 +118,7 @@ void Client::Tick()
 	{
 		if (versionCheckRequest->StatusCode() == 618)
 		{
-			AddServerNotification({ "Failed to load SSL certificates", ByteString(SCHEME) + "powdertoy.co.uk/FAQ.html" });
+			AddServerNotification({ "Failed to load SSL certificates", ByteString::Build(SCHEME, SERVER, "/FAQ.html") });
 		}
 		try
 		{
@@ -378,7 +378,6 @@ void Client::RescanStamps()
 			newStampIDs.push_back(stampID);
 		}
 	}
-	auto oldCount = newStampIDs.size();
 	auto stampIDsSet = std::set<ByteString>(stampIDs.begin(), stampIDs.end());
 	for (auto &stampID : stampFilesSet)
 	{
@@ -390,8 +389,6 @@ void Client::RescanStamps()
 	}
 	if (changed)
 	{
-		// Move newly discovered stamps to front.
-		std::rotate(newStampIDs.begin(), newStampIDs.begin() + oldCount, newStampIDs.end());
 		stampIDs = newStampIDs;
 		WriteStamps();
 	}

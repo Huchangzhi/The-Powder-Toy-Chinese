@@ -1,5 +1,6 @@
 #include "LoginModel.h"
 #include "LoginView.h"
+#include "Config.h"
 #include "client/Client.h"
 #include "client/http/LoginRequest.h"
 #include "client/http/LogoutRequest.h"

@@ -1,4 +1,4 @@
-The Powder Toy - January 2023
+The Powder Toy - March 2024
 ==========================
 
 从[Powder Toy 网站](https://powdertoy.co.uk/Download.html) 获取最新版本
@@ -110,6 +110,7 @@ Powder Toy 是一款免费的物理沙盒游戏，它模拟气压和速度、热
 | Shift + R               | 粘贴 Stamps 图章时所选区域的水平镜像          |
 | Ctrl + Shift + R        | 粘贴 Stamps 时选定区域的垂直镜像          |
 | R                       | 粘贴 Stamps 时逆时针旋转所选区域          |
+| F11                     | 切换全屏                                               |
 
 命令行
 ---------------------------------------------------------------------------

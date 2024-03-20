@@ -1719,7 +1719,7 @@ void GameModel::BeforeSim()
 {
 	if (!sim->sys_pause || sim->framerender)
 	{
-		commandInterface->HandleEvent(BeforeSimEvent{});
+		CommandInterface::Ref().HandleEvent(BeforeSimEvent{});
 	}
 	sim->BeforeSim();
 }
@@ -1727,7 +1727,7 @@ void GameModel::BeforeSim()
 void GameModel::AfterSim()
 {
 	sim->AfterSim();
-	commandInterface->HandleEvent(AfterSimEvent{});
+	CommandInterface::Ref().HandleEvent(AfterSimEvent{});
 }
 
 

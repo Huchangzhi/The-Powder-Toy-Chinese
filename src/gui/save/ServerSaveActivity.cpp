@@ -73,8 +73,8 @@ ServerSaveActivity::ServerSaveActivity(std::unique_ptr<SaveInfo> newSave, OnUplo
 	nameField = new ui::Textbox(ui::Point(8, 25), ui::Point((Size.X / 2) - 16, 16), save->GetName(), ByteString("[沙盘名称]").FromUtf8());
 	nameField->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	nameField->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
-	nameField->SetActionCallback({[this]
-								  { CheckName(nameField->GetText()); }});
+	nameField->SetActionCallback({ [this] { CheckName(nameField->GetText()); } });
+	nameField->SetLimit(50);
 	AddComponent(nameField);
 	FocusComponent(nameField);
 

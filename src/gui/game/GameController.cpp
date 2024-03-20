@@ -90,7 +90,7 @@ GameController::GameController():
 
 	gameView->SetDebugHUD(GlobalPrefs::Ref().Get("Renderer.DebugMode", false));
 
-	CommandInterface::Create(this, gameModel);
+	commandInterface = CommandInterface::Create(this, gameModel);
 
 	Client::Ref().AddListener(this);
 
@@ -146,7 +146,7 @@ GameController::~GameController()
 	{
 		delete *iter;
 	}
-	delete commandInterface;
+	commandInterface.reset();
 	delete gameModel;
 	if (gameView->CloseActiveWindow())
 	{
@@ -552,7 +552,7 @@ bool GameController::MouseUp(int x, int y, unsigned button, MouseupReason reason
 						}
 						break;
 					case sign::Type::Thread:
-						Platform::OpenURI(ByteString::Build(SCHEME, "powdertoy.co.uk/Discussions/Thread/View.html?Thread=", str.Substr(3, si.first - 3).ToUtf8()));
+						Platform::OpenURI(ByteString::Build(SCHEME, SERVER, "/Discussions/Thread/View.html?Thread=", str.Substr(3, si.first - 3).ToUtf8()));
 						break;
 					case sign::Type::Search:
 						OpenSearch(str.Substr(3, si.first - 3));
@@ -1386,7 +1386,7 @@ void GameController::OpenOptions()
 void GameController::ShowConsole()
 {
 	if (!console)
-		console = new ConsoleController(NULL, commandInterface);
+		console = new ConsoleController(NULL, commandInterface.get());
 	if (console->GetView() != ui::Engine::Ref().GetWindow())
 		ui::Engine::Ref().ShowWindow(console->GetView());
 }
