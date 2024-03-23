@@ -207,7 +207,6 @@ if host_platform == 'emscripten'
 		'-s', 'EXPORTED_RUNTIME_METHODS=ccall,cwrap',
 		'-s', 'FS_DEBUG',
 		'-s', 'MODULARIZE',
-		'-s', 'EXPORT_NAME=create_' + app_exe,
 		'-Wl,-u,_emscripten_run_callback_on_thread',
 		'-lidbfs.js'
 	]
