@@ -374,7 +374,7 @@ font_files += data_files
 
 if host_platform == 'emscripten'
 	project_link_args += [
-		'-o', app_exe + '.js', # so we get a .wasm, and a .js
+		'-o', app_exe + '.html', # so we get a .wasm, and a .js
 	]
 endif
 
