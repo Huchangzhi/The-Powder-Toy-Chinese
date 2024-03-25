@@ -70,7 +70,7 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 	int currentY = 5;
 
 	// username label
-	ui::Label * title = new ui::Label(ui::Point(4, currentY), ui::Point(Size.X-8-(40+8+75), 15), info.username.FromUtf8());
+	ui::Label * title = new ui::Label(ui::Point(4, currentY), ui::Point(Size.X-8-(40+16+75), 15), info.username.FromUtf8());
 	title->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	scrollPanel->AddChild(title);
 
@@ -96,7 +96,7 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 	scrollPanel->AddChild(ageTitle);
 
 	// can't figure out how to tell a null from a 0 in the json library we use
-	ui::Label *age = new ui::Label(ui::Point(8+ageTitle->Size.X, currentY), ui::Point(40, 15), info.age ? String::Build(info.age) : ByteString("\bg无法提供").FromUtf8());
+	ui::Label *age = new ui::Label(ui::Point(5+ageTitle->Size.X, currentY), ui::Point(Size.X-ageTitle->Size.X-56, 15), info.age ? String::Build(info.age) : ByteString("\bg无法提供").FromUtf8());
 	age->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	scrollPanel->AddChild(age);
 	currentY += 2+age->Size.Y;
@@ -109,12 +109,12 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 
 	if (editable)
 	{
-		location = new ui::Textbox(ui::Point(8+locationTitle->Size.X, currentY), ui::Point(Size.X-locationTitle->Size.X-16, 17), info.location);
+		location = new ui::Textbox(ui::Point(5+locationTitle->Size.X, currentY), ui::Point(Size.X-locationTitle->Size.X-16, 17), info.location);
 		((ui::Textbox*)location)->SetLimit(40);
 	}
 	else
 	{
-		location = new ui::Label(ui::Point(4+locationTitle->Size.X, currentY), ui::Point(Size.X-locationTitle->Size.X-14, 17), info.location);
+		location = new ui::Label(ui::Point(5+locationTitle->Size.X, currentY), ui::Point(Size.X-locationTitle->Size.X-14, 17), info.location);
 	}
 	location->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	scrollPanel->AddChild(location);
@@ -126,7 +126,7 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 	websiteTitle->SetTextColour(ui::Colour(180, 180, 180));
 	scrollPanel->AddChild(websiteTitle);
 
-	ui::Label *website = new ui::Label(ui::Point(8+websiteTitle->Size.X, currentY), ui::Point(Size.X-websiteTitle->Size.X-16, 15), info.website.FromUtf8());
+	ui::Label *website = new ui::Label(ui::Point(2+websiteTitle->Size.X, currentY), ui::Point(Size.X-websiteTitle->Size.X-16, 15), info.website.FromUtf8());
 	website->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	scrollPanel->AddChild(website);
 	currentY += 2+website->Size.Y;
@@ -144,7 +144,7 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 		saveCountTitle->SetTextColour(ui::Colour(180, 180, 180));
 		scrollPanel->AddChild(saveCountTitle);
 
-		ui::Label *savesCount = new ui::Label(ui::Point(12+saveCountTitle->Size.X, currentY), ui::Point(Size.X-saveCountTitle->Size.X-16, 15), String::Build(info.saveCount));
+		ui::Label *savesCount = new ui::Label(ui::Point(13+saveCountTitle->Size.X, currentY), ui::Point(Size.X-saveCountTitle->Size.X-24, 15), String::Build(info.saveCount));
 		savesCount->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 		scrollPanel->AddChild(savesCount);
 		currentY += savesCount->Size.Y;
@@ -155,7 +155,7 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 		averageScoreTitle->SetTextColour(ui::Colour(180, 180, 180));
 		scrollPanel->AddChild(averageScoreTitle);
 
-		ui::Label *averageScore = new ui::Label(ui::Point(12+averageScoreTitle->Size.X, currentY), ui::Point(Size.X-averageScoreTitle->Size.X-16, 15), String::Build(info.averageScore));
+		ui::Label *averageScore = new ui::Label(ui::Point(13+averageScoreTitle->Size.X, currentY), ui::Point(Size.X-averageScoreTitle->Size.X-24, 15), String::Build(info.averageScore));
 		averageScore->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 		scrollPanel->AddChild(averageScore);
 		currentY += averageScore->Size.Y;
@@ -166,7 +166,7 @@ void ProfileActivity::setUserInfo(UserInfo newInfo)
 		highestScoreTitle->SetTextColour(ui::Colour(180, 180, 180));
 		scrollPanel->AddChild(highestScoreTitle);
 
-		ui::Label *highestScore = new ui::Label(ui::Point(12+highestScoreTitle->Size.X, currentY), ui::Point(Size.X-highestScoreTitle->Size.X-16, 15), String::Build(info.highestScore));
+		ui::Label *highestScore = new ui::Label(ui::Point(13+highestScoreTitle->Size.X, currentY), ui::Point(Size.X-highestScoreTitle->Size.X-24, 15), String::Build(info.highestScore));
 		highestScore->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 		scrollPanel->AddChild(highestScore);
 		currentY += 2+highestScore->Size.Y;
