@@ -33,7 +33,7 @@ void Element::Element_FILT()
 	HeatConduct = 251;
 	Description = ByteString("滤镜,能改变通过光子的颜色").FromUtf8();
 
-	Properties = TYPE_SOLID | PROP_NOAMBHEAT | PROP_LIFE_DEC;
+	Properties = TYPE_SOLID | PROP_PHOTPASS | PROP_NOAMBHEAT | PROP_LIFE_DEC;
 
 	LowPressure = IPL;
 	LowPressureTransition = NT;

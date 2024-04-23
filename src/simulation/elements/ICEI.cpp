@@ -34,6 +34,7 @@ void Element::Element_ICEI()
 	Description = ByteString("冰,在压力下会破碎变成雪").FromUtf8();
 
 	Properties = TYPE_SOLID|PROP_LIFE_DEC|PROP_NEUTPASS;
+	CarriesTypeIn = 1U << FIELD_CTYPE;
 
 	LowPressure = IPL;
 	LowPressureTransition = NT;

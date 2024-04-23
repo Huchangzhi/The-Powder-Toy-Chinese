@@ -33,7 +33,7 @@ void Element::Element_DSTW()
 	LatentHeat = 7500;
 	Description = ByteString("蒸馏水,不导电的理论纯水").FromUtf8();
 
-	Properties = TYPE_LIQUID|PROP_NEUTPASS;
+	Properties = TYPE_LIQUID | PROP_NEUTPASS | PROP_PHOTPASS;
 
 	LowPressure = IPL;
 	LowPressureTransition = NT;

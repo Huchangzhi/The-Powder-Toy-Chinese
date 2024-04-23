@@ -31,7 +31,7 @@ void Element::Element_CLNE()
 	HeatConduct = 251;
 	Description = ByteString("复制体,复制碰到它的任何物体").FromUtf8();
 
-	Properties = TYPE_SOLID | PROP_NOCTYPEDRAW;
+	Properties = TYPE_SOLID | PROP_PHOTPASS | PROP_NOCTYPEDRAW;
 	CarriesTypeIn = 1U << FIELD_CTYPE;
 
 	LowPressure = IPL;

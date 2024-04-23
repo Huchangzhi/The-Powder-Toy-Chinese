@@ -32,7 +32,7 @@ void Element::Element_QRTZ()
 	HeatConduct = 3;
 	Description = ByteString("石英,接近绝对零度时会变得很脆并碎裂成PQRT,允许一部分PHOT通过并散射掉另一部分").FromUtf8();
 
-	Properties = TYPE_SOLID|PROP_HOT_GLOW|PROP_LIFE_DEC;
+	Properties = TYPE_SOLID | PROP_PHOTPASS | PROP_HOT_GLOW | PROP_LIFE_DEC;
 
 	LowPressure = IPL;
 	LowPressureTransition = NT;

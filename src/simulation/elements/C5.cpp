@@ -32,7 +32,7 @@ void Element::Element_C5()
 	HeatConduct = 88;
 	Description = ByteString("C5低温炸弹,任何寒冷的物质都能引爆").FromUtf8();
 
-	Properties = TYPE_SOLID | PROP_NEUTPENETRATE | PROP_LIFE_DEC;
+	Properties = TYPE_SOLID | PROP_NEUTPENETRATE | PROP_PHOTPASS | PROP_LIFE_DEC;
 
 	LowPressure = IPL;
 	LowPressureTransition = NT;

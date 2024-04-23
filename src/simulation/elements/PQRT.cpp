@@ -32,7 +32,7 @@ void Element::Element_PQRT()
 	HeatConduct = 3;
 	Description = ByteString("石英砂,可以熔化,QRTZ的破碎形式").FromUtf8();
 
-	Properties = TYPE_PART| PROP_HOT_GLOW;
+	Properties = TYPE_PART | PROP_PHOTPASS | PROP_HOT_GLOW;
 
 	LowPressure = IPL;
 	LowPressureTransition = NT;
