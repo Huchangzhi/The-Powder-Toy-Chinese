@@ -56,11 +56,11 @@ SearchView::SearchView():
 
 	dateRange = new ui::DropDown(ui::Point(WINDOWW-185, 10), ui::Point(36, 17));
 	dateRange->SetActionCallback({ [this] { c->ChangePeriod(dateRange->GetOption().second); } });
-	dateRange->AddOption({"All", 0});
-	dateRange->AddOption({"Day", 1});
-	dateRange->AddOption({"Week", 2});
-	dateRange->AddOption({"Month", 3});
-	dateRange->AddOption({"Year", 4});
+	dateRange->AddOption({ByteString("全部").FromUtf8(), 0});
+	dateRange->AddOption({ByteString("按日").FromUtf8(), 1});
+	dateRange->AddOption({ByteString("按周").FromUtf8(), 2});
+	dateRange->AddOption({ByteString("按月").FromUtf8(), 3});
+	dateRange->AddOption({ByteString("按年").FromUtf8(), 4});
 	dateRange->Appearance.HorizontalAlign = ui::Appearance::AlignCentre;
 	dateRange->Appearance.VerticalAlign = ui::Appearance::AlignMiddle;
 	AddComponent(dateRange);
