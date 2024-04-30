@@ -78,7 +78,7 @@ static std::vector<menu_section> LoadMenus()
 {
 	return
 	std::vector<menu_section>{
-		{0xE041, ByteString("墙").FromUtf8() , 0, 1},
+{0xE041, ByteString("墙").FromUtf8() , 0, 1},
 		{0xE042, ByteString("电子元件").FromUtf8(), 0, 1},
 		{0xE056, ByteString("可控材料").FromUtf8(), 0, 1},
 		{0xE019, ByteString("传感器").FromUtf8(), 0, 1},
@@ -94,8 +94,6 @@ static std::vector<menu_section> LoadMenus()
 		{0xE057, ByteString("工具").FromUtf8(), 0, 1},
 		{0xE067, ByteString("收藏夹(使用Ctrl+Shift+Click切换元素的收藏状态)").FromUtf8(), 0, 1},
 		{0xE064, ByteString("装饰工具").FromUtf8(), 0, 1},
-		{0xE048, String("Cracker"), 0, 0},
-		{0xE048, String("Cracker!"), 0, 0},
 	};
 }
 
