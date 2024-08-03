@@ -1300,12 +1300,11 @@ void GameModel::SetNewtonianGravity(bool newtonainGravity)
 {
 	sim->EnableNewtonianGravity(newtonainGravity);
     if (newtonainGravity)
-    {
+    {	
         SetInfoTip(ByteString("牛顿引力:开启").FromUtf8());
     }
     else
     {
-        sim->grav->stop_grav_async();
         SetInfoTip(ByteString("牛顿引力:关闭").FromUtf8());
     }
     UpdateQuickOptions();
