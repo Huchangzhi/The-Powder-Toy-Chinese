@@ -147,7 +147,7 @@ void PreviewModel::OnSaveReady()
 	{
 		auto gameSave = std::make_unique<GameSave>(*saveData);
 		if (gameSave->fromNewerVersion)
-			new ErrorMessage(ByteString("此沙盘来自较新版本").FromUtf8(), ByteString("请在游戏中或 https://powdertoy.co.uk 更新TPT").FromUtf8());
+			new ErrorMessage(ByteString("此沙盘来自较新版本").FromUtf8(), ByteString("请在游戏中或 powdertoy.co.uk 更新TPT").FromUtf8());
 		saveInfo->SetGameSave(std::move(gameSave));
 	}
 	catch(ParseException &e)

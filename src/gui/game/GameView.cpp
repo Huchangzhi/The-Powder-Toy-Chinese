@@ -2451,7 +2451,9 @@ void GameView::OnDraw()
 
 			sampleInfo << "X:" << sample.PositionX << " Y:" << sample.PositionY;
 
-			if (sample.Gravity)
+			auto gravtot = std::abs(sample.GravityVelocityX) +
+			               std::abs(sample.GravityVelocityY);
+			if (gravtot)
 				sampleInfo << ", GX: " << sample.GravityVelocityX << " GY: " << sample.GravityVelocityY;
 
 			if (c->GetAHeatEnable())

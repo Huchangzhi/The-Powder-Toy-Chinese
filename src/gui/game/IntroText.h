@@ -79,7 +79,7 @@ inline ByteString IntroText()
 	}
 	else
 	{
-		sb << "\bg如需使用保存等在线功能,需要在以下位置注册: \brhttps://powdertoy.co.uk/Register.html\n";
+		sb << "\bg如需使用保存等在线功能,需要在以下位置注册: \brpowdertoy.co.uk/Register.html\n";
 	}
 	sb << "\n\bt" << VersionInfo();
 	return sb.Build();
