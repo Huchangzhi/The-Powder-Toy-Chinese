@@ -7,67 +7,67 @@
 
 const std::vector<RenderPreset> Renderer::renderModePresets = {
 	{
-		"Alternative Velocity Display",
+		ByteString("速压混合显示模式").FromUtf8(),
 		RENDER_EFFE | RENDER_BASC,
 		DISPLAY_AIRC,
 		0,
 	},
 	{
-		"Velocity Display",
+		ByteString("气流显示模式").FromUtf8(),
 		RENDER_EFFE | RENDER_BASC,
 		DISPLAY_AIRV,
 		0,
 	},
 	{
-		"Pressure Display",
+		ByteString("气压显示模式").FromUtf8(),
 		RENDER_EFFE | RENDER_BASC,
 		DISPLAY_AIRP,
 		0,
 	},
 	{
-		"Persistent Display",
+		ByteString("轨迹显示模式").FromUtf8(),
 		RENDER_EFFE | RENDER_BASC,
 		DISPLAY_PERS,
 		0,
 	},
 	{
-		"Fire Display",
+		ByteString("火焰(标准)显示模式").FromUtf8(),
 		RENDER_FIRE | RENDER_SPRK | RENDER_EFFE | RENDER_BASC,
 		0,
 		0,
 	},
 	{
-		"Blob Display",
+		ByteString("模糊显示模式").FromUtf8(),
 		RENDER_FIRE | RENDER_SPRK | RENDER_EFFE | RENDER_BLOB,
 		0,
 		0,
 	},
 	{
-		"Heat Display",
+		ByteString("温度显示模式").FromUtf8(),
 		RENDER_BASC,
 		DISPLAY_AIRH,
 		COLOUR_HEAT,
 	},
 	{
-		"Fancy Display",
+		ByteString("特效显示模式").FromUtf8(),
 		RENDER_FIRE | RENDER_SPRK | RENDER_GLOW | RENDER_BLUR | RENDER_EFFE | RENDER_BASC,
 		DISPLAY_WARP,
 		0,
 	},
 	{
-		"Nothing Display",
+		ByteString("无特效显示模式").FromUtf8(),
 		RENDER_BASC,
 		0,
 		0,
 	},
 	{
-		"Heat Gradient Display",
+		ByteString("热传导显示模式").FromUtf8(),
 		RENDER_BASC,
 		0,
 		COLOUR_GRAD,
 	},
 	{
-		"Life Gradient Display",
+		ByteString("Life梯度显示模式").FromUtf8(),
 		RENDER_BASC,
 		0,
 		COLOUR_LIFE,
@@ -189,76 +189,6 @@ Renderer::Renderer()
 	memset(fire_b, 0, sizeof(fire_b));
 
 	//Set defauly display modes
-	ResetModes();
-
-	//Render mode presets. Possibly load from config in future?
-	renderModePresets.push_back({
-		ByteString("速压混合显示模式").FromUtf8(),
-		{ RENDER_EFFE, RENDER_BASC },
-		{ DISPLAY_AIRC },
-		0
-	});
-	renderModePresets.push_back({
-		 ByteString("气流显示模式").FromUtf8(),
-		{ RENDER_EFFE, RENDER_BASC },
-		{ DISPLAY_AIRV },
-		0
-	});
-	renderModePresets.push_back({
-		ByteString("气压显示模式").FromUtf8(),
-		{ RENDER_EFFE, RENDER_BASC },
-		{ DISPLAY_AIRP },
-		0
-	});
-	renderModePresets.push_back({
-		ByteString("轨迹显示模式").FromUtf8(),
-		{ RENDER_EFFE, RENDER_BASC },
-		{ DISPLAY_PERS },
-		0
-	});
-	renderModePresets.push_back({
-		ByteString("火焰(标准)显示模式").FromUtf8(),
-		{ RENDER_FIRE, RENDER_SPRK, RENDER_EFFE, RENDER_BASC },
-		{ },
-		0
-	});
-	renderModePresets.push_back({
-		ByteString("模糊显示模式").FromUtf8(),
-		{ RENDER_FIRE, RENDER_SPRK, RENDER_EFFE, RENDER_BLOB },
-		{ },
-		0
-	});
-	renderModePresets.push_back({
-		ByteString("温度显示模式").FromUtf8(),
-		{ RENDER_BASC },
-		{ DISPLAY_AIRH },
-		COLOUR_HEAT
-	});
-	renderModePresets.push_back({
-		ByteString("特效显示模式").FromUtf8(),
-		{ RENDER_FIRE, RENDER_SPRK, RENDER_GLOW, RENDER_BLUR, RENDER_EFFE, RENDER_BASC },
-		{ DISPLAY_WARP },
-		0
-	});
-	renderModePresets.push_back({
-		ByteString("无特效显示模式").FromUtf8(),
-		{ RENDER_BASC },
-		{ },
-		0
-	});
-	renderModePresets.push_back({
-		ByteString("热传导显示模式").FromUtf8(),
-		{ RENDER_BASC },
-		{ },
-		COLOUR_GRAD
-	});
-	renderModePresets.push_back({
-		ByteString("Life梯度显示模式").FromUtf8(),
-		{ RENDER_BASC },
-		{ },
-		COLOUR_LIFE
-	});
-
 	prepare_alpha(CELL, 1.0f);
 	ClearAccumulation();
 }
