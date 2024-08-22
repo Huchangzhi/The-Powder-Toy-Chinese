@@ -59,39 +59,48 @@ GameModel::GameModel():
 {
 	sim = new Simulation();
 	sim->useLuaCallbacks = true;
-	ren = new Renderer(sim);
+	ren = new Renderer();
 
 	activeTools = regularToolset.data();
 
 	std::fill(decoToolset.begin(), decoToolset.end(), nullptr);
 	std::fill(regularToolset.begin(), regularToolset.end(), nullptr);
 
-	//Default render prefs
-	ren->SetRenderMode({
-		RENDER_FIRE,
-		RENDER_EFFE,
-		RENDER_BASC,
-	});
-	ren->SetDisplayMode({});
-	ren->SetColourMode(0);
-
 	//Load config into renderer
 	auto &prefs = GlobalPrefs::Ref();
-	ren->SetColourMode(prefs.Get("Renderer.ColourMode", 0U));
 
-	auto displayModes = prefs.Get("Renderer.DisplayModes", std::vector<unsigned int>{});
-	if (displayModes.size())
-	{
-		ren->SetDisplayMode(displayModes);
-	}
-	auto renderModes = prefs.Get("Renderer.RenderModes", std::vector<unsigned int>{});
-	if (renderModes.size())
-	{
-		ren->SetRenderMode(renderModes);
-	}
+	auto handleOldModes = [&prefs](ByteString prefName, ByteString oldPrefName, uint32_t defaultValue, auto setFunc) {
+		auto pref = prefs.Get<uint32_t>(prefName);
+		if (!pref.has_value())
+		{
+			auto modes = prefs.Get(oldPrefName, std::vector<unsigned int>{});
+			if (modes.size())
+			{
+				uint32_t mode = 0;
+				for (auto partial : modes)
+				{
+					mode |= partial;
+				}
+				pref = mode;
+			}
+			else
+			{
+				pref = defaultValue;
+			}
+		}
+		setFunc(*pref);
+	};
+	handleOldModes("Renderer.RenderMode", "Renderer.RenderModes", RENDER_FIRE | RENDER_EFFE | RENDER_BASC, [this](uint32_t renderMode) {
+		rendererSettings.renderMode = renderMode;
+	});
+	handleOldModes("Renderer.DisplayMode", "Renderer.DisplayModes", 0, [this](uint32_t displayMode) {
+		rendererSettings.displayMode = displayMode;
+	});
+	rendererSettings.colorMode = prefs.Get("Renderer.ColourMode", UINT32_C(0));
 
-	ren->gravityFieldEnabled = prefs.Get("Renderer.GravityField", false);
-	ren->decorations_enable = prefs.Get("Renderer.Decorations", true);
+	rendererSettings.gravityFieldEnabled = prefs.Get("Renderer.GravityField", false);
+	rendererSettings.decorationLevel = prefs.Get("Renderer.Decorations", true) ? RendererSettings::decorationEnabled : RendererSettings::decorationDisabled;
+	threadedRendering = prefs.Get("Renderer.SeparateThread", false);
 
 	//Load config into simulation
 	edgeMode = prefs.Get("Simulation.EdgeMode", NUM_EDGEMODES, EDGE_VOID);
@@ -162,12 +171,12 @@ GameModel::~GameModel()
 	{
 		//Save to config:
 		Prefs::DeferWrite dw(prefs);
-		prefs.Set("Renderer.ColourMode", ren->GetColourMode());
-		prefs.Set("Renderer.DisplayModes", ren->GetDisplayMode());
-		prefs.Set("Renderer.RenderModes", ren->GetRenderMode());
-		prefs.Set("Renderer.GravityField", (bool)ren->gravityFieldEnabled);
-		prefs.Set("Renderer.Decorations", (bool)ren->decorations_enable);
-		prefs.Set("Renderer.DebugMode", ren->debugLines); //These two should always be equivalent, even though they are different things
+		prefs.Set("Renderer.ColourMode", rendererSettings.colorMode);
+		prefs.Set("Renderer.DisplayMode", rendererSettings.displayMode);
+		prefs.Set("Renderer.RenderMode", rendererSettings.renderMode);
+		prefs.Set("Renderer.GravityField", rendererSettings.gravityFieldEnabled);
+		prefs.Set("Renderer.Decorations", GetDecoration());
+		prefs.Set("Renderer.DebugMode", rendererSettings.debugLines); //These two should always be equivalent, even though they are different things
 		prefs.Set("Simulation.NewtonianGravity", bool(sim->grav));
 		prefs.Set("Simulation.AmbientHeat", sim->aheat_enable);
 		prefs.Set("Simulation.PrettyPowder", sim->pretty_powder);
@@ -394,13 +403,6 @@ void GameModel::BuildMenus()
 	menuList[SC_DECO]->AddTool(new DecorationTool(*ren, DECO_SMUDGE, "SMDG", ByteString("涂抹工具,混合周围的装饰").FromUtf8(), 0x000000_rgb, "DEFAULT_DECOR_SMDG"));
 	menuList[SC_DECO]->AddTool(new DecorationTool(*ren, DECO_CLEAR, "CLR", ByteString("装饰橡皮擦").FromUtf8(), 0x000000_rgb, "DEFAULT_DECOR_CLR"));
 	menuList[SC_DECO]->AddTool(new DecorationTool(*ren, DECO_DRAW, "SET", ByteString("装饰工具(无混合)").FromUtf8(), 0x000000_rgb, "DEFAULT_DECOR_SET"));
-	// 	menuList[SC_DECO]->AddTool(new DecorationTool(ren, DECO_ADD, "ADD", ByteString("混合模式:加").FromUtf8(), 0, 0, 0, "DEFAULT_DECOR_ADD"));
-	// menuList[SC_DECO]->AddTool(new DecorationTool(ren, DECO_SUBTRACT, "SUB", ByteString("混合模式:减").FromUtf8(), 0, 0, 0, "DEFAULT_DECOR_SUB"));
-	// menuList[SC_DECO]->AddTool(new DecorationTool(ren, DECO_MULTIPLY, "MUL", ByteString("混合模式:乘").FromUtf8(), 0, 0, 0, "DEFAULT_DECOR_MUL"));
-	// menuList[SC_DECO]->AddTool(new DecorationTool(ren, DECO_DIVIDE, "DIV", ByteString("混合模式:除").FromUtf8() , 0, 0, 0, "DEFAULT_DECOR_DIV"));
-	// menuList[SC_DECO]->AddTool(new DecorationTool(ren, DECO_SMUDGE, "SMDG", ByteString("涂抹工具,混合周围的装饰").FromUtf8(), 0, 0, 0, "DEFAULT_DECOR_SMDG"));
-	// menuList[SC_DECO]->AddTool(new DecorationTool(ren, DECO_CLEAR, "CLR", ByteString("装饰橡皮擦").FromUtf8(), 0, 0, 0, "DEFAULT_DECOR_CLR"));
-	// menuList[SC_DECO]->AddTool(new DecorationTool(ren, DECO_DRAW, "SET", ByteString("装饰工具(无混合)").FromUtf8(), 0, 0, 0, "DEFAULT_DECOR_SET"));
 	SetColourSelectorColour(colour); // update tool colors
 	decoToolset[0] = GetToolFromIdentifier("DEFAULT_DECOR_SET");
 	decoToolset[1] = GetToolFromIdentifier("DEFAULT_DECOR_CLR");
@@ -534,6 +536,11 @@ int GameModel::GetEdgeMode()
 void GameModel::SetTemperatureScale(int temperatureScale)
 {
 	this->temperatureScale = temperatureScale;
+}
+
+void GameModel::SetThreadedRendering(bool newThreadedRendering)
+{
+	threadedRendering = newThreadedRendering;
 }
 
 void GameModel::SetAmbientAirTemperature(float ambientAirTemp)
@@ -1090,24 +1097,24 @@ void GameModel::SetLastTool(Tool * newTool)
 
 void GameModel::SetZoomEnabled(bool enabled)
 {
-	ren->zoomEnabled = enabled;
+	view->GetGraphics()->zoomEnabled = enabled;
 	notifyZoomChanged();
 }
 
 bool GameModel::GetZoomEnabled()
 {
-	return ren->zoomEnabled;
+	return view->GetGraphics()->zoomEnabled;
 }
 
 void GameModel::SetZoomPosition(ui::Point position)
 {
-	ren->zoomScopePosition = position;
+	view->GetGraphics()->zoomScopePosition = position;
 	notifyZoomChanged();
 }
 
 ui::Point GameModel::GetZoomPosition()
 {
-	return ren->zoomScopePosition;
+	return view->GetGraphics()->zoomScopePosition;
 }
 
 bool GameModel::MouseInZoom(ui::Point position)
@@ -1140,35 +1147,35 @@ ui::Point GameModel::AdjustZoomCoords(ui::Point position)
 
 void GameModel::SetZoomWindowPosition(ui::Point position)
 {
-	ren->zoomWindowPosition = position;
+	view->GetGraphics()->zoomWindowPosition = position;
 	notifyZoomChanged();
 }
 
 ui::Point GameModel::GetZoomWindowPosition()
 {
-	return ren->zoomWindowPosition;
+	return view->GetGraphics()->zoomWindowPosition;
 }
 
 void GameModel::SetZoomSize(int size)
 {
-	ren->zoomScopeSize = size;
+	view->GetGraphics()->zoomScopeSize = size;
 	notifyZoomChanged();
 }
 
 int GameModel::GetZoomSize()
 {
-	return ren->zoomScopeSize;
+	return view->GetGraphics()->zoomScopeSize;
 }
 
 void GameModel::SetZoomFactor(int factor)
 {
-	ren->ZFACTOR = factor;
+	view->GetGraphics()->ZFACTOR = factor;
 	notifyZoomChanged();
 }
 
 int GameModel::GetZoomFactor()
 {
-	return ren->ZFACTOR;
+	return view->GetGraphics()->ZFACTOR;
 }
 
 void GameModel::SetActiveColourPreset(size_t preset)
@@ -1259,9 +1266,10 @@ bool GameModel::GetPaused()
 
 void GameModel::SetDecoration(bool decorationState)
 {
-	if (ren->decorations_enable != (decorationState?1:0))
+	auto desiredLevel = decorationState ? RendererSettings::decorationEnabled : RendererSettings::decorationDisabled;
+	if (rendererSettings.decorationLevel != desiredLevel)
 	{
-		ren->decorations_enable = decorationState?1:0;
+		rendererSettings.decorationLevel = desiredLevel;
 		notifyDecorationChanged();
 		UpdateQuickOptions();
 		if (decorationState)
@@ -1273,7 +1281,7 @@ void GameModel::SetDecoration(bool decorationState)
 
 bool GameModel::GetDecoration()
 {
-	return ren->decorations_enable?true:false;
+	return rendererSettings.decorationLevel != RendererSettings::decorationDisabled;
 }
 
 void GameModel::SetAHeatEnable(bool aHeat)
@@ -1317,7 +1325,7 @@ bool GameModel::GetNewtonianGrvity()
 
 void GameModel::ShowGravityGrid(bool showGrid)
 {
-	ren->gravityFieldEnabled = showGrid;
+	rendererSettings.gravityFieldEnabled = showGrid;
 	if (showGrid)
 		SetInfoTip(ByteString("引力网格:开启").FromUtf8());
 	else
@@ -1326,7 +1334,7 @@ void GameModel::ShowGravityGrid(bool showGrid)
 
 bool GameModel::GetGravityGrid()
 {
-	return ren->gravityFieldEnabled;
+	return rendererSettings.gravityFieldEnabled;
 }
 
 void GameModel::FrameStep(int frames)
