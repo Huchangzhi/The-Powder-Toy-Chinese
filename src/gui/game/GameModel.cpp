@@ -31,7 +31,13 @@
 #include "simulation/ElementClasses.h"
 #include "simulation/ElementGraphics.h"
 #include "simulation/ToolClasses.h"
-#include "gui/game/DecorationTool.h"
+#include "gui/game/tool/DecorationTool.h"
+#include "gui/game/tool/ElementTool.h"
+#include "gui/game/tool/GOLTool.h"
+#include "gui/game/tool/PropertyTool.h"
+#include "gui/game/tool/SampleTool.h"
+#include "gui/game/tool/SignTool.h"
+#include "gui/game/tool/WallTool.h"
 #include "gui/interface/Engine.h"
 #include "gui/dialogues/ErrorMessage.h"
 #include <iostream>
@@ -45,7 +51,7 @@ HistoryEntry::~HistoryEntry()
 }
 
 GameModel::GameModel():
-	activeMenu(-1),
+	activeMenu(SC_POWDERS),
 	currentBrush(0),
 	currentUser(0, ""),
 	toolStrength(1.0f),
@@ -131,10 +137,10 @@ GameModel::GameModel():
 		currentUser = Client::Ref().GetAuthUser();
 	}
 
-	BuildMenus();
-
 	perfectCircle = prefs.Get("PerfectCircleBrush", true);
 	BuildBrushList();
+
+	InitTools();
 
 	//Set default decoration colour
 	unsigned char colourR = std::max(std::min(prefs.Get("Decoration.Red", 200), 255), 0);
@@ -186,16 +192,7 @@ GameModel::~GameModel()
 		prefs.Set("Decoration.Alpha", (int)colour.Alpha);
 	}
 
-	for (size_t i = 0; i < menuList.size(); i++)
-	{
-		if (i == SC_FAVORITES)
-			menuList[i]->ClearTools();
-		delete menuList[i];
-	}
-	for (std::vector<Tool*>::iterator iter = extraElementTools.begin(), end = extraElementTools.end(); iter != end; ++iter)
-	{
-		delete *iter;
-	}
+	view->PauseRendererThread();
 	delete sim;
 	delete ren;
 	//if(activeTools)
@@ -399,9 +396,9 @@ void GameModel::BuildMenus()
 	menuList[SC_DECO]->AddTool(new DecorationTool(view, DECO_ADD, "ADD", ByteString("混合模式:加").FromUtf8(), 0x000000_rgb, "DEFAULT_DECOR_ADD"));
 	menuList[SC_DECO]->AddTool(new DecorationTool(view, DECO_SUBTRACT, "SUB", ByteString("混合模式:减").FromUtf8(), 0x000000_rgb, "DEFAULT_DECOR_SUB"));
 	menuList[SC_DECO]->AddTool(new DecorationTool(view, DECO_MULTIPLY, "MUL", ByteString("混合模式:乘").FromUtf8(), 0x000000_rgb, "DEFAULT_DECOR_MUL"));
-	menuList[SC_DECO]->AddTool(new DecorationTool(view, DECO_DIVIDE, "DIV", ByteString("混合模式:除").FromUtf8(), 0x000000_rgb, "DEFAULT_DECOR_DIV"));
+	menuList[SC_DECO]->AddTool(new DecorationTool(view, DECO_DIVIDE, "DIV", ByteString("混合模式:除").FromUtf8() , 0x000000_rgb, "DEFAULT_DECOR_DIV"));
 	menuList[SC_DECO]->AddTool(new DecorationTool(view, DECO_SMUDGE, "SMDG", ByteString("涂抹工具,混合周围的装饰").FromUtf8(), 0x000000_rgb, "DEFAULT_DECOR_SMDG"));
-	menuList[SC_DECO]->AddTool(new DecorationTool(view, DECO_CLEAR,"CLR", ByteString("装饰橡皮擦").FromUtf8(), 0x000000_rgb, "DEFAULT_DECOR_CLR"));
+	menuList[SC_DECO]->AddTool(new DecorationTool(view, DECO_CLEAR, "CLR", ByteString("装饰橡皮擦").FromUtf8(), 0x000000_rgb, "DEFAULT_DECOR_CLR"));
 	menuList[SC_DECO]->AddTool(new DecorationTool(view, DECO_DRAW, "SET", ByteString("装饰工具(无混合)").FromUtf8(), 0x000000_rgb, "DEFAULT_DECOR_SET"));
 	SetColourSelectorColour(colour); // update tool colors
 	decoToolset[0] = GetToolFromIdentifier("DEFAULT_DECOR_SET");
@@ -502,21 +499,15 @@ void GameModel::BuildBrushList()
 
 Tool *GameModel::GetToolFromIdentifier(ByteString const &identifier)
 {
-	for (auto *menu : menuList)
+	for (auto &ptr : tools)
 	{
-		for (auto *tool : menu->GetToolList())
+		if (!ptr)
 		{
-			if (identifier == tool->Identifier)
-			{
-				return tool;
-			}
+			continue;
 		}
-	}
-	for (auto *extra : extraElementTools)
-	{
-		if (identifier == extra->Identifier)
+		if (ptr->Identifier == identifier)
 		{
-			return extra;
+			return ptr.get();
 		}
 	}
 	return nullptr;
@@ -845,6 +836,14 @@ Brush *GameModel::GetBrushByID(int i)
 		return nullptr;
 }
 
+int GameModel::GetBrushIndex(const Brush &brush)
+{
+	auto it = std::find_if(brushList.begin(), brushList.end(), [&brush](auto &ptr) {
+		return ptr.get() == &brush;
+	});
+	return int(it - brushList.begin());
+}
+
 int GameModel::GetBrushID()
 {
 	return currentBrush;
@@ -867,7 +866,7 @@ void GameModel::AddObserver(GameView * observer){
 	observer->NotifySaveChanged(this);
 	observer->NotifyBrushChanged(this);
 	observer->NotifyMenuListChanged(this);
-	observer->NotifyToolListChanged(this);
+	observer->NotifyActiveMenuToolListChanged(this);
 	observer->NotifyUserChanged(this);
 	observer->NotifyZoomChanged(this);
 	observer->NotifyColourSelectorVisibilityChanged(this);
@@ -892,8 +891,7 @@ float GameModel::GetToolStrength()
 void GameModel::SetActiveMenu(int menuID)
 {
 	activeMenu = menuID;
-	toolList = menuList[menuID]->GetToolList();
-	notifyToolListChanged();
+	notifyActiveMenuToolListChanged();
 
 	if(menuID == SC_DECO)
 	{
@@ -913,30 +911,19 @@ void GameModel::SetActiveMenu(int menuID)
 	}
 }
 
-std::vector<Tool*> GameModel::GetUnlistedTools()
+std::vector<Tool *> GameModel::GetActiveMenuToolList()
 {
-	return extraElementTools;
-}
-
-std::vector<Tool*> GameModel::GetToolList()
-{
-	return toolList;
+	std::vector<Tool *> activeMenuToolList;
+	if (activeMenu >= 0 && activeMenu < int(menuList.size()))
+	{
+		activeMenuToolList = menuList[activeMenu]->GetToolList();
+	}
+	return activeMenuToolList;
 }
 
 int GameModel::GetActiveMenu()
 {
 	return activeMenu;
-}
-
-//Get an element tool from an element ID
-Tool * GameModel::GetElementTool(int elementID)
-{
-	for(std::vector<Tool*>::iterator iter = elementTools.begin(), end = elementTools.end(); iter != end; ++iter)
-	{
-		if((*iter)->ToolID == elementID)
-			return *iter;
-	}
-	return NULL;
 }
 
 Tool * GameModel::GetActiveTool(int selection)
@@ -955,9 +942,14 @@ std::vector<QuickOption*> GameModel::GetQuickOptions()
 	return quickOptions;
 }
 
-std::vector<Menu*> GameModel::GetMenuList()
+std::vector<Menu *> GameModel::GetMenuList()
 {
-	return menuList;
+	std::vector<Menu *> ptrs;
+	for (auto &ptr : menuList)
+	{
+		ptrs.push_back(ptr.get());
+	}
+	return ptrs;
 }
 
 SaveInfo *GameModel::GetSave() // non-owning
@@ -1006,6 +998,7 @@ void GameModel::SetSave(std::unique_ptr<SaveInfo> newSave, bool invertIncludePre
 		auto *saveData = currentSave->GetGameSave();
 		SaveToSimParameters(*saveData);
 		sim->clear_sim();
+		view->PauseRendererThread();
 		ren->ClearAccumulation();
 		sim->Load(saveData, !invertIncludePressure, { 0, 0 });
 		// This save was created before logging existed
@@ -1057,6 +1050,7 @@ void GameModel::SetSaveFile(std::unique_ptr<SaveFile> newSave, bool invertInclud
 		auto *saveData = currentFile->GetGameSave();
 		SaveToSimParameters(*saveData);
 		sim->clear_sim();
+		view->PauseRendererThread();
 		ren->ClearAccumulation();
 		sim->Load(saveData, !invertIncludePressure, { 0, 0 });
 		Client::Ref().OverwriteAuthorInfo(saveData->authors);
@@ -1556,11 +1550,11 @@ void GameModel::notifyMenuListChanged()
 	}
 }
 
-void GameModel::notifyToolListChanged()
+void GameModel::notifyActiveMenuToolListChanged()
 {
 	for (size_t i = 0; i < observers.size(); i++)
 	{
-		observers[i]->NotifyToolListChanged(this);
+		observers[i]->NotifyActiveMenuToolListChanged(this);
 	}
 }
 
@@ -1673,26 +1667,130 @@ void GameModel::SetPerfectCircle(bool perfectCircle)
 	}
 }
 
-bool GameModel::RemoveCustomGOLType(const ByteString &identifier)
+bool GameModel::AddCustomGol(String ruleString, String nameString, RGB<uint8_t> color1, RGB<uint8_t> color2)
+{
+	if (auto gd = CheckCustomGol(ruleString, nameString, color1, color2))
+	{
+		auto &sd = SimulationData::Ref();
+		auto newCustomGol = sd.GetCustomGol();
+		newCustomGol.push_back(*gd);
+		sd.SetCustomGOL(newCustomGol);
+		AllocCustomGolTool(*gd);
+		SaveCustomGol();
+		BuildMenus();
+		return true;
+	}
+	return false;
+}
+
+bool GameModel::RemoveCustomGol(const ByteString &identifier)
 {
 	bool removedAny = false;
-	auto &prefs = GlobalPrefs::Ref();
-	auto customGOLTypes = prefs.Get("CustomGOL.Types", std::vector<ByteString>{});
-	std::vector<ByteString> newCustomGOLTypes;
-	for (auto gol : customGOLTypes)
+	std::vector<CustomGOLData> newCustomGol;
+	auto &sd = SimulationData::Ref();
+	for (auto gol : sd.GetCustomGol())
 	{
-		auto parts = gol.PartitionBy(' ');
-		if (parts.size() && "DEFAULT_PT_LIFECUST_" + parts[0] == identifier)
+		if ("DEFAULT_PT_LIFECUST_" + gol.nameString == identifier.FromUtf8())
+		{
 			removedAny = true;
+		}
 		else
-			newCustomGOLTypes.push_back(gol);
+		{
+			newCustomGol.push_back(gol);
+		}
 	}
 	if (removedAny)
 	{
-		prefs.Set("CustomGOL.Types", newCustomGOLTypes);
+		sd.SetCustomGOL(newCustomGol);
+		FreeTool(GetToolFromIdentifier(identifier));
+		BuildMenus();
+		SaveCustomGol();
 	}
-	BuildMenus();
 	return removedAny;
+}
+
+void GameModel::LoadCustomGol()
+{
+	auto &prefs = GlobalPrefs::Ref();
+	auto customGOLTypes = prefs.Get("CustomGOL.Types", std::vector<ByteString>{});
+	bool removedAny = false;
+	std::vector<CustomGOLData> newCustomGol;
+	for (auto gol : customGOLTypes)
+	{
+		auto parts = gol.FromUtf8().PartitionBy(' ');
+		if (parts.size() != 4)
+		{
+			removedAny = true;
+			continue;
+		}
+		auto nameString = parts[0];
+		auto ruleString = parts[1];
+		auto &colour1String = parts[2];
+		auto &colour2String = parts[3];
+		RGB<uint8_t> color1;
+		RGB<uint8_t> color2;
+		try
+		{
+			color1 = RGB<uint8_t>::Unpack(colour1String.ToNumber<int>());
+			color2 = RGB<uint8_t>::Unpack(colour2String.ToNumber<int>());
+		}
+		catch (std::exception &)
+		{
+			removedAny = true;
+			continue;
+		}
+		if (auto gd = CheckCustomGol(ruleString, nameString, color1, color2))
+		{
+			newCustomGol.push_back(*gd);
+			AllocCustomGolTool(*gd);
+		}
+		else
+		{
+			removedAny = true;
+		}
+	}
+	auto &sd = SimulationData::Ref();
+	sd.SetCustomGOL(newCustomGol);
+	if (removedAny)
+	{
+		SaveCustomGol();
+	}
+}
+
+void GameModel::SaveCustomGol()
+{
+	auto &prefs = GlobalPrefs::Ref();
+	std::vector<ByteString> newCustomGOLTypes;
+	auto &sd = SimulationData::Ref();
+	for (auto &gd : sd.GetCustomGol())
+	{
+		StringBuilder sb;
+		sb << gd.nameString << " " << SerialiseGOLRule(gd.rule) << " " << gd.colour1.Pack() << " " << gd.colour2.Pack();
+		newCustomGOLTypes.push_back(sb.Build().ToUtf8());
+	}
+	prefs.Set("CustomGOL.Types", newCustomGOLTypes);
+}
+
+std::optional<CustomGOLData> GameModel::CheckCustomGol(String ruleString, String nameString, RGB<uint8_t> color1, RGB<uint8_t> color2)
+{
+	if (!ValidateGOLName(nameString))
+	{
+		return std::nullopt;
+	}
+	auto rule = ParseGOLString(ruleString);
+	if (rule == -1)
+	{
+		return std::nullopt;
+	}
+	auto &sd = SimulationData::Ref();
+	for (auto &gd : sd.GetCustomGol())
+	{
+		if (gd.nameString == nameString)
+		{
+			return std::nullopt;
+		}
+	}
+	return CustomGOLData{ rule, color1, color2, nameString };
 }
 
 void GameModel::UpdateUpTo(int upTo)
@@ -1730,4 +1828,242 @@ void GameModel::AfterSim()
 {
 	sim->AfterSim();
 	CommandInterface::Ref().HandleEvent(AfterSimEvent{});
+}
+
+Tool *GameModel::GetToolByIndex(int index)
+{
+	if (index < 0 || index >= int(tools.size()))
+	{
+		return nullptr;
+	}
+	return tools[index].get();
+}
+
+void GameModel::SanitizeToolsets()
+{
+	if (!decoToolset   [0]) decoToolset   [0] = GetToolFromIdentifier("DEFAULT_DECOR_SET");
+	if (!decoToolset   [1]) decoToolset   [1] = GetToolFromIdentifier("DEFAULT_DECOR_CLR");
+	if (!decoToolset   [2]) decoToolset   [2] = GetToolFromIdentifier("DEFAULT_UI_SAMPLE");
+	if (!decoToolset   [3]) decoToolset   [3] = GetToolFromIdentifier("DEFAULT_PT_NONE"  );
+	if (!regularToolset[0]) regularToolset[0] = GetToolFromIdentifier("DEFAULT_PT_DUST"  );
+	if (!regularToolset[1]) regularToolset[1] = GetToolFromIdentifier("DEFAULT_PT_NONE"  );
+	if (!regularToolset[2]) regularToolset[2] = GetToolFromIdentifier("DEFAULT_UI_SAMPLE");
+	if (!regularToolset[3]) regularToolset[3] = GetToolFromIdentifier("DEFAULT_PT_NONE"  );
+	if (!lastTool)
+	{
+		lastTool = activeTools[0];
+	}
+}
+
+void GameModel::DeselectTool(ByteString identifier)
+{
+	auto *tool = GetToolFromIdentifier(identifier);
+	for (auto &slot : decoToolset)
+	{
+		if (slot == tool)
+		{
+			slot = nullptr;
+		}
+	}
+	for (auto &slot : regularToolset)
+	{
+		if (slot == tool)
+		{
+			slot = nullptr;
+		}
+	}
+	if (lastTool == tool)
+	{
+		lastTool = nullptr;
+	}
+	SanitizeToolsets();
+}
+
+void GameModel::AllocTool(std::unique_ptr<Tool> tool)
+{
+	std::optional<int> index;
+	for (int i = 0; i < int(tools.size()); ++i)
+	{
+		if (!tools[i])
+		{
+			index = i;
+			break;
+		}
+	}
+	if (!index)
+	{
+		index = int(tools.size());
+		tools.emplace_back();
+	}
+	GameController::Ref().SetToolIndex(tool->Identifier, *index);
+	tools[*index] = std::move(tool);
+}
+
+void GameModel::FreeTool(Tool *tool)
+{
+	auto index = GetToolIndex(tool);
+	if (!index)
+	{
+		return;
+	}
+	auto &ptr = tools[*index];
+	DeselectTool(ptr->Identifier);
+	GameController::Ref().SetToolIndex(ptr->Identifier, std::nullopt);
+	ptr.reset();
+}
+
+std::optional<int> GameModel::GetToolIndex(Tool *tool)
+{
+	if (tool)
+	{
+		for (int i = 0; i < int(tools.size()); ++i)
+		{
+			if (tools[i].get() == tool)
+			{
+				return i;
+			}
+		}
+	}
+	return std::nullopt;
+}
+
+void GameModel::AllocCustomGolTool(const CustomGOLData &gd)
+{
+	AllocTool(std::make_unique<ElementTool>(PMAP(gd.rule, PT_LIFE), gd.nameString, "Custom GOL type: " + SerialiseGOLRule(gd.rule), gd.colour1, "DEFAULT_PT_LIFECUST_" + gd.nameString.ToAscii(), nullptr));
+}
+
+void GameModel::AllocElementTool(int element)
+{
+	auto &sd = SimulationData::Ref();
+	auto &elements = sd.elements;
+	auto &elem = elements[element];
+	FreeTool(GetToolFromIdentifier(elem.Identifier));
+	switch (element)
+	{
+	case PT_LIGH:
+		AllocTool(std::make_unique<Element_LIGH_Tool>(element, elem.Name, elem.Description, elem.Colour, elem.Identifier, elem.IconGenerator));
+		break;
+
+	case PT_TESC:
+		AllocTool(std::make_unique<Element_TESC_Tool>(element, elem.Name, elem.Description, elem.Colour, elem.Identifier, elem.IconGenerator));
+		break;
+
+	case PT_STKM:
+	case PT_FIGH:
+	case PT_STKM2:
+		AllocTool(std::make_unique<PlopTool>(element, elem.Name, elem.Description, elem.Colour, elem.Identifier, elem.IconGenerator));
+		break;
+
+	default:
+		AllocTool(std::make_unique<ElementTool>(element, elem.Name, elem.Description, elem.Colour, elem.Identifier, elem.IconGenerator));
+		break;
+	}
+}
+
+void GameModel::InitTools()
+{
+	auto &sd = SimulationData::Ref();
+	auto &elements = sd.elements;
+	auto &builtinGol = SimulationData::builtinGol;
+	for (int i = 0; i < PT_NUM; ++i)
+	{
+		if (elements[i].Enabled)
+		{
+			AllocElementTool(i);
+		}
+	}
+	for (int i = 0; i < NGOL; ++i)
+	{
+		AllocTool(std::make_unique<ElementTool>(PMAP(i, PT_LIFE), builtinGol[i].name, builtinGol[i].description, builtinGol[i].colour, "DEFAULT_PT_LIFE_" + builtinGol[i].name.ToAscii()));
+	}
+	for (int i = 0; i < UI_WALLCOUNT; ++i)
+	{
+		AllocTool(std::make_unique<WallTool>(i, sd.wtypes[i].descs, sd.wtypes[i].colour, sd.wtypes[i].identifier, sd.wtypes[i].textureGen));
+	}
+	for (auto &tool : ::GetTools())
+	{
+		AllocTool(std::make_unique<SimTool>(tool));
+	}
+	AllocTool(std::make_unique<DecorationTool>(view, DECO_ADD     , "ADD" , "Colour blending: Add."                         , 0x000000_rgb, "DEFAULT_DECOR_ADD" ));
+	AllocTool(std::make_unique<DecorationTool>(view, DECO_SUBTRACT, "SUB" , "Colour blending: Subtract."                    , 0x000000_rgb, "DEFAULT_DECOR_SUB" ));
+	AllocTool(std::make_unique<DecorationTool>(view, DECO_MULTIPLY, "MUL" , "Colour blending: Multiply."                    , 0x000000_rgb, "DEFAULT_DECOR_MUL" ));
+	AllocTool(std::make_unique<DecorationTool>(view, DECO_DIVIDE  , "DIV" , "Colour blending: Divide."                      , 0x000000_rgb, "DEFAULT_DECOR_DIV" ));
+	AllocTool(std::make_unique<DecorationTool>(view, DECO_SMUDGE  , "SMDG", "Smudge tool, blends surrounding deco together.", 0x000000_rgb, "DEFAULT_DECOR_SMDG"));
+	AllocTool(std::make_unique<DecorationTool>(view, DECO_CLEAR   , "CLR" , "Erase any set decoration."                     , 0x000000_rgb, "DEFAULT_DECOR_CLR" ));
+	AllocTool(std::make_unique<DecorationTool>(view, DECO_DRAW    , "SET" , "Draw decoration (No blending)."                , 0x000000_rgb, "DEFAULT_DECOR_SET" ));
+	AllocTool(std::make_unique<PropertyTool>(*this));
+	AllocTool(std::make_unique<SignTool>(*this));
+	AllocTool(std::make_unique<SampleTool>(*this));
+	AllocTool(std::make_unique<GOLTool>(*this));
+	LoadCustomGol();
+
+	SanitizeToolsets();
+	lastTool = activeTools[0];
+	BuildMenus();
+}
+
+void GameModel::BuildMenus()
+{
+	auto &sd = SimulationData::Ref();
+	auto &elements = sd.elements;
+
+	menuList.clear();
+	for (auto &section : sd.msections)
+	{
+		menuList.push_back(std::make_unique<Menu>(section.icon, section.name, section.doshow));
+	}
+
+	for (auto &elem : elements)
+	{
+		if (elem.Enabled)
+		{
+			if (elem.MenuSection >= 0 && elem.MenuSection < int(sd.msections.size()) && elem.MenuVisible)
+			{
+				menuList[elem.MenuSection]->AddTool(GetToolFromIdentifier(elem.Identifier));
+			}
+		}
+	}
+
+	for (auto &ptr : tools)
+	{
+		if (!ptr)
+		{
+			continue;
+		}
+		if (ptr->Identifier.BeginsWith("DEFAULT_PT_LIFE_") ||
+		    ptr->Identifier.BeginsWith("DEFAULT_PT_LIFECUST_"))
+		{
+			menuList[SC_LIFE]->AddTool(ptr.get());
+		}
+		if (ptr->Identifier.BeginsWith("DEFAULT_WL_"))
+		{
+			menuList[SC_WALL]->AddTool(ptr.get());
+		}
+		if (ptr->Identifier.Contains("_TOOL_"))
+		{
+			menuList[SC_TOOL]->AddTool(ptr.get());
+		}
+		if (ptr->Identifier.BeginsWith("DEFAULT_DECOR_"))
+		{
+			menuList[SC_DECO]->AddTool(ptr.get());
+		}
+	}
+
+	for (auto &fav : Favorite::Ref().GetFavoritesList())
+	{
+		if (auto *tool = GetToolFromIdentifier(fav))
+		{
+			menuList[SC_FAVORITES]->AddTool(tool);
+		}
+	}
+
+	menuList[SC_TOOL]->AddTool(GetToolFromIdentifier("DEFAULT_UI_PROPERTY"));
+	menuList[SC_TOOL]->AddTool(GetToolFromIdentifier("DEFAULT_UI_SIGN"));
+	menuList[SC_TOOL]->AddTool(GetToolFromIdentifier("DEFAULT_UI_SAMPLE"));
+	menuList[SC_LIFE]->AddTool(GetToolFromIdentifier("DEFAULT_UI_ADDLIFE"));
+
+	notifyMenuListChanged();
+	notifyActiveMenuToolListChanged();
+	notifyActiveToolsChanged();
+	notifyLastToolChanged();
 }

@@ -6,7 +6,6 @@
 #include "BuiltinGOL.h"
 #include "WallType.h"
 #include "MenuSection.h"
-#include "ToolClasses.h"
 #include "Misc.h"
 #include "graphics/Renderer.h"
 
@@ -333,6 +332,5 @@ SimulationData::SimulationData()
 	msections = LoadMenus();
 	wtypes = LoadWalls();
 	elements = GetElements();
-	tools = GetTools();
 	init_can_move();
 }
