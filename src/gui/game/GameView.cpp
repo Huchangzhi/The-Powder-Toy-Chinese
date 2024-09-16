@@ -416,8 +416,7 @@ void GameView::NotifyMenuListChanged(GameModel * sender)
 			tempString += menuList[i]->GetIcon();
 			String description = menuList[i]->GetDescription();
 			if (i == SC_FAVORITES && !Favorite::Ref().AnyFavorites())
-				//删除操作描述
-				description += "";
+				description += ByteString("收藏夹(使用Ctrl+Shift+Click切操元素的收藏状态)").FromUtf8();
 			auto *tempButton = new MenuButton(ui::Point(WINDOWW-16, currentY), ui::Point(15, 15), tempString, description);
 			tempButton->Appearance.Margin = ui::Border(0, 2, 3, 2);
 			tempButton->menuID = i;
@@ -750,7 +749,7 @@ void GameView::NotifyUserChanged(GameModel * sender)
 	{
 		loginButton->SetText(ByteString("登录").FromUtf8());
 		loginButton->SetShowSplit(false);
-		loginButton->SetRightToolTip(ByteString("登录云端服务器").FromUtf8());
+		loginButton->SetRightToolTip(ByteString("登录到云端服务器").FromUtf8());
 	}
 	else
 	{
@@ -1611,6 +1610,12 @@ void GameView::OnKeyPress(int key, int scan, bool repeat, bool shift, bool ctrl,
 	{
 		switch (key)
 		{
+		case SDLK_AC_BACK:
+			if (ALLOW_QUIT)
+			{
+				ui::Engine::Ref().ConfirmExit();
+			}
+			break;
 		case SDLK_TAB: //Tab
 			c->ChangeBrush();
 			break;
@@ -2132,7 +2137,7 @@ void GameView::RenderSimulation(const RenderableSimulation &sim, bool handleEven
 		c->BeforeSimDraw();
 	}
 	{
-		// we're the main thread, we may write graphicscache
+		// we may write graphicscache here
 		auto &sd = SimulationData::Ref();
 		std::unique_lock lk(sd.elementGraphicsMx);
 		ren->RenderSimulation();
@@ -2510,7 +2515,7 @@ void GameView::OnDraw()
 		if (showDebug)
 		{
 			if (rendererSettings->findingElement)
-				fpsInfo << ByteString(" 元素数目: ").FromUtf8() << rendererSettings->foundElements << "/" << sample.NumParts;
+				fpsInfo << ByteString(" 元素数目: ").FromUtf8() << foundParticles << "/" << sample.NumParts;
 			else
 				fpsInfo << ByteString(" 元素数目: ").FromUtf8() << sample.NumParts;
 		}
