@@ -66,9 +66,15 @@ void Engine::Exit()
 
 void Engine::ConfirmExit()
 {
-	new ConfirmPrompt(ByteString("退出游戏").FromUtf8(), ByteString("确定要退出游戏吗?").FromUtf8(), { [] {
-		ui::Engine::Ref().Exit();
-	} });
+	if (!confirmingExit)
+	{
+		confirmingExit = true;
+		new ConfirmPrompt(ByteString("退出游戏").FromUtf8(), ByteString("确定要退出游戏吗?").FromUtf8(), { [] {
+			ui::Engine::Ref().Exit();
+		}, [this] {
+			confirmingExit = false;
+		} });
+	}
 }
 
 void Engine::ShowWindow(Window * window)

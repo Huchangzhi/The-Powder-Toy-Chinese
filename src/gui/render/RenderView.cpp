@@ -52,15 +52,7 @@ RenderView::RenderView() : ui::Window(ui::Point(0, 0), ui::Point(XRES, WINDOWH))
 		renderModeCheckbox->mode = mode;
 		renderModeCheckbox->SetIcon(icon);
 		renderModeCheckbox->SetActionCallback({ [this, renderModeCheckbox] {
-			auto renderMode = c->GetRenderMode();
-			if (renderModeCheckbox->GetChecked())
-			{
-				renderMode |= renderModeCheckbox->mode;
-			}
-			else
-			{
-				renderMode &= ~renderModeCheckbox->mode;
-			}
+			auto renderMode = CalculateRenderMode();
 			c->SetRenderMode(renderMode);
 		} });
 		AddComponent(renderModeCheckbox);
@@ -81,6 +73,11 @@ RenderView::RenderView() : ui::Window(ui::Point(0, 0), ui::Point(XRES, WINDOWH))
 		displayModeCheckbox->SetIcon(icon);
 		displayModeCheckbox->SetActionCallback({ [this, displayModeCheckbox] {
 			auto displayMode = c->GetDisplayMode();
+			// Air display modes are mutually exclusive
+			if (displayModeCheckbox->mode & DISPLAY_AIR)
+			{
+				displayMode &= ~DISPLAY_AIR;
+			}
 			if (displayModeCheckbox->GetChecked())
 			{
 				displayMode |= displayModeCheckbox->mode;
@@ -130,6 +127,18 @@ RenderView::RenderView() : ui::Window(ui::Point(0, 0), ui::Point(XRES, WINDOWH))
 	addColourModeCheckbox(COLOUR_GRAD, IconGradient, ui::Point(307, 22), ByteString("\u8f7b\u5fae\u6539\u53d8\u5143\u7d20\u7684\u989c\u8272\u002c\u663e\u793a\u70ed\u91cf\u6269\u6563\u6548\u679c").FromUtf8());
 	addColourModeCheckbox(COLOUR_BASC, IconBasic, ui::Point(307, 4), ByteString("\u6ca1\u6709\u4efb\u4f55\u7279\u6b8a\u6548\u679c\u002c\u4ec5\u505a\u8986\u76d6\u663e\u793a").FromUtf8());
 	line4 = 340;
+}
+
+uint32_t RenderView::CalculateRenderMode()
+{
+	uint32_t renderMode = 0;
+	for (auto &checkbox : renderModes)
+	{
+		if (checkbox->GetChecked())
+			renderMode |= checkbox->mode;
+	}
+
+	return renderMode;
 }
 
 void RenderView::OnMouseDown(int x, int y, unsigned button)
