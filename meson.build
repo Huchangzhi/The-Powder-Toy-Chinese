@@ -1,18 +1,14 @@
-project(
-	'the-powder-toy',
-	'cpp',
-	version: 'the.cake.is.a.lie',
-	default_options: [
-		'cpp_std=c++17',
-		'cpp_rtti=false',
-	],
-	meson_version: '>=0.63.0',
-)
+project('the-powder-toy', 'cpp', version: 'the.cake.is.a.lie', meson_version: '>=0.63.0')
 
 if get_option('prepare')
 	# we're being run by prepare.py in a ghactions workflow only to determine the values of options; exit early
 	subdir_done()
 endif
+
+target_options = [
+	'cpp_std=c++20',
+	'cpp_rtti=false',
+]
 
 python = import('python')
 python3_prog = python.find_installation('python3')
@@ -85,7 +81,7 @@ tpt_libs_debug = is_debug ? 'debug' : 'release'
 tpt_libs_variant = '@0@-@1@-@2@-@3@'.format(host_arch, host_platform, host_libc, tpt_libs_static)
 tpt_libs_vtag = get_option('tpt_libs_vtag')
 if tpt_libs_vtag == ''
-	tpt_libs_vtag = 'v20240112165024'
+	tpt_libs_vtag = 'v20241107133630'
 endif
 if tpt_libs_static != 'none'
 	if tpt_libs_variant not in [
@@ -95,6 +91,8 @@ if tpt_libs_static != 'none'
 		'x86_64-windows-msvc-dynamic',
 		'x86-windows-msvc-static',
 		'x86-windows-msvc-dynamic',
+		'aarch64-windows-msvc-static',
+		'aarch64-windows-msvc-dynamic',
 		'x86_64-darwin-macos-static',
 		'aarch64-darwin-macos-static',
 		'x86-android-bionic-static',
@@ -263,25 +261,41 @@ if not is_debug
 	project_cpp_args += args_ccomp_opt
 endif
 
-if not is_debug
-	args_ccomp_lto = []
-	if cpp_compiler.get_id() in [ 'clang', 'clang-cl' ]
-		# use ThinLTO for Clang/LLVM
-		args_ccomp_lto += [ '-flto=thin' ]
-	elif cpp_compiler.get_argument_syntax() == 'msvc'
-		args_ccomp_lto += [ '/GL' ]
+lto = get_option('lto')
+if cpp_compiler.get_argument_syntax() == 'msvc'
+	if lto
+		# apparently meson doesn't know how to tell msvc to use lto: b_lto doesn't even exist when using msvc
+		# https://github.com/mesonbuild/meson/blob/1.4.2/mesonbuild/compilers/mixins/visualstudio.py#L113
+		# so we do it ourselves
+		project_cpp_args += [ '/GL' ]
 		project_link_args += [ '/LTCG' ]
 	endif
-	project_cpp_args += args_ccomp_lto
+else
+	target_options += [ 'b_lto=@0@'.format(lto) ]
+	if lto
+		if cpp_compiler.get_id() in [ 'clang', 'clang-cl' ]
+			# use ThinLTO for Clang/LLVM
+			project_cpp_args += [ '-flto=thin' ]
+		endif
+	endif
 endif
 
+cpp_eh = 'default'
 if cpp_compiler.get_argument_syntax() == 'msvc'
-	args_msvc = [
+	project_cpp_args += [
 		'/GS',
 		'/D_SCL_SECURE_NO_WARNINGS',
 	]
-	project_cpp_args += args_msvc
+	# https://learn.microsoft.com/en-us/cpp/build/reference/eh-exception-handling-model?view=msvc-170&redirectedfrom=MSDN
+	# the default exception handling mode is 'sc', which guarantees to the compiler that functions with C linkage never throw
+	# exceptions. C++-aware Lua throws exceptions, but its functions are designed have C++ linkage, so this is normally not an issue.
+	# LuaJIT also throws exceptions, but its functions are designed to have C linkage, which is sad >_> not much we can do there.
+	# further, the functions in our builds of C++-aware Lua actually have C linkage for the sake of simplicity (since the codebase works
+	# with both kinds of Lua and LuaJIT uses C linkage). the fact that functions with C linkage may throw exceptions means that the
+	# correct exception handling mode to use is 's'
+	cpp_eh = 's'
 endif
+target_options += [ 'cpp_eh=@0@'.format(cpp_eh) ]
 
 # clang-cl supports both syntaxes. use the GCC one.
 if cpp_compiler.get_argument_syntax() == 'msvc' and cpp_compiler.get_id() not in [ 'clang-cl' ]
@@ -360,6 +374,13 @@ if host_platform == 'windows'
 			endif
 		endforeach
 	endif
+	if host_libc == 'msvc'
+		if tpt_libs_static == 'static'
+			target_options += [ 'b_vscrt=static_from_buildtype' ]
+		else
+			target_options += [ 'b_vscrt=from_buildtype' ]
+		endif
+	endif
 	foreach def : defs_ccomp_win
 		if cpp_compiler.get_argument_syntax() == 'msvc'
 			args_ccomp_win += [ '/D' + def ]
@@ -368,6 +389,15 @@ if host_platform == 'windows'
 		endif
 	endforeach
 	project_cpp_args += args_ccomp_win
+elif host_platform == 'darwin'
+	# work around assertion failure with LTO symbols
+	# https://developer.apple.com/documentation/xcode-release-notes/xcode-15-release-notes#Linking
+	# otherwise we get ld: Assertion failed: (0 && "lto symbol should not be in layout"), function symbolForAtom, file Layout.cpp, line 1447.
+	# TODO: remove when appropriate
+	if is_static and cpp_compiler.has_link_argument('-ld_classic')
+		warning('applying broken apple clang linker workaround with -ld_classic')
+		project_link_args += [ '-ld_classic' ]
+	endif
 elif host_platform == 'android'
 	args_ccomp_android = []
 	if not is_64bit
@@ -462,6 +492,7 @@ if get_option('build_powder')
 			link_args: project_link_args,
 			dependencies: powder_deps,
 			link_depends: copied_dlls,
+			override_options: target_options,
 		)
 		subdir('android')
 	else
@@ -476,6 +507,7 @@ if get_option('build_powder')
 			export_dynamic: project_export_dynamic,
 			install: true,
 			link_depends: copied_dlls,
+			override_options: target_options,
 		)
 	endif
 endif
@@ -504,6 +536,7 @@ if get_option('build_render')
 		dependencies: render_deps,
 		export_dynamic: project_export_dynamic,
 		link_depends: copied_dlls,
+		override_options: target_options,
 	)
 endif
 
@@ -528,5 +561,6 @@ if get_option('build_font')
 		dependencies: font_deps,
 		export_dynamic: project_export_dynamic,
 		link_depends: copied_dlls,
+		override_options: target_options,
 	)
 endif

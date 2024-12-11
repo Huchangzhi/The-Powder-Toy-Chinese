@@ -50,7 +50,7 @@ HistoryEntry::~HistoryEntry()
 	//   so the default dtor for ~HistoryEntry cannot be generated.
 }
 
-GameModel::GameModel():
+GameModel::GameModel(GameView *newView):
 	activeMenu(SC_POWDERS),
 	currentBrush(0),
 	currentUser(0, ""),
@@ -61,7 +61,8 @@ GameModel::GameModel():
 	colour(255, 0, 0, 255),
 	edgeMode(EDGE_VOID),
 	ambientAirTemp(R_TEMP + 273.15f),
-	decoSpace(DECOSPACE_SRGB)
+	decoSpace(DECOSPACE_SRGB),
+	view(newView)
 {
 	sim = new Simulation();
 	sim->useLuaCallbacks = true;
@@ -192,7 +193,6 @@ GameModel::~GameModel()
 		prefs.Set("Decoration.Alpha", (int)colour.Alpha);
 	}
 
-	view->PauseRendererThread();
 	delete sim;
 	delete ren;
 	//if(activeTools)
@@ -1774,7 +1774,7 @@ void GameModel::InitTools()
 	AllocTool(std::make_unique<DecorationTool>(view, DECO_SMUDGE  , "SMDG", "Smudge tool, blends surrounding deco together.", 0x000000_rgb, "DEFAULT_DECOR_SMDG"));
 	AllocTool(std::make_unique<DecorationTool>(view, DECO_CLEAR   , "CLR" , "Erase any set decoration."                     , 0x000000_rgb, "DEFAULT_DECOR_CLR" ));
 	AllocTool(std::make_unique<DecorationTool>(view, DECO_DRAW    , "SET" , "Draw decoration (No blending)."                , 0x000000_rgb, "DEFAULT_DECOR_SET" ));
-	AllocTool(std::make_unique<PropertyTool>());
+	AllocTool(std::make_unique<PropertyTool>(*this));
 	AllocTool(std::make_unique<SignTool>(*this));
 	AllocTool(std::make_unique<SampleTool>(*this));
 	AllocTool(std::make_unique<GOLTool>(*this));

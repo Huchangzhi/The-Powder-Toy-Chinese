@@ -286,6 +286,9 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 		fastquit = addCheckbox(0, ByteString("快速退出").FromUtf8(), ByteString("点击关闭按钮时总是完全退出游戏").FromUtf8(), [this] {
 			c->SetFastQuit(fastquit->GetChecked());
 		});
+		globalQuit = addCheckbox(0, "Global quit shortcut", "Ctrl+q works everywhere", [this] {
+			c->SetGlobalQuit(globalQuit->GetChecked());
+		});
 	}
 	showAvatars = addCheckbox(0, ByteString("显示头像").FromUtf8(), ByteString("禁用此项可减少使用的网络带宽").FromUtf8(), [this] {
 		c->SetShowAvatars(showAvatars->GetChecked());
@@ -331,7 +334,7 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 	});
 
 	currentY += 4;
-	if (ALLOW_DATA_FOLDER)
+	if constexpr (ALLOW_DATA_FOLDER)
 	{
 		auto *dataFolderButton = new ui::Button(ui::Point(10, currentY), ui::Point(90, 16), ByteString("打开数据目录").FromUtf8());
 		dataFolderButton->SetActionCallback({ [] {
@@ -346,16 +349,19 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 			}
 		} });
 		scrollPanel->AddChild(dataFolderButton);
-		auto *migrationButton = new ui::Button(ui::Point(Size.X - 178, currentY), ui::Point(163, 16), ByteString("迁移至用户共享数据目录").FromUtf8());
-		migrationButton->SetActionCallback({ [] {
-			ByteString from = Platform::originalCwd;
-			ByteString to = Platform::sharedCwd;
-			new ConfirmPrompt("Do Migration?", "This will migrate all stamps, saves, and scripts from\n\bt" + from.FromUtf8() + "\bw\nto the shared data directory at\n\bt" + to.FromUtf8() + "\bw\n\n" + "Files that already exist will not be overwritten.", { [from, to]() {
-				String ret = Client::Ref().DoMigration(from, to);
-				new InformationMessage("Migration Complete", ret, false);
+		if constexpr (SHARED_DATA_FOLDER)
+		{
+			auto *migrationButton = new ui::Button(ui::Point(Size.X - 178, currentY), ui::Point(163, 16), ByteString("迁移至用户共享数据目录").FromUtf8());
+			migrationButton->SetActionCallback({ [] {
+				ByteString from = Platform::originalCwd;
+				ByteString to = Platform::sharedCwd;
+				new ConfirmPrompt("Do Migration?", "This will migrate all stamps, saves, and scripts from\n\bt" + from.FromUtf8() + "\bw\nto the shared data directory at\n\bt" + to.FromUtf8() + "\bw\n\n" + "Files that already exist will not be overwritten.", { [from, to]() {
+					String ret = Client::Ref().DoMigration(from, to);
+					new InformationMessage("Migration Complete", ret, false);
+				} });
 			} });
-		} });
-		scrollPanel->AddChild(migrationButton);
+			scrollPanel->AddChild(migrationButton);
+		}
 		currentY += 26;
 	}
 	{
@@ -483,6 +489,10 @@ void OptionsView::NotifySettingsChanged(OptionsModel * sender)
 	if (fastquit)
 	{
 		fastquit->SetChecked(sender->GetFastQuit());
+	}
+	if (globalQuit)
+	{
+		globalQuit->SetChecked(sender->GetGlobalQuit());
 	}
 	if (nativeClipoard)
 	{

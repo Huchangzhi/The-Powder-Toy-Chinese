@@ -83,12 +83,11 @@ GameController::GameController():
 	HasDone(false)
 {
 	gameView = new GameView();
-	gameModel = new GameModel();
+	gameModel = new GameModel(gameView); // mvc is a joke
 	gameModel->BuildQuickOptionMenu(this);
 
 	gameView->AttachController(this);
 	gameModel->AddObserver(gameView);
-	gameModel->view = gameView; // mvc is a joke
 
 	gameView->SetDebugHUD(GlobalPrefs::Ref().Get("Renderer.DebugMode", false));
 
@@ -148,12 +147,11 @@ GameController::~GameController()
 	{
 		delete *iter;
 	}
+	gameView->PauseRendererThread();
+	gameView->CloseActiveWindow();
+	delete gameView;
 	commandInterface.reset();
 	delete gameModel;
-	if (gameView->CloseActiveWindow())
-	{
-		delete gameView;
-	}
 }
 
 bool GameController::HistoryRestore()
@@ -1124,14 +1122,7 @@ void GameController::SetActiveTool(int toolSelection, Tool * tool)
 			gameModel->GetRendererSettings().gravityZonesEnabled = true;
 		}
 	}
-	if (tool->Identifier == "DEFAULT_UI_PROPERTY")
-	{
-		static_cast<PropertyTool *>(tool)->OpenWindow(gameModel->GetSimulation(), std::nullopt);
-	}
-	if(tool->Identifier == "DEFAULT_UI_ADDLIFE")
-	{
-		static_cast<GOLTool *>(tool)->OpenWindow(gameModel->GetSimulation(), toolSelection);
-	}
+	tool->Select(toolSelection);
 }
 
 void GameController::SetActiveTool(int toolSelection, ByteString identifier)
