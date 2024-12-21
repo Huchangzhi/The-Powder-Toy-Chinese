@@ -568,7 +568,7 @@ static int createWalls(lua_State *L)
 		return luaL_error(L, "Unrecognised wall id '%d'", c);
 
 	auto *lsi = GetLSI();
-	int ret = lsi->sim->CreateWalls(x, y, rx, ry, c, NULL);
+	int ret = lsi->sim->CreateWalls(x, y, rx, ry, c, nullptr);
 	lua_pushinteger(L, ret);
 	return 1;
 }
@@ -589,7 +589,7 @@ static int createWallLine(lua_State *L)
 		return luaL_error(L, "Unrecognised wall id '%d'", c);
 
 	auto *lsi = GetLSI();
-	lsi->sim->CreateWallLine(x1, y1, x2, y2, rx, ry, c, NULL);
+	lsi->sim->CreateWallLine(x1, y1, x2, y2, rx, ry, c, nullptr);
 	return 0;
 }
 
@@ -798,14 +798,14 @@ static int decoColor(lua_State *L)
 {
 	auto *lsi = GetLSI();
 	int acount = lua_gettop(L);
-	RGBA<uint8_t> color(0, 0, 0, 0);
+	RGBA color(0, 0, 0, 0);
 	if (acount == 0)
 	{
 		lua_pushnumber(L, lsi->gameModel->GetColourSelectorColour().Pack());
 		return 1;
 	}
 	else if (acount == 1)
-		color = RGBA<uint8_t>::Unpack(pixel_rgba(luaL_optnumber(L, 1, 0xFFFF0000)));
+		color = RGBA::Unpack(pixel_rgba(luaL_optnumber(L, 1, 0xFFFF0000)));
 	else
 	{
 		color.Red   = std::clamp(luaL_optint(L, 1, 255), 0, 255);
@@ -832,7 +832,7 @@ static int floodDeco(lua_State *L)
 	auto *lsi = GetLSI();
 	// hilariously broken, intersects with console and all Lua graphics
 	auto &rendererFrame = lsi->gameModel->GetView()->GetRendererFrame();
-	auto loc = RGB<uint8_t>::Unpack(rendererFrame[{ x, y }]);
+	auto loc = RGB::Unpack(rendererFrame[{ x, y }]);
 	lsi->sim->ApplyDecorationFill(rendererFrame, x, y, r, g, b, a, loc.Red, loc.Green, loc.Blue);
 	return 0;
 }
@@ -1552,7 +1552,7 @@ static int addCustomGol(lua_State *L)
 		return luaL_error(L, "This Custom GoL rule already exists");
 
 	auto *lsi = GetLSI();
-	if (!lsi->gameModel->AddCustomGol(ruleString, nameString, RGB<uint8_t>::Unpack(color1), RGB<uint8_t>::Unpack(color2)))
+	if (!lsi->gameModel->AddCustomGol(ruleString, nameString, RGB::Unpack(color1), RGB::Unpack(color2)))
 		return luaL_error(L, "Duplicate name, cannot add");
 	return 0;
 }
@@ -1942,10 +1942,10 @@ void LuaSimulation::Open(lua_State *L)
 		LFUNC(fanVelocityY),
 		LFUNC(listDefaultGol),
 #undef LFUNC
-		{ NULL, NULL }
+		{ nullptr, nullptr }
 	};
 	lua_newtable(L);
-	luaL_register(L, NULL, reg);
+	luaL_register(L, nullptr, reg);
 
 #define LCONST(v) lua_pushinteger(L, int(v)); lua_setfield(L, -2, #v)
 #define LCONSTF(v) lua_pushnumber(L, float(v)); lua_setfield(L, -2, #v)

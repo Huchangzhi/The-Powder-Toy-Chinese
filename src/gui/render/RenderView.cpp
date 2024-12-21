@@ -19,11 +19,12 @@ public:
 	uint32_t mode;
 };
 
-RenderView::RenderView() : ui::Window(ui::Point(0, 0), ui::Point(XRES, WINDOWH)),
-						   ren(NULL),
-						   toolTip(""),
-						   toolTipPresence(0),
-						   isToolTipFadingIn(false)
+RenderView::RenderView():
+	ui::Window(ui::Point(0, 0), ui::Point(XRES, WINDOWH)),
+	ren(nullptr),
+	toolTip(""),
+	toolTipPresence(0),
+	isToolTipFadingIn(false)
 {
 	auto addPresetButton = [this](int index, Icon icon, ui::Point offset, String tooltip)
 	{
@@ -51,7 +52,7 @@ RenderView::RenderView() : ui::Window(ui::Point(0, 0), ui::Point(XRES, WINDOWH))
 		renderModes.push_back(renderModeCheckbox);
 		renderModeCheckbox->mode = mode;
 		renderModeCheckbox->SetIcon(icon);
-		renderModeCheckbox->SetActionCallback({ [this, renderModeCheckbox] {
+		renderModeCheckbox->SetActionCallback({ [this] {
 			auto renderMode = CalculateRenderMode();
 			c->SetRenderMode(renderMode);
 		} });

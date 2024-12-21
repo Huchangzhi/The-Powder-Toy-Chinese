@@ -204,7 +204,7 @@ GameView::GameView():
 	recordingFolder(0),
 	currentPoint(ui::Point(0, 0)),
 	lastPoint(ui::Point(0, 0)),
-	activeBrush(NULL),
+	activeBrush(nullptr),
 	saveSimulationButtonEnabled(false),
 	saveReuploadAllowed(true),
 	drawMode(DrawPoints),
@@ -660,11 +660,11 @@ void GameView::NotifyColourSelectorVisibilityChanged(GameModel * sender)
 	{
 		ToolButton * button = *iter;
 		RemoveComponent(button);
-		button->SetParentWindow(NULL);
+		button->SetParentWindow(nullptr);
 	}
 
 	RemoveComponent(colourPicker);
-	colourPicker->SetParentWindow(NULL);
+	colourPicker->SetParentWindow(nullptr);
 
 	if(sender->GetColourSelectorVisibility())
 	{
@@ -992,7 +992,7 @@ int GameView::Record(bool record)
 	}
 	else if (!recording)
 	{
-		time_t startTime = time(NULL);
+		time_t startTime = time(nullptr);
 		recordingFolder = startTime;
 		Platform::MakeDirectory("recordings");
 		Platform::MakeDirectory(ByteString::Build("recordings", PATH_SEP_CHAR, recordingFolder));
@@ -2474,7 +2474,7 @@ void GameView::OnDraw()
 					cg *= tmp;
 					cb *= tmp;
 					for (j=0; j<h; j++)
-						g->BlendPixel({ x+29-i, y+j }, RGBA<uint8_t>(cr>255?255:cr, cg>255?255:cg, cb>255?255:cb, alpha));
+						g->BlendPixel({ x+29-i, y+j }, RGBA(cr>255?255:cr, cg>255?255:cg, cb>255?255:cb, alpha));
 				}
 			}
 		}

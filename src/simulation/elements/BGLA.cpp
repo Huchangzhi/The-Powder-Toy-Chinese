@@ -29,7 +29,7 @@ void Element::Element_BGLA()
 	HeatConduct = 150;
 	Description = ByteString("碎玻璃,玻璃在压力下破碎,熔化后能重新变回玻璃").FromUtf8();
 
-	Properties = TYPE_PART | PROP_NEUTPASS | PROP_PHOTPASS | PROP_HOT_GLOW;
+	Properties = TYPE_PART | PROP_NEUTPASS | PROP_PHOTPASS | PROP_HOT_GLOW | PROP_DEADLY;
 
 	LowPressure = IPL;
 	LowPressureTransition = NT;

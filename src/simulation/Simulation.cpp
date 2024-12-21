@@ -131,6 +131,7 @@ void Simulation::Load(const GameSave *save, bool includePressure, Vec2<int> bloc
 			break;
 		auto i = pfree;
 		pfree = parts[i].life;
+		NUM_PARTS += 1;
 		if (i > parts_lastActiveIndex)
 			parts_lastActiveIndex = i;
 		parts[i] = tempPart;
@@ -990,6 +991,7 @@ void Simulation::clear_sim(void)
 		parts[i].life = i+1;
 	parts[NPART-1].life = -1;
 	pfree = 0;
+	NUM_PARTS = 0;
 	parts_lastActiveIndex = 0;
 	memset(pmap, 0, sizeof(pmap));
 	memset(fvx, 0, sizeof(fvx));
@@ -1439,14 +1441,11 @@ int Simulation::try_move(int i, int x, int y, int nx, int ny)
 
 		if (pmap[ny][nx] && ID(pmap[ny][nx]) == ri)
 			pmap[ny][nx] = 0;
-		parts[ri].x += float(x - nx);
-		parts[ri].y += float(y - ny);
+		parts[ri].x = parts[i].x;
+		parts[ri].y = parts[i].y;
 		int rx = int(parts[ri].x + 0.5f);
 		int ry = int(parts[ri].y + 0.5f);
-		// This check will never fail unless the pmap array has already been corrupted via another bug
-		// In that case, r's position is inaccurate (not actually at nx/ny) and rx/ry may be out of bounds
-		if (InBounds(rx, ry))
-			pmap[ry][rx] = PMAP(ri, parts[ri].type);
+		pmap[ry][rx] = PMAP(ri, parts[ri].type);
 	}
 	return 1;
 }
@@ -1569,7 +1568,7 @@ int Simulation::is_blocking(int t, int x, int y) const
 		return 0;
 	}
 
-	return !eval_move(t, x, y, NULL);
+	return !eval_move(t, x, y, nullptr);
 }
 
 int Simulation::is_boundary(int pt, int x, int y) const
@@ -1746,6 +1745,7 @@ void Simulation::kill_part(int i)//kills particle number i
 	parts[i].type = PT_NONE;
 	parts[i].life = pfree;
 	pfree = i;
+	NUM_PARTS -= 1;
 }
 
 // Changes the type of particle number i, to t.  This also changes pmap at the same time
@@ -1850,34 +1850,26 @@ int Simulation::create_part(int p, int x, int y, int t, int v)
 			return -1;
 	}
 
-	if (p == -1)//creating from anything but brush
+	if (p == -1 || //creating from anything but brush
+	    p == -2 || //creating from brush
+	    p == -3) //skip pmap checks, e.g. for sing explosion
 	{
-		// If there is a particle, only allow creation if the new particle can occupy the same space as the existing particle
-		// If there isn't a particle but there is a wall, check whether the new particle is allowed to be in it
-		//   (not "!=2" for wall check because eval_move returns 1 for moving into empty space)
-		// If there's no particle and no wall, assume creation is allowed
-		if (pmap[y][x] ? (eval_move(t, x, y, NULL) != 2) : (bmap[y/CELL][x/CELL] && eval_move(t, x, y, NULL) == 0))
+		if (p == -1)
 		{
-			return -1;
+			// If there is a particle, only allow creation if the new particle can occupy the same space as the existing particle
+			// If there isn't a particle but there is a wall, check whether the new particle is allowed to be in it
+			//   (not "!=2" for wall check because eval_move returns 1 for moving into empty space)
+			// If there's no particle and no wall, assume creation is allowed
+			if (pmap[y][x] ? (eval_move(t, x, y, nullptr) != 2) : (bmap[y/CELL][x/CELL] && eval_move(t, x, y, nullptr) == 0))
+			{
+				return -1;
+			}
 		}
 		if (pfree == -1)
 			return -1;
 		i = pfree;
 		pfree = parts[i].life;
-	}
-	else if (p == -2)//creating from brush
-	{
-		if (pfree == -1)
-			return -1;
-		i = pfree;
-		pfree = parts[i].life;
-	}
-	else if (p == -3)//skip pmap checks, e.g. for sing explosion
-	{
-		if (pfree == -1)
-			return -1;
-		i = pfree;
-		pfree = parts[i].life;
+		NUM_PARTS += 1;
 	}
 	else
 	{
@@ -1916,7 +1908,7 @@ int Simulation::create_part(int p, int x, int y, int t, int v)
 	{
 		int colr, colg, colb;
 		int sandcolourToUse = p == -2 ? sandcolour_interface : sandcolour;
-		RGB<uint8_t> colour = elements[t].Colour;
+		RGB colour = elements[t].Colour;
 		colr = colour.Red   + int(sandcolourToUse * 1.3) + rng.between(-20, 20) + rng.between(-15, 15);
 		colg = colour.Green + int(sandcolourToUse * 1.3) + rng.between(-20, 20) + rng.between(-15, 15);
 		colb = colour.Blue  + int(sandcolourToUse * 1.3) + rng.between(-20, 20) + rng.between(-15, 15);
@@ -2000,6 +1992,7 @@ void Simulation::create_gain_photon(int pp)//photons from PHOT going through GLO
 		return;
 
 	pfree = parts[i].life;
+	NUM_PARTS += 1;
 	if (i>parts_lastActiveIndex) parts_lastActiveIndex = i;
 
 	parts[i].type = PT_PHOT;
@@ -2038,6 +2031,7 @@ void Simulation::create_cherenkov_photon(int pp)//photons from NEUT going throug
 		return;
 
 	pfree = parts[i].life;
+	NUM_PARTS += 1;
 	if (i>parts_lastActiveIndex) parts_lastActiveIndex = i;
 
 	lr = rng.between(0, 1);
@@ -2181,7 +2175,7 @@ Simulation::PlanMoveResult Simulation::PlanMove(Sim &sim, int i, int x, int y)
 			}
 			//block if particle can't move (0), or some special cases where it returns 1 (can_move = 3 but returns 1 meaning particle will be eaten)
 			//also photons are still blocked (slowed down) by any particle (even ones it can move through), and absorb wall also blocks particles
-			int eval = sim.eval_move(t, fin_x, fin_y, NULL);
+			int eval = sim.eval_move(t, fin_x, fin_y, nullptr);
 			if (!eval || (can_move[t][TYP(pmap[fin_y][fin_x])] == 3 && eval == 1) || (t == PT_PHOT && pmap[fin_y][fin_x]) || bmap[fin_y/CELL][fin_x/CELL]==WL_DESTROYALL || closedEholeStart!=(bmap[fin_y/CELL][fin_x/CELL] == WL_EHOLE && !emap[fin_y/CELL][fin_x/CELL]))
 			{
 				// found an obstacle
@@ -2923,7 +2917,7 @@ killed:
 					if (!x_ok || !y_ok) //when moving from left to right stickmen might be able to fall through solid things, fix with "eval_move(t, nx+diffx, ny+diffy, NULL)" but then they die instead
 					{
 						//adjust stickmen legs
-						playerst* stickman = NULL;
+						playerst* stickman = nullptr;
 						int t = parts[i].type;
 						if (t == PT_STKM)
 							stickman = &player;
@@ -2970,7 +2964,7 @@ killed:
 						continue;
 					}
 
-					if (eval_move(PT_PHOT, fin_x, fin_y, NULL))
+					if (eval_move(PT_PHOT, fin_x, fin_y, nullptr))
 					{
 						int rt = TYP(pmap[fin_y][fin_x]);
 						int lt = TYP(pmap[y][x]);

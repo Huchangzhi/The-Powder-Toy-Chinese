@@ -14,12 +14,6 @@ python = import('python')
 python3_prog = python.find_installation('python3')
 
 fs = import('fs')
-to_array = generator(
-	python3_prog,
-	output: [ '@PLAINNAME@.cpp', '@PLAINNAME@.h' ],
-	depfile: '@PLAINNAME@.dep',
-	arguments: [ join_paths(meson.current_source_dir(), 'resources/to-array.py'), '@OUTPUT0@', '@OUTPUT1@', '@DEPFILE@', '@INPUT@', '@EXTRA_ARGS@' ]
-)
 
 render_icons_with_inkscape = get_option('render_icons_with_inkscape')
 inkscape = find_program('inkscape', required: render_icons_with_inkscape)
@@ -442,9 +436,24 @@ powder_deps = []
 
 project_export_dynamic = false
 
+embedded_files = []
+
 subdir('src')
 subdir('resources')
 
+foreach embedded_file : embedded_files
+	name = embedded_file[0]
+	file = embedded_file[1]
+	data_files += [ custom_target(
+		'embedded-file-@0@'.format(name),
+		input: file,
+		output: [ '@0@.cpp'.format(name), '@0@.h'.format(name) ],
+		depfile: '@0@.dep'.format(name),
+		command: [ python3_prog, files('resources/to-array.py'), '@OUTPUT0@', '@OUTPUT1@', '@DEPFILE@', '@INPUT@', name ]
+	) ]
+endforeach
+
+powder_files += powder_external_files
 powder_files += data_files
 render_files += data_files
 font_files += data_files
@@ -470,6 +479,8 @@ if get_option('export_lua_symbols')
 		endif
 	endif
 endif
+
+clang_tidy_sources = []
 
 if get_option('build_powder')
 	powder_deps += project_deps + [
@@ -510,6 +521,7 @@ if get_option('build_powder')
 			override_options: target_options,
 		)
 	endif
+	clang_tidy_sources += powder_files
 endif
 
 if get_option('build_render')
@@ -538,6 +550,7 @@ if get_option('build_render')
 		link_depends: copied_dlls,
 		override_options: target_options,
 	)
+	clang_tidy_sources += render_files
 endif
 
 if get_option('build_font')
@@ -562,5 +575,21 @@ if get_option('build_font')
 		export_dynamic: project_export_dynamic,
 		link_depends: copied_dlls,
 		override_options: target_options,
+	)
+	clang_tidy_sources += font_files
+endif
+
+if get_option('clang_tidy')
+	clang_tidy = find_program('run-clang-tidy')
+	run_target(
+		'clang-tidy',
+		command: [
+			clang_tidy,
+			'-p', meson.project_build_root(),
+			'-config-file', files('.clang-tidy'),
+			'-quiet',
+			'-warnings-as-errors=*',
+			clang_tidy_sources,
+		],
 	)
 endif
