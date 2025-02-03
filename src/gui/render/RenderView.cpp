@@ -23,7 +23,6 @@ RenderView::RenderView():
 	ui::Window(ui::Point(0, 0), ui::Point(XRES, WINDOWH)),
 	ren(nullptr),
 	toolTip(""),
-	toolTipPresence(0),
 	isToolTipFadingIn(false)
 {
 	auto addPresetButton = [this](int index, Icon icon, ui::Point offset, String tooltip)
@@ -200,6 +199,7 @@ void RenderView::OnDraw()
 	view->PauseRendererThread();
 	ren->ApplySettings(*rendererSettings);
 	view->RenderSimulation(*sim, true);
+	view->AfterSimDraw(*sim);
 	for (auto y = 0; y < YRES; ++y)
 	{
 		auto &video = ren->GetVideo();
@@ -217,23 +217,16 @@ void RenderView::OnDraw()
 	}
 }
 
-void RenderView::OnTick(float dt)
+void RenderView::OnTick()
 {
 	if (isToolTipFadingIn)
 	{
 		isToolTipFadingIn = false;
-		if (toolTipPresence < 120)
-		{
-			toolTipPresence += int(dt * 2) > 1 ? int(dt * 2) : 2;
-			if (toolTipPresence > 120)
-				toolTipPresence = 120;
-		}
+		toolTipPresence.SetTarget(120);
 	}
-	if (toolTipPresence > 0)
+	else
 	{
-		toolTipPresence -= int(dt) > 0 ? int(dt) : 1;
-		if (toolTipPresence < 0)
-			toolTipPresence = 0;
+		toolTipPresence.SetTarget(0);
 	}
 }
 

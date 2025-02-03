@@ -50,7 +50,7 @@ TagsView::TagsView():
 	AddComponent(title);
 }
 
-void TagsView::OnTick(float dt)
+void TagsView::OnTick()
 {
 	c->Tick();
 }

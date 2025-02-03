@@ -26,6 +26,7 @@
 #include "debug/ElementPopulation.h"
 #include "debug/ParticleDebug.h"
 #include "debug/SurfaceNormals.h"
+#include "debug/AirVelocity.h"
 #include "graphics/Renderer.h"
 #include "simulation/Air.h"
 #include "simulation/ElementClasses.h"
@@ -100,6 +101,7 @@ GameController::GameController():
 	debugInfo.push_back(std::make_unique<DebugLines            >(DEBUG_LINES     , gameView, this));
 	debugInfo.push_back(std::make_unique<ParticleDebug         >(DEBUG_PARTICLE  , gameModel->GetSimulation(), gameModel));
 	debugInfo.push_back(std::make_unique<SurfaceNormals        >(DEBUG_SURFNORM  , gameModel->GetSimulation(), gameView, this));
+	debugInfo.push_back(std::make_unique<AirVelocity           >(DEBUG_AIRVEL    , gameModel->GetSimulation(), gameView, this));
 }
 
 GameController::~GameController()
@@ -148,6 +150,7 @@ GameController::~GameController()
 		delete *iter;
 	}
 	gameView->PauseRendererThread();
+	commandInterface->RemoveComponents();
 	gameView->CloseActiveWindow();
 	delete gameView;
 	commandInterface.reset();
@@ -712,12 +715,16 @@ bool GameController::KeyRelease(int key, int scan, bool repeat, bool shift, bool
 	return ret;
 }
 
+void GameController::InitCommandInterface()
+{
+	commandInterface->Init();
+}
+
 void GameController::Tick()
 {
 	gameModel->Tick();
 	if(firstTick)
 	{
-		commandInterface->Init();
 		if constexpr (INSTALL_CHECK)
 		{
 			if (Client::Ref().IsFirstRun())
@@ -961,6 +968,11 @@ void GameController::SetZoomPosition(ui::Point position)
 
 	gameModel->SetZoomPosition(zoomPosition);
 	gameModel->SetZoomWindowPosition(zoomWindowPosition);
+}
+
+bool GameController::GetPaused() const
+{
+	return gameModel->GetPaused();
 }
 
 void GameController::SetPaused(bool pauseState)
@@ -1723,7 +1735,7 @@ void GameController::AfterSimDraw()
 
 bool GameController::ThreadedRenderingAllowed()
 {
-	return gameModel->GetThreadedRendering() && !commandInterface->HaveSimGraphicsEventHandlers();
+	return gameModel->GetThreadedRendering() && !GetPaused() && !commandInterface->HaveSimGraphicsEventHandlers();
 }
 
 void GameController::SetToolIndex(ByteString identifier, std::optional<int> index)

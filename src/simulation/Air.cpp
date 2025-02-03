@@ -92,7 +92,7 @@ void Air::update_airh(void)
 			// The code is almost identical to the "far away" velocity code from update_air
 			auto tx = x - dx*advDistanceMult;
 			auto ty = y - dy*advDistanceMult;
-			if ((dx*advDistanceMult>1.0f || dy*advDistanceMult>1.0f) && (tx>=2 && tx<XCELLS-2 && ty>=2 && ty<YCELLS-2))
+			if ((std::abs(dx*advDistanceMult)>1.0f || std::abs(dy*advDistanceMult)>1.0f) && (tx>=2 && tx<XCELLS-2 && ty>=2 && ty<YCELLS-2))
 			{
 				float stepX, stepY;
 				int stepLimit;
@@ -160,7 +160,7 @@ void Air::update_airh(void)
 				auto weight = (hv[y][x] - ambientAirTemp) / 10000.0f;
 
 				// Our approximation works best when the temperature difference is small, so we cap it from above.
-				if (weight > 0.1f) weight = 0.1f;
+				if (weight > 0.01f) weight = 0.01f;
 
 				vx[y][x] += weight * convGravX;
 				vy[y][x] += weight * convGravY;
@@ -290,7 +290,7 @@ void Air::update_air(void)
 
 				auto tx = x - dx*advDistanceMult;
 				auto ty = y - dy*advDistanceMult;
-				if ((dx*advDistanceMult>1.0f || dy*advDistanceMult>1.0f) && (tx>=2 && tx<XCELLS-2 && ty>=2 && ty<YCELLS-2))
+				if ((std::abs(dx*advDistanceMult)>1.0f || std::abs(dy*advDistanceMult)>1.0f) && (tx>=2 && tx<XCELLS-2 && ty>=2 && ty<YCELLS-2))
 				{
 					// Trying to take velocity from far away, check whether there is an intervening wall.
 					// Step from current position to desired source location, looking for walls, with either the x or y step size being 1 cell

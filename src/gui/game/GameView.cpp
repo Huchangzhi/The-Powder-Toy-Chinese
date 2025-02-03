@@ -14,6 +14,7 @@
 #include "Notification.h"
 #include "ToolButton.h"
 #include "QuickOptions.h"
+#include "PowderToySDL.h"
 
 #include "client/SaveInfo.h"
 #include "client/SaveFile.h"
@@ -184,16 +185,12 @@ GameView::GameView():
 	currentSaveType(0),
 	lastMenu(-1),
 
-	toolTipPresence(0),
 	toolTip(""),
 	isToolTipFadingIn(false),
 	toolTipPosition(-1, -1),
-	infoTipPresence(0),
 	infoTip(""),
-	buttonTipShow(0),
 	buttonTip(""),
 	isButtonTipFadingIn(false),
-	introText(2048),
 	introTextMessage(IntroText().FromUtf8()),
 
 	doScreenshot(false),
@@ -216,6 +213,7 @@ GameView::GameView():
 	currentMouse(0, 0),
 	mousePosition(0, 0)
 {
+	contributesToFps = true;
 
 	int currentX = 1;
 	//Set up UI
@@ -281,7 +279,9 @@ GameView::GameView():
 	currentX+=16;
 	AddComponent(downVoteButton);
 
-	tagSimulationButton = new ui::Button(ui::Point(currentX, Size.Y-16), ui::Point(WINDOWW - 402, 15), ByteString("无标签").FromUtf8(), ByteString("添加沙盘标签").FromUtf8());
+	ResetVoteButtons();
+
+	tagSimulationButton = new ui::Button(ui::Point(currentX, Size.Y-16), ui::Point(WINDOWW - 402, 15), ByteString("[无标签]").FromUtf8(), ByteString("添加沙盘标签").FromUtf8());
 	tagSimulationButton->Appearance.HorizontalAlign = ui::Appearance::AlignLeft;
 	tagSimulationButton->SetIcon(IconTag);
 	//currentX+=252;
@@ -766,6 +766,7 @@ void GameView::NotifyUserChanged(GameModel * sender)
 void GameView::NotifyPausedChanged(GameModel * sender)
 {
 	pauseButton->SetToggleState(sender->GetPaused());
+	ApplySimFpsLimit();
 }
 
 void GameView::NotifyToolTipChanged(GameModel * sender)
@@ -779,9 +780,18 @@ void GameView::NotifyInfoTipChanged(GameModel * sender)
 	infoTipPresence = 120;
 }
 
+void GameView::ResetVoteButtons()
+{
+	upVoteButton->SetToolTip("Like this save");
+	downVoteButton->SetToolTip("Dislike this save");
+	upVoteButton->Appearance.BackgroundPulse = false;
+	downVoteButton->Appearance.BackgroundPulse = false;
+}
+
 void GameView::NotifySaveChanged(GameModel * sender)
 {
 	saveReuploadAllowed = true;
+	ResetVoteButtons();
 	if (sender->GetSave())
 	{
 		if (introText > 50)
@@ -794,32 +804,41 @@ void GameView::NotifySaveChanged(GameModel * sender)
 			saveSimulationButton->SetShowSplit(false);
 		reloadButton->Enabled = true;
 		upVoteButton->Enabled = sender->GetSave()->GetID() && sender->GetUser().UserID && sender->GetUser().Username != sender->GetSave()->GetUserName();
-		if(sender->GetSave()->GetID() && sender->GetUser().UserID && sender->GetSave()->GetVote()==1)
-		{
-			upVoteButton->Appearance.BackgroundHover = (ui::Colour(20, 128, 30, 255));
-			upVoteButton->Appearance.BackgroundInactive = (ui::Colour(0, 108, 10, 255));
-			upVoteButton->Appearance.BackgroundDisabled = (ui::Colour(0, 108, 10, 255));
-		}
-		else
-		{
-			upVoteButton->Appearance.BackgroundHover = (ui::Colour(20, 20, 20));
-			upVoteButton->Appearance.BackgroundInactive = (ui::Colour(0, 0, 0));
-			upVoteButton->Appearance.BackgroundDisabled = (ui::Colour(0, 0, 0));
-		}
+
+		auto upVoteButtonColor = [this](bool active) {
+			if(active)
+			{
+				upVoteButton->Appearance.BackgroundHover = (ui::Colour(20, 128, 30, 255));
+				upVoteButton->Appearance.BackgroundInactive = (ui::Colour(0, 108, 10, 255));
+				upVoteButton->Appearance.BackgroundDisabled = (ui::Colour(0, 108, 10, 255));
+			}
+			else
+			{
+				upVoteButton->Appearance.BackgroundHover = (ui::Colour(20, 20, 20));
+				upVoteButton->Appearance.BackgroundInactive = (ui::Colour(0, 0, 0));
+				upVoteButton->Appearance.BackgroundDisabled = (ui::Colour(0, 0, 0));
+			}
+		};
+		auto upvoted = sender->GetSave()->GetID() && sender->GetUser().UserID && sender->GetSave()->GetVote() == 1;
+		upVoteButtonColor(upvoted);
 
 		downVoteButton->Enabled = upVoteButton->Enabled;
-		if (sender->GetSave()->GetID() && sender->GetUser().UserID && sender->GetSave()->GetVote()==-1)
-		{
-			downVoteButton->Appearance.BackgroundHover = (ui::Colour(128, 20, 30, 255));
-			downVoteButton->Appearance.BackgroundInactive = (ui::Colour(108, 0, 10, 255));
-			downVoteButton->Appearance.BackgroundDisabled = (ui::Colour(108, 0, 10, 255));
-		}
-		else
-		{
-			downVoteButton->Appearance.BackgroundHover = (ui::Colour(20, 20, 20));
-			downVoteButton->Appearance.BackgroundInactive = (ui::Colour(0, 0, 0));
-			downVoteButton->Appearance.BackgroundDisabled = (ui::Colour(0, 0, 0));
-		}
+		auto downVoteButtonColor = [this](bool active) {
+			if (active)
+			{
+				downVoteButton->Appearance.BackgroundHover = (ui::Colour(128, 20, 30, 255));
+				downVoteButton->Appearance.BackgroundInactive = (ui::Colour(108, 0, 10, 255));
+				downVoteButton->Appearance.BackgroundDisabled = (ui::Colour(108, 0, 10, 255));
+			}
+			else
+			{
+				downVoteButton->Appearance.BackgroundHover = (ui::Colour(20, 20, 20));
+				downVoteButton->Appearance.BackgroundInactive = (ui::Colour(0, 0, 0));
+				downVoteButton->Appearance.BackgroundDisabled = (ui::Colour(0, 0, 0));
+			}
+		};
+		auto downvoted = sender->GetSave()->GetID() && sender->GetUser().UserID && sender->GetSave()->GetVote() == -1;
+		downVoteButtonColor(downvoted);
 
 		if (sender->GetUser().UserID)
 		{
@@ -832,15 +851,18 @@ void GameView::NotifySaveChanged(GameModel * sender)
 			downVoteButton->Appearance.BorderDisabled = ui::Colour(100, 100, 100);
 		}
 
-		if (sender->GetSave()->GetVote() == 1)
-			upVoteButton->SetActionCallback({ [this] { c->Vote(0); } });
-		else
-			upVoteButton->SetActionCallback({ [this] { c->Vote(1); } });
-
-		if (sender->GetSave()->GetVote() == -1)
-			downVoteButton->SetActionCallback({ [this] { c->Vote(0) ;} });
-		else
-			downVoteButton->SetActionCallback({ [this] { c->Vote(-1) ;} });
+		upVoteButton->SetActionCallback({ [this, upVoteButtonColor, upvoted] {
+			upVoteButtonColor(true);
+			upVoteButton->SetToolTip("Saving vote...");
+			upVoteButton->Appearance.BackgroundPulse = true;
+			c->Vote(upvoted ? 0 : 1);
+		} });
+		downVoteButton->SetActionCallback({ [this, downVoteButtonColor, downvoted] {
+			downVoteButtonColor(true);
+			downVoteButton->SetToolTip("Saving vote...");
+			downVoteButton->Appearance.BackgroundPulse = true;
+			c->Vote(downvoted ? 0 : -1);
+		} });
 
 		tagSimulationButton->Enabled = sender->GetSave()->GetID();
 		if (sender->GetSave()->GetID())
@@ -1701,7 +1723,7 @@ void GameView::SkipIntroText()
 	introText = 0;
 }
 
-void GameView::OnTick(float dt)
+void GameView::OnTick()
 {
 	if (selectMode == PlaceSave && !placeSaveThumb)
 		selectMode = SelectNone;
@@ -1759,53 +1781,31 @@ void GameView::OnTick(float dt)
 		}
 	}
 
-	if(introText)
-	{
-		introText -= int(dt)>0?(int(dt) < 5? int(dt):5):1;
-		if(introText < 0)
-			introText  = 0;
-	}
-	if(infoTipPresence>0)
-	{
-		infoTipPresence -= int(dt)>0?int(dt):1;
-		if(infoTipPresence<0)
-			infoTipPresence = 0;
-	}
 	if (isButtonTipFadingIn || (selectMode != PlaceSave && selectMode != SelectNone))
 	{
 		isButtonTipFadingIn = false;
-		if(buttonTipShow < 120)
-		{
-			buttonTipShow += int(dt*2)>0?int(dt*2):1;
-			if(buttonTipShow>120)
-				buttonTipShow = 120;
-		}
+		buttonTipShow.SetTarget(120);
 	}
-	else if(buttonTipShow>0)
+	else
 	{
-		buttonTipShow -= int(dt)>0?int(dt):1;
-		if(buttonTipShow<0)
-			buttonTipShow = 0;
+		buttonTipShow.SetTarget(0);
 	}
 	if (isToolTipFadingIn)
 	{
 		isToolTipFadingIn = false;
-		if(toolTipPresence < 120)
-		{
-			toolTipPresence += int(dt*2)>0?int(dt*2):1;
-			if(toolTipPresence>120)
-				toolTipPresence = 120;
-		}
+		toolTipPresence.SetTarget(120);
 	}
-	else if(toolTipPresence>0)
+	else
 	{
-		toolTipPresence -= int(dt)>0?int(dt):1;
-		if(toolTipPresence<0)
-			toolTipPresence = 0;
+		toolTipPresence.SetTarget(0);
 	}
-	c->Update();
 }
 
+void GameView::OnSimTick()
+{
+	c->Update();
+	wantFrame = true;
+}
 
 void GameView::DoMouseMove(int x, int y, int dx, int dy)
 {
@@ -2142,10 +2142,13 @@ void GameView::RenderSimulation(const RenderableSimulation &sim, bool handleEven
 		std::unique_lock lk(sd.elementGraphicsMx);
 		ren->RenderSimulation();
 	}
-	if (handleEvents)
-	{
-		c->AfterSimDraw();
-	}
+	ren->sim = nullptr;
+}
+
+void GameView::AfterSimDraw(const RenderableSimulation &sim)
+{
+	ren->sim = &sim;
+	c->AfterSimDraw();
 	ren->sim = nullptr;
 }
 
@@ -2154,22 +2157,28 @@ void GameView::OnDraw()
 	Graphics * g = GetGraphics();
 
 	auto threadedRenderingAllowed = c->ThreadedRenderingAllowed();
-	if (threadedRenderingAllowed)
+	if (wantFrame)
 	{
-		StartRendererThread();
-		WaitForRendererThread();
-		foundParticles = ren->GetFoundParticles();
-		*rendererThreadResult = ren->GetVideo();
-		rendererFrame = rendererThreadResult.get();
-		DispatchRendererThread();
-	}
-	else
-	{
-		PauseRendererThread();
-		ren->ApplySettings(*rendererSettings);
-		RenderSimulation(*sim, true);
-		foundParticles = ren->GetFoundParticles();
-		rendererFrame = &ren->GetVideo();
+		wantFrame = false;
+		if (threadedRenderingAllowed)
+		{
+			StartRendererThread();
+			WaitForRendererThread();
+			AfterSimDraw(*sim);
+			foundParticles = ren->GetFoundParticles();
+			*rendererThreadResult = ren->GetVideo();
+			rendererFrame = rendererThreadResult.get();
+			DispatchRendererThread();
+		}
+		else
+		{
+			PauseRendererThread();
+			ren->ApplySettings(*rendererSettings);
+			RenderSimulation(*sim, true);
+			AfterSimDraw(*sim);
+			foundParticles = ren->GetFoundParticles();
+			rendererFrame = &ren->GetVideo();
+		}
 	}
 
 	std::copy_n(rendererFrame->data(), rendererFrame->Size().X * rendererFrame->Size().Y, g->Data());
@@ -2531,18 +2540,13 @@ void GameView::OnDraw()
 		{
 			fpsInfo << "\nSimulation";
 			fpsInfo << "\n  FPS cap: ";
-			auto fpsLimit = ui::Engine::Ref().GetFpsLimit();
-			if (std::holds_alternative<FpsLimitVsync>(fpsLimit))
-			{
-				fpsInfo << "vsync";
-			}
-			else if (std::holds_alternative<FpsLimitNone>(fpsLimit))
+			if (std::holds_alternative<FpsLimitNone>(simFpsLimit))
 			{
 				fpsInfo << "none";
 			}
 			else
 			{
-				fpsInfo << std::get<FpsLimitExplicit>(fpsLimit).value;
+				fpsInfo << std::get<FpsLimitExplicit>(simFpsLimit).value;
 			}
 		}
 		if (c->GetDebugFlags() & DEBUG_RENHUD)
@@ -2585,13 +2589,13 @@ void GameView::OnDraw()
 				fpsInfo << "hindered";
 			}
 			fpsInfo << "\n  Refresh rate: ";
-			if (auto refreshRate = ui::Engine::Ref().GetRefreshRate())
+			auto refreshRate = ui::Engine::Ref().GetRefreshRate();
+			fpsInfo << std::visit([](auto &refreshRate) {
+				return refreshRate.value;
+			}, refreshRate);
+			if (std::holds_alternative<RefreshRateDefault>(refreshRate))
 			{
-				fpsInfo << *refreshRate;
-			}
-			else
-			{
-				fpsInfo << "unknown";
+				fpsInfo << " (default)";
 			}
 		}
 
@@ -2604,7 +2608,7 @@ void GameView::OnDraw()
 	//Tooltips
 	if(infoTipPresence)
 	{
-		int infoTipAlpha = (infoTipPresence>50?50:infoTipPresence)*5;
+		int infoTipAlpha = (infoTipPresence>50?50:int(infoTipPresence))*5;
 		g->BlendTextOutline({ (XRES - (Graphics::TextSize(infoTip).X - 1)) / 2, YRES / 2 - 2 }, infoTip, 0xFFFFFF_rgb .WithAlpha(infoTipAlpha));
 	}
 
@@ -2782,4 +2786,29 @@ void GameView::WaitForRendererThread()
 	rendererThreadCv.wait(lk, [this]() {
 		return !rendererThreadOwnsRenderer;
 	});
+}
+
+void GameView::ApplySimFpsLimit()
+{
+	if (std::holds_alternative<FpsLimitNone>(simFpsLimit))
+	{
+		if (c->GetPaused())
+		{
+			SetFpsLimit(FpsLimitFollowDraw{});
+		}
+		else
+		{
+			SetFpsLimit(FpsLimitNone{});
+		}
+	}
+	else
+	{
+		SetFpsLimit(std::get<FpsLimitExplicit>(simFpsLimit));
+	}
+}
+
+void GameView::SetSimFpsLimit(SimFpsLimit newSimFpsLimit)
+{
+	simFpsLimit = newSimFpsLimit;
+	ApplySimFpsLimit();
 }

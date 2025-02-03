@@ -6,6 +6,7 @@
 #include "graphics/Graphics.h"
 #include "common/platform/Platform.h"
 #include "common/clipboard/Clipboard.h"
+#include "FrameSchedule.h"
 #include <iostream>
 
 int desktopWidth = 1280;
@@ -17,8 +18,6 @@ bool vsyncHint = false;
 WindowFrameOps currentFrameOps;
 bool momentumScroll = true;
 bool showAvatars = true;
-uint64_t lastTick = 0;
-uint64_t lastFpsUpdate = 0;
 bool showLargeScreenDialog = false;
 int mousex = 0;
 int mousey = 0;
@@ -27,46 +26,12 @@ bool mouseDown = false;
 bool calculatedInitialMouse = false;
 bool hasMouseMoved = false;
 double correctedFrameTimeAvg = 0;
+static bool prevContributesToFps = false;
 
-class FrameSchedule
-{
-	uint64_t startNs = 0;
-	uint64_t oldStartNs = 0;
-
-public:
-	void SetNow(uint64_t nowNs)
-	{
-		oldStartNs = startNs;
-		startNs = nowNs;
-	}
-
-	uint64_t GetNow() const
-	{
-		return startNs;
-	}
-
-	uint64_t GetFrameTime() const
-	{
-		return startNs - oldStartNs;
-	}
-
-	uint64_t Arm(float fps)
-	{
-		auto oldNowNs = startNs;
-		auto timeBlockDurationNs = uint64_t(UINT64_C(1'000'000'000) / fps);
-		auto oldStartTimeBlock = oldStartNs / timeBlockDurationNs;
-		auto startTimeBlock = oldStartTimeBlock + 1U;
-		startNs = std::max(startNs, startTimeBlock * timeBlockDurationNs);
-		return startNs - oldNowNs;
-	}
-
-	bool HasElapsed(uint64_t nowNs) const
-	{
-		return nowNs >= startNs;
-	}
-};
 static FrameSchedule tickSchedule;
 static FrameSchedule drawSchedule;
+static FrameSchedule clientTickSchedule;
+static FrameSchedule fpsUpdateSchedule;
 
 void StartTextInput()
 {
@@ -121,6 +86,11 @@ unsigned int GetTicks()
 	return SDL_GetTicks();
 }
 
+uint64_t GetNowNs()
+{
+	return uint64_t(SDL_GetTicks()) * UINT64_C(1'000'000);
+}
+
 static void CalculateMousePosition(int *x, int *y)
 {
 	int globalMx, globalMy;
@@ -146,14 +116,14 @@ void blit(pixel *vid)
 
 void UpdateRefreshRate()
 {
-	std::optional<int> refreshRate;
+	RefreshRate refreshRate;
 	int displayIndex = SDL_GetWindowDisplayIndex(sdl_window);
 	if (displayIndex >= 0)
 	{
 		SDL_DisplayMode displayMode;
 		if (!SDL_GetCurrentDisplayMode(displayIndex, &displayMode) && displayMode.refresh_rate)
 		{
-			refreshRate = displayMode.refresh_rate;
+			refreshRate = RefreshRateQueried{ displayMode.refresh_rate };
 		}
 	}
 	ui::Engine::Ref().SetRefreshRate(refreshRate);
@@ -204,7 +174,7 @@ void SDLClose()
 void SDLSetScreen()
 {
 	auto newFrameOps = ui::Engine::Ref().windowFrameOps;
-	auto newVsyncHint = std::holds_alternative<FpsLimitVsync>(ui::Engine::Ref().GetFpsLimit());
+	auto newVsyncHint = false; // TODO: DrawLimitVsync
 	if (FORCE_WINDOW_FRAME_OPS == forceWindowFrameOpsEmbedded)
 	{
 		newFrameOps.resizable = false;
@@ -319,7 +289,7 @@ void SDLSetScreen()
 		SDL_SetWindowSize(sdl_window, size.X, size.Y);
 		LoadWindowPosition();
 	}
-	UpdateFpsLimit();
+	ApplyFpsLimit();
 	if (newFrameOpsNorm.fullscreen)
 	{
 		SDL_RaiseWindow(sdl_window);
@@ -450,21 +420,26 @@ static void EventProcess(const SDL_Event &event)
 	}
 }
 
-void EngineProcess()
+std::optional<uint64_t> EngineProcess()
 {
 	auto &engine = ui::Engine::Ref();
-	auto correctedFrameTime = tickSchedule.GetFrameTime();
-	correctedFrameTimeAvg = correctedFrameTimeAvg + (correctedFrameTime - correctedFrameTimeAvg) * 0.05;
-	if (correctedFrameTime && tickSchedule.GetNow() - lastFpsUpdate > UINT64_C(200'000'000))
+
 	{
-		engine.SetFps(1e9f / correctedFrameTimeAvg);
-		lastFpsUpdate = tickSchedule.GetNow();
+		auto nowNs = GetNowNs();
+		if (clientTickSchedule.HasElapsed(nowNs))
+		{
+			TickClient();
+			clientTickSchedule.SetNow(nowNs);
+		}
+		clientTickSchedule.Arm(10);
+		if (fpsUpdateSchedule.HasElapsed(nowNs))
+		{
+			engine.SetFps(1e9f / correctedFrameTimeAvg);
+			fpsUpdateSchedule.SetNow(nowNs);
+		}
+		fpsUpdateSchedule.Arm(5);
 	}
-	if (tickSchedule.GetNow() - lastTick > UINT64_C(100'000'000))
-	{
-		lastTick = tickSchedule.GetNow();
-		TickClient();
-	}
+
 	if (showLargeScreenDialog)
 	{
 		showLargeScreenDialog = false;
@@ -477,31 +452,58 @@ void EngineProcess()
 		EventProcess(event);
 	}
 
-	engine.Tick();
-
+	std::optional<uint64_t> delay;
+	auto nowNs = GetNowNs();
+	auto effectiveDrawLimit = engine.GetEffectiveDrawCap();
+	auto doDraw = !effectiveDrawLimit || drawSchedule.HasElapsed(nowNs);
+	auto fpsLimit = ui::Engine::Ref().GetFpsLimit();
+	auto doSimTick = true;
+	if (std::holds_alternative<FpsLimitExplicit>(fpsLimit))
 	{
-		auto drawLimit = ui::Engine::Ref().GetDrawingFrequencyLimit();
-		auto nowNs = uint64_t(SDL_GetTicks()) * UINT64_C(1'000'000);
-		auto effectiveDrawLimit = engine.GetEffectiveDrawCap();
-		if (!effectiveDrawLimit || drawSchedule.HasElapsed(nowNs))
-		{
-			engine.Draw();
-			drawSchedule.SetNow(nowNs);
-			if (effectiveDrawLimit)
-			{
-				drawSchedule.Arm(float(*effectiveDrawLimit));
-			}
-			SDLSetScreen();
-			blit(engine.g->Data());
-		}
+		doSimTick = tickSchedule.HasElapsed(nowNs);
 	}
+	else if (std::holds_alternative<FpsLimitFollowDraw>(fpsLimit))
 	{
-		auto fpsLimit = ui::Engine::Ref().GetFpsLimit();
-		auto nowNs = uint64_t(SDL_GetTicks()) * UINT64_C(1'000'000);
+		doSimTick = doDraw;
+	}
+	if (doDraw)
+	{
+		engine.Tick();
+	}
+	if (doSimTick)
+	{
+		auto thisContributesToFps = engine.GetContributesToFps();
+		if (prevContributesToFps && thisContributesToFps)
+		{
+			auto correctedFrameTime = tickSchedule.GetFrameTime();
+			correctedFrameTimeAvg = correctedFrameTimeAvg + (correctedFrameTime - correctedFrameTimeAvg) * 0.05;
+		}
+		prevContributesToFps = thisContributesToFps;
+		engine.SimTick();
 		tickSchedule.SetNow(nowNs);
-		if (auto *fpsLimitExplicit = std::get_if<FpsLimitExplicit>(&fpsLimit))
+	}
+	if (doDraw)
+	{
+		engine.Draw();
+		drawSchedule.SetNow(nowNs);
+		SDLSetScreen();
+		blit(engine.g->Data());
+	}
+	if (effectiveDrawLimit)
+	{
+		delay = drawSchedule.Arm(float(*effectiveDrawLimit)) / UINT64_C(1'000'000);
+	}
+	if (auto *fpsLimitExplicit = std::get_if<FpsLimitExplicit>(&fpsLimit))
+	{
+		auto simDelay = tickSchedule.Arm(fpsLimitExplicit->value) / UINT64_C(1'000'000);
+		if (delay.has_value() && simDelay < *delay)
 		{
-			SDL_Delay(tickSchedule.Arm(fpsLimitExplicit->value) / UINT64_C(1'000'000));
+			delay = simDelay;
 		}
 	}
+	else if (std::holds_alternative<FpsLimitNone>(fpsLimit))
+	{
+		delay.reset();
+	}
+	return delay;
 }

@@ -26,6 +26,7 @@ Window::Window(Point _position, Point _size):
 	destruct(false),
 	stop(false)
 {
+	SetFps(1);
 }
 
 Window::~Window()
@@ -228,7 +229,7 @@ void Window::DoDraw()
 	}
 }
 
-void Window::DoTick(float dt)
+void Window::DoTick()
 {
 	if (debugMode)
 		return;
@@ -259,16 +260,21 @@ void Window::DoTick(float dt)
 	//tick
 	for (int i = 0, sz = Components.size(); i < sz && !halt; ++i)
 	{
-		Components[i]->Tick(dt);
+		Components[i]->Tick();
 	}
 
 	halt = false;
 	stop = false;
 
-	OnTick(dt);
+	OnTick();
 
 	if (destruct)
 		finalise();
+}
+
+void Window::DoSimTick()
+{
+	OnSimTick();
 }
 
 void Window::DoKeyPress(int key, int scan, bool repeat, bool shift, bool ctrl, bool alt)
@@ -605,3 +611,12 @@ void Window::Halt()
 	halt = true;
 }
 
+void Window::SetFps(float newFps)
+{
+	fps = newFps;
+}
+
+void Window::SetFpsLimit(FpsLimit newFpsLimit)
+{
+	fpsLimit = newFpsLimit;
+}

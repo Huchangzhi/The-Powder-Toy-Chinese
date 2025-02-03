@@ -1018,7 +1018,7 @@ void GameModel::SetPaused(bool pauseState)
 	notifyPausedChanged();
 }
 
-bool GameModel::GetPaused()
+bool GameModel::GetPaused() const
 {
 	return sim->sys_pause?true:false;
 }
@@ -1164,7 +1164,7 @@ void GameModel::Log(String message, bool printToFile)
 		consoleLog.pop_back();
 	notifyLogChanged(message);
 	if (printToFile)
-		std::cout << message.ToUtf8() << std::endl;
+		std::cout << format::CleanString(message, false, true, false).ToUtf8() << std::endl;
 }
 
 std::deque<String> GameModel::GetLog()

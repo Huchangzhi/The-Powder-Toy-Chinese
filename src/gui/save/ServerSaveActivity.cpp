@@ -351,7 +351,7 @@ void ServerSaveActivity::CheckName(String newname)
 		titleLabel->SetText(ByteString("保存到云端").FromUtf8());
 }
 
-void ServerSaveActivity::OnTick(float dt)
+void ServerSaveActivity::OnTick()
 {
 	if (thumbnailRenderer)
 	{

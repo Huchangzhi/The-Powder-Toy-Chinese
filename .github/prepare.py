@@ -61,19 +61,22 @@ if int(build_options['mod_id']) == 0 and os.path.exists('.github/mod_id.txt'):
 	with open('.github/mod_id.txt') as f:
 		build_options['mod_id'] = f.read()
 
+steam_builds = False
 if int(build_options['mod_id']) == 0:
 	if release_type == 'stable':
-		pass
+		steam_builds = True
 	elif release_type == 'beta':
 		build_options['app_name'   ] += ' Beta'
 		build_options['app_comment'] += ' - Beta'
 		build_options['app_exe'    ] += 'beta'
 		build_options['app_id'     ] += 'beta'
+		steam_builds = True
 	elif release_type == 'snapshot':
 		build_options['app_name'   ] += ' Snapshot'
 		build_options['app_comment'] += ' - Snapshot'
 		build_options['app_exe'    ] += 'snapshot'
 		build_options['app_id'     ] += 'snapshot'
+		steam_builds = True
 	else:
 		build_options['app_name'   ] += ' Dev'
 		build_options['app_comment'] += ' - Dev'
@@ -104,6 +107,11 @@ for        arch,     platform,         libc,   statdyn, bplatform,         runso
 	(  'x86_64',      'linux',        'gnu', 'dynamic',   'linux', 'ubuntu-22.04',     '',         'check',      None,     'nohttp',                     None,   'debug',       10, False ),
 	(  'x86_64',      'linux',        'gnu', 'dynamic',   'linux', 'ubuntu-22.04',     '',         'check',      None,      'nolua',                     None,   'debug',       10, False ),
 	(  'x86_64',      'linux',        'gnu', 'dynamic',   'linux', 'ubuntu-22.04',     '',         'check',      None,         None,                     None, 'release',       10, False ),
+	( 'aarch64',      'linux',        'gnu',  'static',   'linux', 'ubuntu-22.04-arm', '',         'check',      None,         None,                     None,   'debug',        0, False ), # priority = 0: static debug build
+	( 'aarch64',      'linux',        'gnu',  'static',   'linux', 'ubuntu-22.04-arm', '',       'publish',    '.dbg',         None,   'arm64-lin-gcc-static', 'release',       10, False ),
+	( 'aarch64',      'linux',        'gnu',  'static',   'linux', 'ubuntu-22.04-arm', '',       'archive',    '.dbg',   'appimage',                     None, 'release',        0, False ), # priority = 0: appimage release
+	( 'aarch64',      'linux',        'gnu', 'dynamic',   'linux', 'ubuntu-22.04-arm', '',         'check',      None,         None,                     None,   'debug',       10, False ),
+	( 'aarch64',      'linux',        'gnu', 'dynamic',   'linux', 'ubuntu-22.04-arm', '',         'check',      None,         None,                     None, 'release',       10, False ),
 #	(  'x86_64',    'windows',      'mingw',  'static',   'linux', 'ubuntu-22.04',     '',         'check',      None,         None,                     None,   'debug',       10, False ), # ubuntu-22.04 doesn't have windows TLS headers somehow and I haven't yet figured out how to get them; worse, it's a different toolchain
 #	(  'x86_64',    'windows',      'mingw',  'static',   'linux', 'ubuntu-22.04',     '',       'archive',    '.dbg',         None,                     None, 'release',       10, False ), # ubuntu-22.04 doesn't have windows TLS headers somehow and I haven't yet figured out how to get them; worse, it's a different toolchain
 #	(  'x86_64',    'windows',      'mingw', 'dynamic',   'linux', 'ubuntu-22.04',     '',         'check',      None,         None,                     None,   'debug',       10, False ), # ubuntu-22.04 doesn't have ucrt64-capable mingw >_>
@@ -144,7 +152,7 @@ for        arch,     platform,         libc,   statdyn, bplatform,         runso
 	( 'aarch64',    'android',     'bionic',  'static',   'linux', 'ubuntu-22.04', '.apk',         'check',      None,         None,                     None,   'debug',        0, False ), # priority = 0: rarely used debug build
 	( 'aarch64',    'android',     'bionic',  'static',   'linux', 'ubuntu-22.04', '.apk',       'publish',    '.dbg',         None,   'arm64-and-gcc-static', 'release',       10,  True ),
 	(  'wasm32', 'emscripten', 'emscripten',  'static',   'linux', 'ubuntu-22.04', '.tar',         'check',      None,         None,                     None,   'debug',        0, False ), # priority = 0: rarely used debug build
-	(  'wasm32', 'emscripten', 'emscripten',  'static',   'linux', 'ubuntu-22.04', '.tar',       'publish',      None, 'emscripten',      'wasm32-ems-static', 'release',       10, False ), # I have no idea how to separate debug info on emscripten, TODO: enable lint once emscripten ships clang-tidy
+	(  'wasm32', 'emscripten', 'emscripten',  'static',   'linux', 'ubuntu-22.04', '.tar',       'publish','.dbg.wasm','emscripten',      'wasm32-ems-static', 'release',       10, False ), # TODO: enable lint once emscripten ships clang-tidy
 ]:
 	if priority < do_priority:
 		continue
@@ -167,6 +175,8 @@ for        arch,     platform,         libc,   statdyn, bplatform,         runso
 		starcatcher = 'BOGUS'
 	job_release_name = release_name
 	if mode == 'steam':
+		if not steam_builds:
+			continue
 		job_release_name += '+steam'
 		job_name += '+steam'
 	artifact = False

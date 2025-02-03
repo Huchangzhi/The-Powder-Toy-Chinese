@@ -1,4 +1,4 @@
-The Powder Toy - December 2024
+The Powder Toy - February 2025
 ==========================
 
 从[Powder Toy 网站](https://powdertoy.co.uk/Download.html) 获取最新版本
@@ -18,11 +18,11 @@ Powder Toy 是一款免费的物理沙盒游戏，它模拟气压和速度、热
 
 请参阅 [WIKI 主页上的](https://powdertoy.co.uk/Wiki/W/Main_Page.html) Powder Toy Development Help部分
 
-感谢
+Special 感谢
 ===========================================================================
 
-* Stanislaw K Skowronek - 设计原作
-* Simon Robertshaw
+* Stanislaw K Skowronek - 设计原作 Powder Toy
+* Simon Robertshaw - Wrote the website, current server owner
 * Skresanov Savely
 * Pilihp64
 * Catelite
