@@ -782,8 +782,8 @@ void GameView::NotifyInfoTipChanged(GameModel * sender)
 
 void GameView::ResetVoteButtons()
 {
-	upVoteButton->SetToolTip("Like this save");
-	downVoteButton->SetToolTip("Dislike this save");
+	upVoteButton->SetToolTip( ByteString("赞").FromUtf8());
+	downVoteButton->SetToolTip( ByteString("踩").FromUtf8());
 	upVoteButton->Appearance.BackgroundPulse = false;
 	downVoteButton->Appearance.BackgroundPulse = false;
 }

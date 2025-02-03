@@ -277,7 +277,7 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 		fastquit = addCheckbox(0, ByteString("快速退出").FromUtf8(), ByteString("点击关闭按钮时总是完全退出游戏").FromUtf8(), [this] {
 			c->SetFastQuit(fastquit->GetChecked());
 		});
-		globalQuit = addCheckbox(0, "Global quit shortcut", "Ctrl+q works everywhere", [this] {
+		globalQuit = addCheckbox(0, ByteString("全局退出快捷键").FromUtf8(), ByteString("使Ctrl+q 全局有效").FromUtf8(), [this] {
 			c->SetGlobalQuit(globalQuit->GetChecked());
 		});
 	}
@@ -296,7 +296,7 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 	perfectCircle = addCheckbox(0, ByteString("完美的圆").FromUtf8(), ByteString("由Notch创造的最完美的圆").FromUtf8(), [this] {
 		c->SetPerfectCircle(perfectCircle->GetChecked());
 	});
-	graveExitsConsole = addCheckbox(0, "Key under Esc exits console", "Disable if that key is 0 on your keyboard", [this] {
+	graveExitsConsole = addCheckbox(0, ByteString("Esc键下方的键用于退出控制台").FromUtf8(), ByteString("如果该键是0,请禁用此功能").FromUtf8(), [this] {
 		c->SetGraveExitsConsole(graveExitsConsole->GetChecked());
 	});
 	if constexpr (PLATFORM_CLIPBOARD)
@@ -312,7 +312,7 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 		}
 		currentY += 4; // and then undo the undo
 	}
-	threadedRendering = addCheckbox(0, "Separate rendering thread", "May increase framerate when fancy effects are in use", [this] {
+	threadedRendering = addCheckbox(0, ByteString("启用独立渲染线程").FromUtf8(), ByteString("使用特效时可能提升帧率").FromUtf8(), [this] {
 		c->SetThreadedRendering(threadedRendering->GetChecked());
 	});
 	decoSpace = addDropDown(ByteString("\bg装饰工具使用的颜色空间").FromUtf8(), {
@@ -355,12 +355,12 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 		}
 		currentY += 26;
 	}
-	String autoStartupRequestNote = "Done once at startup";
+	String autoStartupRequestNote = ByteString("启动时完成").FromUtf8();
 	if (!IGNORE_UPDATES)
 	{
-		autoStartupRequestNote += ", also checks for updates";
+		autoStartupRequestNote += ByteString(", 保持检查更新").FromUtf8();
 	}
-	autoStartupRequest = addCheckbox(0, "Fetch the message of the day and notifications", autoStartupRequestNote, [this] {
+	autoStartupRequest = addCheckbox(0, ByteString("获取当天的消息和通知").FromUtf8(), autoStartupRequestNote, [this] {
 		auto checked = autoStartupRequest->GetChecked();
 		if (checked)
 		{
@@ -368,7 +368,7 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 		}
 		c->SetAutoStartupRequest(checked);
 	});
-	auto *doStartupRequest = new ui::Button(ui::Point(10, currentY), ui::Point(90, 16), "Fetch them now");
+	auto *doStartupRequest = new ui::Button(ui::Point(10, currentY), ui::Point(90, 16), ByteString("立刻获取").FromUtf8());
 	doStartupRequest->SetActionCallback({ [] {
 		Client::Ref().BeginStartupRequest();
 	} });
@@ -376,7 +376,7 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 	startupRequestStatus = addLabel(5, "");
 	UpdateStartupRequestStatus();
 	currentY += 13;
-	redirectStd = addCheckbox(0, "Save errors and other messages to a file", "Developers may ask for this when trying to fix problems", [this] {
+	redirectStd = addCheckbox(0, ByteString("将错误等信息保存至文件").FromUtf8(), ByteString("便于开发者排查问题").FromUtf8(), [this] {
 		c->SetRedirectStd(redirectStd->GetChecked());
 	});
 
@@ -390,7 +390,7 @@ OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
 		} });
 		scrollPanel->AddChild(creditsButton);
 
-		addLabel(5, " - Find out who contributed to TPT");
+		addLabel(5,  ByteString(" - 查看谁为TPT做出了贡献").FromUtf8());
 		currentY += 13;
 	}
 
