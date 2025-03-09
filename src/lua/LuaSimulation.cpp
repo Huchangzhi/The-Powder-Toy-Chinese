@@ -206,6 +206,14 @@ static int gravityMass(lua_State *L)
 	});
 }
 
+static int gravityMask(lua_State *L)
+{
+	auto *lsi = GetLSI();
+	return LuaBlockMap(L, [lsi](Vec2<int> p) -> uint32_t & {
+		return lsi->sim->gravIn.mask[p];
+	});
+}
+
 static int gravityField(lua_State *L)
 {
 	auto *lsi = GetLSI();
@@ -701,8 +709,8 @@ static int toolBox(lua_State *L)
 	int tool = luaL_optint(L,5,0);
 	float strength = luaL_optnumber(L,6,1.0f);
 	int brushID = luaL_optint(L,7,BRUSH_CIRCLE);
-	int rx = luaL_optint(L,5,0);
-	int ry = luaL_optint(L,6,0);
+	int rx = luaL_optint(L,8,0);
+	int ry = luaL_optint(L,9,0);
 	auto *lsi = GetLSI();
 	Brush *brush = lsi->gameModel->GetBrushByID(brushID);
 	if (!brush)
@@ -864,7 +872,7 @@ static int resetTemp(lua_State *L)
 	bool onlyConductors = luaL_optint(L, 1, 0);
 	for (int i = 0; i < sim->parts.lastActiveIndex; i++)
 	{
-		if (sim->parts[i].type && (elements[sim->parts[i].type].HeatConduct || !onlyConductors))
+		if (sim->parts[i].type && (!onlyConductors || !sim->IsHeatInsulator(sim->parts[i])))
 		{
 			sim->parts[i].temp = elements[sim->parts[i].type].DefaultProperties.temp;
 		}
@@ -1931,6 +1939,7 @@ void LuaSimulation::Open(lua_State *L)
 		LFUNC(ensureDeterminism),
 		LFUNC(paused),
 		LFUNC(gravityMass),
+		LFUNC(gravityMask),
 		LFUNC(gravityField),
 		LFUNC(resetSpark),
 		LFUNC(resetVelocity),
