@@ -36,6 +36,10 @@ with open('build-prepare/meson-info/intro-projectinfo.json') as f:
 		display_version = display_version_split[0]
 display_version = display_version.split('.')
 
+# 设置版本号
+version = f"{display_version[0]}.{display_version[1]}.{display_version[2]}"
+set_output('version', version)
+
 if event_name == 'pull_request':
 	do_priority = 0
 if match_stable:
@@ -70,7 +74,10 @@ else:
 	release_name = f'dev-v{display_version[0]}.{display_version[1]}.{display_version[2]} ({current_date})'
 	if match_alljobs:
 		do_priority = -5
-do_publish = publish_hostport and do_release
+		do_release = True
+
+# 设置 do_publish
+do_publish = do_release
 
 set_output('release_type', release_type)
 set_output('release_name', release_name)
