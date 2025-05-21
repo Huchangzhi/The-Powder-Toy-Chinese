@@ -2530,9 +2530,18 @@ void GameView::OnDraw()
 		if (showDebug)
 		{
 			if (rendererSettings->findingElement)
-				fpsInfo << " Parts: " << foundParticles << "/" << sample.NumParts;
+				fpsInfo << ByteString(" 元素数目: ").FromUtf8() << rendererStats.foundParticles << "/" << sample.NumParts;
 			else
 				fpsInfo << ByteString(" 元素数目: ").FromUtf8() << sample.NumParts;
+		}
+		if ((std::holds_alternative<HdispLimitAuto>(rendererSettings->wantHdispLimitMin) ||
+		     std::holds_alternative<HdispLimitAuto>(rendererSettings->wantHdispLimitMax)) && rendererStats.hdispLimitValid)
+		{
+			fpsInfo << " [TEMP L:";
+			format::RenderTemperature(fpsInfo, rendererStats.hdispLimitMin, c->GetTemperatureScale());
+			fpsInfo << " H:";
+			format::RenderTemperature(fpsInfo, rendererStats.hdispLimitMax, c->GetTemperatureScale());
+			fpsInfo << "]";
 		}
 		if ((std::holds_alternative<HdispLimitAuto>(rendererSettings->wantHdispLimitMin) ||
 		     std::holds_alternative<HdispLimitAuto>(rendererSettings->wantHdispLimitMax)) && rendererStats.hdispLimitValid)
