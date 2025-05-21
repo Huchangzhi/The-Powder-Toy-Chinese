@@ -13,6 +13,9 @@ def set_output(key, value):
 	with open(os.getenv('GITHUB_OUTPUT'), 'a') as f:
 		f.write(f"{key}={value}\n")
 
+# 获取当前日期
+current_date = datetime.datetime.now().strftime('%Y-%m-%d')
+
 match_stable     = re.fullmatch(r'refs/tags/v([0-9]+)\.([0-9]+)\.([0-9]+)', ref)
 match_beta       = re.fullmatch(r'refs/tags/v([0-9]+)\.([0-9]+)\.([0-9]+)b', ref)
 match_snapshot   = re.fullmatch(r'refs/tags/snapshot-([0-9]+)', ref)
@@ -23,6 +26,16 @@ do_priority      = 10
 display_version_major = None
 display_version_minor = None
 build_num             = None
+
+# 获取版本号
+subprocess.run([ 'meson', 'setup', '-Dprepare=true', 'build-prepare' ], check = True)
+with open('build-prepare/meson-info/intro-projectinfo.json') as f:
+	display_version = json.loads(f.read())['version']
+	display_version_split = display_version.split('-')
+	if len(display_version_split) == 3:
+		display_version = display_version_split[0]
+display_version = display_version.split('.')
+
 if event_name == 'pull_request':
 	do_priority = 0
 if match_stable:
@@ -30,7 +43,7 @@ if match_stable:
 	display_version_minor = match_stable.group(2)
 	build_num = match_stable.group(3)
 	release_type = 'stable'
-	release_name = f'v{display_version_major}.{display_version_minor}.{build_num}'
+	release_name = f'v{display_version_major}.{display_version_minor}.{build_num} ({current_date})'
 	do_release = True
 	do_priority = -5
 elif match_beta:
@@ -38,23 +51,23 @@ elif match_beta:
 	display_version_minor = match_beta.group(2)
 	build_num = match_beta.group(3)
 	release_type = 'beta'
-	release_name = f'v{display_version_major}.{display_version_minor}.{build_num}b'
+	release_name = f'v{display_version_major}.{display_version_minor}.{build_num}b ({current_date})'
 	do_release = True
 	do_priority = -5
 elif match_snapshot:
 	build_num = match_snapshot.group(1)
 	release_type = 'snapshot'
-	release_name = f'snapshot-{build_num}'
+	release_name = f'snapshot-{build_num} ({current_date})'
 	do_release = True
 	do_priority = -5
 elif match_tptlibsdev:
 	branch = match_tptlibsdev.group(1)
 	release_type = 'tptlibsdev'
-	release_name = f'tptlibsdev-{branch}'
+	release_name = f'tptlibsdev-{branch} ({current_date})'
 	do_priority = 0
 else:
 	release_type = 'dev'
-	release_name = 'dev'
+	release_name = f'dev-v{display_version[0]}.{display_version[1]}.{display_version[2]} ({current_date})'
 	if match_alljobs:
 		do_priority = -5
 do_publish = publish_hostport and do_release
