@@ -57,7 +57,9 @@ else:
 	release_name = 'dev'
 	if match_alljobs:
 		do_priority = -5
-do_publish = publish_hostport and do_release
+
+# 修改发布逻辑，使所有版本都能自动发布
+do_publish = publish_hostport is not None
 
 set_output('release_type', release_type)
 set_output('release_name', release_name)
@@ -276,5 +278,5 @@ for        arch,     platform,         libc,   statdyn, bplatform,         runso
 
 set_output('build_matrix', json.dumps({ 'include': build_matrix }))
 set_output('publish_matrix', json.dumps({ 'include': publish_matrix }))
-set_output('do_release', do_release and 'yes' or 'no')
-set_output('do_publish', do_publish and 'yes' or 'no')
+set_output('do_release', 'yes' if do_release else 'no')
+set_output('do_publish', 'yes' if do_publish else 'no')

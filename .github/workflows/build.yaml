@@ -8,6 +8,7 @@ on:
       - 'v*.*'
       - 'snapshot-*'
       - 'tptlibsdev-*'
+      - 'dev-*'
   pull_request:
     branches:
       - '*'
