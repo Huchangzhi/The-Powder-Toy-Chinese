@@ -21,6 +21,7 @@ match_beta       = re.fullmatch(r'refs/tags/v([0-9]+)\.([0-9]+)\.([0-9]+)b', ref
 match_snapshot   = re.fullmatch(r'refs/tags/snapshot-([0-9]+)', ref)
 match_tptlibsdev = re.fullmatch(r'refs/heads/tptlibsdev-(.*)', ref)
 match_alljobs    = re.fullmatch(r'refs/heads/(.*)-alljobs', ref)
+match_main       = re.fullmatch(r'refs/heads/main', ref)
 do_release       = False
 do_priority      = 10
 display_version_major = None
@@ -72,7 +73,7 @@ elif match_tptlibsdev:
 else:
 	release_type = 'dev'
 	release_name = f'dev-v{display_version[0]}.{display_version[1]}.{display_version[2]} ({current_date})'
-	if match_alljobs:
+	if match_alljobs or match_main:
 		do_priority = -5
 		do_release = True
 
