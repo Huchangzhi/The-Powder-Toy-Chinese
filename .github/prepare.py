@@ -22,8 +22,7 @@ match_snapshot   = re.fullmatch(r'refs/tags/snapshot-([0-9]+)', ref)
 match_tptlibsdev = re.fullmatch(r'refs/heads/tptlibsdev-(.*)', ref)
 match_alljobs    = re.fullmatch(r'refs/heads/(.*)-alljobs', ref)
 match_main       = re.fullmatch(r'refs/heads/main', ref)
-match_branch     = re.fullmatch(r'refs/heads/(.*)', ref)
-do_release       = True
+do_release       = False
 do_priority      = 10
 display_version_major = None
 display_version_minor = None
@@ -44,13 +43,13 @@ set_output('version', version)
 
 if event_name == 'pull_request':
 	do_priority = 0
-	do_release = False
 if match_stable:
 	display_version_major = match_stable.group(1)
 	display_version_minor = match_stable.group(2)
 	build_num = match_stable.group(3)
 	release_type = 'stable'
 	release_name = f'v{display_version_major}.{display_version_minor}.{build_num} ({current_date})'
+	do_release = True
 	do_priority = -5
 elif match_beta:
 	display_version_major = match_beta.group(1)
@@ -58,33 +57,28 @@ elif match_beta:
 	build_num = match_beta.group(3)
 	release_type = 'beta'
 	release_name = f'v{display_version_major}.{display_version_minor}.{build_num}b ({current_date})'
+	do_release = True
 	do_priority = -5
 elif match_snapshot:
 	build_num = match_snapshot.group(1)
 	release_type = 'snapshot'
 	release_name = f'snapshot-{build_num} ({current_date})'
+	do_release = True
 	do_priority = -5
 elif match_tptlibsdev:
 	branch = match_tptlibsdev.group(1)
 	release_type = 'tptlibsdev'
 	release_name = f'tptlibsdev-{branch} ({current_date})'
 	do_priority = 0
-elif match_main:
-	release_type = 'dev'
-	release_name = f'dev-v{display_version[0]}.{display_version[1]}.{display_version[2]} ({current_date})'
-	do_priority = -5
-elif match_branch:
-	branch = match_branch.group(1)
-	release_type = 'branch'
-	release_name = f'{branch}-v{display_version[0]}.{display_version[1]}.{display_version[2]} ({current_date})'
-	do_priority = 0
 else:
 	release_type = 'dev'
 	release_name = f'dev-v{display_version[0]}.{display_version[1]}.{display_version[2]} ({current_date})'
-	do_priority = 0
+	if match_alljobs or match_main:
+		do_priority = -5
+		do_release = True
 
 # 设置 do_publish
-do_publish = do_release and (release_type in ['stable', 'beta', 'snapshot', 'dev'])
+do_publish = do_release
 
 set_output('release_type', release_type)
 set_output('release_name', release_name)
