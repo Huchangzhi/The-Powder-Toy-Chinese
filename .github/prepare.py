@@ -2,141 +2,72 @@ import datetime
 import json
 import os
 import re
-import subprocess
 import sys
-
-ref = os.getenv('GITHUB_REF')
-event_name = os.getenv('GITHUB_EVENT_NAME')
-publish_hostport = os.getenv('PUBLISH_HOSTPORT')
-
 def set_output(key, value):
-	with open(os.getenv('GITHUB_OUTPUT'), 'a') as f:
-		f.write(f"{key}={value}\n")
-
-# 获取当前日期
+    with open(os.getenv('GITHUB_OUTPUT'), 'a') as f:
+        f.write(f"{key}={value}\n")
+# 手动输入的版本号
+version = os.getenv('INPUT_VERSION').strip()
+if not version:
+    raise SystemExit("No version provided")
+# 去除前缀 'v' 并提取主版本和是否为 beta
+version = version.lstrip('v')
+is_beta = version.endswith('b')
+version_base = version.split('-')[0]
+parts = version_base.split('.')
+if len(parts) != 3:
+    raise SystemExit(f"Invalid version format: {version}. Expected x.x.x or x.x.xb")
+major, minor, patch = parts
+display_version = f"{major}.{minor}.{patch}"
+if is_beta:
+    display_version += "b"
 current_date = datetime.datetime.now().strftime('%Y-%m-%d')
-
-match_stable     = re.fullmatch(r'refs/tags/v([0-9]+)\.([0-9]+)\.([0-9]+)', ref)
-match_beta       = re.fullmatch(r'refs/tags/v([0-9]+)\.([0-9]+)\.([0-9]+)b', ref)
-match_snapshot   = re.fullmatch(r'refs/tags/snapshot-([0-9]+)', ref)
-match_tptlibsdev = re.fullmatch(r'refs/heads/tptlibsdev-(.*)', ref)
-match_alljobs    = re.fullmatch(r'refs/heads/(.*)-alljobs', ref)
-match_main       = re.fullmatch(r'refs/heads/main', ref)
-do_release       = False
-do_priority      = 10
-display_version_major = None
-display_version_minor = None
-build_num             = None
-
-# 获取版本号
-subprocess.run([ 'meson', 'setup', '-Dprepare=true', 'build-prepare' ], check = True)
-with open('build-prepare/meson-info/intro-projectinfo.json') as f:
-	display_version = json.loads(f.read())['version']
-	display_version_split = display_version.split('-')
-	if len(display_version_split) == 3:
-		display_version = display_version_split[0]
-display_version = display_version.split('.')
-
-# 设置版本号
-version = f"{display_version[0]}.{display_version[1]}.{display_version[2]}"
-set_output('version', version)
-
-if event_name == 'pull_request':
-	do_priority = 0
-if match_stable:
-	display_version_major = match_stable.group(1)
-	display_version_minor = match_stable.group(2)
-	build_num = match_stable.group(3)
-	release_type = 'stable'
-	release_name = f'v{display_version_major}.{display_version_minor}.{build_num} ({current_date})'
-	do_release = True
-	do_priority = -5
-elif match_beta:
-	display_version_major = match_beta.group(1)
-	display_version_minor = match_beta.group(2)
-	build_num = match_beta.group(3)
-	release_type = 'beta'
-	release_name = f'v{display_version_major}.{display_version_minor}.{build_num}b ({current_date})'
-	do_release = True
-	do_priority = -5
-elif match_snapshot:
-	build_num = match_snapshot.group(1)
-	release_type = 'snapshot'
-	release_name = f'snapshot-{build_num} ({current_date})'
-	do_release = True
-	do_priority = -5
-elif match_tptlibsdev:
-	branch = match_tptlibsdev.group(1)
-	release_type = 'tptlibsdev'
-	release_name = f'tptlibsdev-{branch} ({current_date})'
-	do_priority = 0
-else:
-	release_type = 'dev'
-	release_name = f'dev-v{display_version[0]}.{display_version[1]}.{display_version[2]} ({current_date})'
-	if match_alljobs or match_main:
-		do_priority = -5
-		do_release = True
-
-# 设置 do_publish
-do_publish = do_release
-
+release_type = 'beta' if is_beta else 'stable'
+release_name = f'{display_version} ({current_date})'
+# 输出基本版本和发行信息
+set_output('version', display_version)
 set_output('release_type', release_type)
 set_output('release_name', release_name)
-
-subprocess.run([ 'meson', 'setup', '-Dprepare=true', 'build-prepare' ], check = True)
-build_options = {}
+set_output('do_release', 'yes')
+set_output('do_publish', 'yes')
+# 加载 meson build options 和 project info
+subprocess.run(['meson', 'setup', '-Dprepare=true', 'build-prepare'], check=True)
 with open('build-prepare/meson-info/intro-buildoptions.json') as f:
-	for option in json.loads(f.read()):
-		build_options[option['name']] = option['value']
+    build_options = {opt['name']: opt['value'] for opt in json.load(f)}
 with open('build-prepare/meson-info/intro-projectinfo.json') as f:
-	display_version = json.loads(f.read())['version']
-	display_version_split = display_version.split('-')
-	if len(display_version_split) == 3:
-		display_version = display_version_split[0]
-display_version = display_version.split('.')
-
-if int(build_options['mod_id']) == 0 and os.path.exists('.github/mod_id.txt'):
-	with open('.github/mod_id.txt') as f:
-		build_options['mod_id'] = f.read()
-mod_id = int(build_options['mod_id'])
-
+    project_info = json.load(f)
+    app_name = project_info['name']
+    app_vendor = build_options.get('app_vendor', 'unknown')
+    app_data = build_options.get('app_data', 'unknown')
+mod_id = build_options.get('mod_id', '0')
+try:
+    mod_id = int(mod_id)
+except ValueError:
+    mod_id = 0
 if mod_id == 0:
-	if display_version_major:
-		assert(display_version_major == display_version[0])
-	if display_version_minor:
-		assert(display_version_minor == display_version[1])
-	if build_num:
-		assert(build_num == display_version[2])
-
-steam_builds = False
-if mod_id == 0:
-	if release_type == 'stable':
-		steam_builds = True
-	elif release_type == 'beta':
-		build_options['app_name'   ] += ' Beta'
-		build_options['app_comment'] += ' - Beta'
-		build_options['app_exe'    ] += 'beta'
-		build_options['app_id'     ] += 'beta'
-		steam_builds = True
-	elif release_type == 'snapshot':
-		build_options['app_name'   ] += ' Snapshot'
-		build_options['app_comment'] += ' - Snapshot'
-		build_options['app_exe'    ] += 'snapshot'
-		build_options['app_id'     ] += 'snapshot'
-		steam_builds = True
-	else:
-		build_options['app_name'   ] += ' Dev'
-		build_options['app_comment'] += ' - Dev'
-		build_options['app_exe'    ] += 'dev'
-		build_options['app_id'     ] += 'dev'
-
-set_output('mod_id'     , str(mod_id))
-set_output('app_name'   , build_options['app_name'   ])
+    app_name_full = app_name
+    app_comment = build_options['app_comment']
+    app_exe = build_options['app_exe']
+    app_id = build_options['app_id']
+    if is_beta:
+        app_name_full += " Beta"
+        app_comment += " - Beta"
+        app_exe += 'beta'
+        app_id += 'beta'
+    else:
+        app_name_full += " Stable"
+    build_options['app_name'] = app_name_full
+    build_options['app_comment'] = app_comment
+    build_options['app_exe'] = app_exe
+    build_options['app_id'] = app_id
+# 写出其他输出变量
+set_output('mod_id', str(mod_id))
+set_output('app_name', build_options['app_name'])
 set_output('app_comment', build_options['app_comment'])
-set_output('app_exe'    , build_options['app_exe'    ])
-set_output('app_id'     , build_options['app_id'     ])
-set_output('app_data'   , build_options['app_data'   ])
-set_output('app_vendor' , build_options['app_vendor' ])
+set_output('app_exe', build_options['app_exe'])
+set_output('app_id', build_options['app_id'])
+set_output('app_data', build_options['app_data'])
+set_output('app_vendor', build_options['app_vendor'])
 
 app_exe = build_options['app_exe']
 app_name = build_options['app_name']
@@ -297,5 +228,5 @@ for        arch,     platform,         libc,   statdyn, bplatform,         runso
 
 set_output('build_matrix', json.dumps({ 'include': build_matrix }))
 set_output('publish_matrix', json.dumps({ 'include': publish_matrix }))
-set_output('do_release', do_release and 'yes' or 'no')
-set_output('do_publish', do_publish and 'yes' or 'no')
+set_output('do_release', 'yes')
+set_output('do_publish', 'yes')
