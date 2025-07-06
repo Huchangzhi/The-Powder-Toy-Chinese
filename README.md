@@ -1,6 +1,8 @@
 The Powder Toy - February 2025
 ==========================
 
+fork from[https://github.com/Dragonrster/The-Powder-Toy-Chinese](https://github.com/Dragonrster/The-Powder-Toy-Chinese)
+
 从[Powder Toy 网站](https://powdertoy.co.uk/Download.html) 获取最新版本
 
 从[汉化 Github](https://github.com/Dragonrster/The-Powder-Toy-Chinese) 获取最新汉化版本
