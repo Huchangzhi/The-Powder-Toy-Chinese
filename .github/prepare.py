@@ -3,6 +3,7 @@ import json
 import os
 import re
 import sys
+import subprocess 
 def set_output(key, value):
     with open(os.getenv('GITHUB_OUTPUT'), 'a') as f:
         f.write(f"{key}={value}\n")
