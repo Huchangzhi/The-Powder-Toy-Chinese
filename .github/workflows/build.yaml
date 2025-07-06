@@ -1,4 +1,5 @@
-name: Full Build and Auto-Release
+name: Manual Build and Release
+
 on:
   workflow_dispatch:
     inputs:
@@ -9,203 +10,56 @@ on:
   push:
     branches:
       - main
-    tags:
-      - 'v*.*'
   pull_request:
     branches:
       - main
+
 permissions:
   contents: write
+
 jobs:
-  prepare:
+  build_and_release:
     runs-on: ubuntu-latest
-    outputs:
-      # 常量输出
-      release_type: 'stable'
-      mod_id: '0'
-      app_name: 'The Powder Toy'
-      app_comment: 'A physics sandbox game'
-      app_exe: 'powder'
-      app_id: 'powder-toy'
-      app_data: 'data'
-      app_vendor: 'The Powder Toy Developers'
-      # 动态输出
-      version: ${{ steps.get_version.outputs.version }}
-      release_name: ${{ steps.get_version.outputs.release_name }}
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-      - name: 设置 Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-      - name: 获取项目版本（自动或手动）
+      - name: 设置版本号
+        id: set_version
+        run: echo "version=$GITHUB_REF" >> $GITHUB_ENV
+        if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+
+      - name: 获取用户输入版本号
         id: get_version
         run: |
-          CURRENT_DATE=$(date +'%Y-%m-%d')
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            VERSION="${{ github.event.inputs.version }}"
-            RELEASE_NAME="v${VERSION} (${CURRENT_DATE})"
-          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            VERSION=$(echo "${{ github.ref }}" | sed -E 's/refs\/tags\/v([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
-            RELEASE_NAME="v${VERSION} (${CURRENT_DATE})"
-          else
-            VERSION="dev-${{ github.sha }}"
-            RELEASE_NAME="Development Build (${CURRENT_DATE})"
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_ENV
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "release_name=$RELEASE_NAME" >> $GITHUB_OUTPUT
-  build:
-    runs-on: ${{ matrix.runs_on }}
-    name: Build: ${{ matrix.job_name_suffix }}
-    needs: [prepare]
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # ------------------ Linux x64 Static -------------------
-          - bsh_host_arch: 'x86_64'
-            bsh_host_platform: 'linux'
-            bsh_host_libc: 'gnu'
-            bsh_static_dynamic: 'static'
-            bsh_build_platform: 'linux'
-            bsh_debug_release: 'release'
-            runs_on: 'ubuntu-22.04'
-            package_suffix: ''
-            package_mode: 'default'
-            artifact_name: 'powder-linux-x64-static'
-            job_name_suffix: 'Linux x64 Static'
-            shell: bash
-          # ------------------ Linux arm64 Static -------------------
-          - bsh_host_arch: 'aarch64'
-            bsh_host_platform: 'linux'
-            bsh_host_libc: 'gnu'
-            bsh_static_dynamic: 'static'
-            bsh_build_platform: 'linux'
-            bsh_debug_release: 'release'
-            runs_on: 'ubuntu-22.04-arm'
-            package_suffix: ''
-            package_mode: 'default'
-            artifact_name: 'powder-linux-arm64-static'
-            job_name_suffix: 'Linux arm64 Static'
-            shell: bash
-            # Fix for ubuntu-22.04-arm HOME path issue
-            fix_home_env: |
-              for var in HOME PATH XDG_CONFIG_HOME; do
-                sed -Ee "s/^/${var}=/" -e 's/(runner)admin/\1/g' <<< "${!var}" | tee -a "$GITHUB_ENV";
-              done
-          # ------------------ Windows x64 Static MSVC -------------------
-          - bsh_host_arch: 'x86_64'
-            bsh_host_platform: 'windows'
-            bsh_host_libc: 'msvc'
-            bsh_static_dynamic: 'static'
-            bsh_build_platform: 'windows'
-            bsh_debug_release: 'release'
-            runs_on: 'windows-2022'
-            package_suffix: '.exe'
-            package_mode: 'default'
-            artifact_name: 'powder-windows-x64-msvc-static'
-            job_name_suffix: 'Windows x64 MSVC Static'
-            shell: pwsh
-            force_msys2_bash: 'yes'
-          # ------------------ macOS x64 Static -------------------
-          - bsh_host_arch: 'x86_64'
-            bsh_host_platform: 'darwin'
-            bsh_host_libc: 'macos'
-            bsh_static_dynamic: 'static'
-            bsh_build_platform: 'darwin'
-            bsh_debug_release: 'release'
-            runs_on: 'macos-13'
-            package_suffix: '.dmg'
-            package_mode: 'default'
-            artifact_name: 'powder-macos-x64-static'
-            job_name_suffix: 'macOS x64 Static'
-            shell: bash
-    steps:
-      - name: Fix Home Path (ARM)
-        if: matrix.fix_home_env
-        run: |
-          ${MATRIX_FIX_HOME_ENV}
         shell: bash
-      - name: Setup MSYS2 (Windows only)
-        if: matrix.force_msys2_bash == 'yes'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: UCRT64
-          update: true
-          path-type: strict
-          cache: true
-          install: mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-curl mingw-w64-ucrt-x86_64-meson
-      - name: Checkout Code
+
+      - name: 检出代码
         uses: actions/checkout@v4
-      - name: Setup Python
+
+      - name: 设置 Python 环境
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      - name: Install Tools
+
+      - name: 安装构建工具
         run: |
           pip install meson ninja
-      - name: Get Version from Prepare Job
-        id: get_env
+          # 如果需要其他依赖，添加在这里
+
+      - name: 构建项目
         run: |
-          echo "version=${{ needs.prepare.outputs.version }}" >> $GITHUB_ENV
-          echo "release_name=${{ needs.prepare.outputs.release_name }}" >> $GITHUB_ENV
-          echo "app_name=${{ needs.prepare.outputs.app_name }}" >> $GITHUB_ENV
-          echo "app_exe=${{ needs.prepare.outputs.app_exe }}" >> $GITHUB_ENV
-          echo "app_id=${{ needs.prepare.outputs.app_id }}" >> $GITHUB_ENV
-      - name: Build Project
-        env:
-          BSH_HOST_ARCH: ${{ matrix.bsh_host_arch }}
-          BSH_HOST_PLATFORM: ${{ matrix.bsh_host_platform }}
-          BSH_HOST_LIBC: ${{ matrix.bsh_host_libc }}
-          BSH_STATIC_DYNAMIC: ${{ matrix.bsh_static_dynamic }}
-          BSH_BUILD_PLATFORM: ${{ matrix.bsh_build_platform }}
-          BSH_DEBUG_RELEASE: ${{ matrix.bsh_debug_release }}
-          BSH_LINT: 'no' # Always disable linting for simplicity
-          SEPARATE_DEBUG: 'no'
-          PACKAGE_MODE: ${{ matrix.package_mode }}
-          ASSET_PATH: ${{ matrix.artifact_name }}${{ matrix.package_suffix }}
-          RELEASE_NAME: ${{ env.release_name }}
-          RELEASE_TYPE: stable
-          MOD_ID: 0
-          APP_NAME: ${{ env.app_name }}
-          APP_COMMENT: A physics sandbox game
-          APP_EXE: ${{ env.app_exe }}
-          APP_ID: powder-toy
-          APP_DATA: data
-          APP_VENDOR: The Powder Toy Developers
-        run: |
-          # 如果你的 build.sh 使用 bash，但在 Windows 上请确保环境兼容
-          bash -c './.github/build.sh'
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.artifact_name }}${{ matrix.package_suffix }}
-  release:
-    runs-on: ubuntu-latest
-    needs: [build, prepare]
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Download Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: releases/
-      - name: Get Env from Prepare Job
-        id: get_env
-        run: |
-          echo "version=${{ needs.prepare.outputs.version }}" >> $GITHUB_ENV
-          echo "release_name=${{ needs.prepare.outputs.release_name }}" >> $GITHUB_ENV
-      - name: Create GitHub Release
+          # 根据你的项目调整构建命令
+          meson setup -Dversion=${{ env.version }} build
+          ninja -C build
+
+      - name: 创建 Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ env.version }}
-          name: ${{ env.release_name }}
+          tag_name: ${{ env.version }}
+          name: 发布 ${{ env.version }}
           body: |
-            This is an automated release of The Powder Toy.
-            Built from commit ${{ github.sha }} on branch ${{ github.ref }}
-          files: releases/*
+            自动发布的构建版本
+          files: build/*  # 修改为实际的构建输出路径
           draft: false
           prerelease: ${{ startsWith(env.version, 'dev') }}
