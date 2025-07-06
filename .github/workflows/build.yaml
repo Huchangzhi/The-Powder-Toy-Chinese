@@ -1,19 +1,21 @@
 name: build
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        type: string
-        description: "输入你要发布的版本号 (例如 '1.2.3' 或 '1.2.3b')"
-        required: true
+  push:
+    branches:
+      - '*'
+    tags:
+      - 'v*.*'
+  pull_request:
+    branches:
+      - '*'
 
 permissions:
   contents: write
 
 jobs:
   prepare:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       do_release: ${{ steps.prepare.outputs.do_release }}
       build_matrix: ${{ steps.prepare.outputs.build_matrix }}
@@ -29,34 +31,26 @@ jobs:
       app_vendor: ${{ steps.prepare.outputs.app_vendor }}
       do_publish: ${{ steps.prepare.outputs.do_publish }}
       version: ${{ steps.prepare.outputs.version }}
-
     steps:
-      - name: 设置自动换行符
-        run: git config --global core.autocrlf false
-      - name: 检出源码
-        uses: actions/checkout@v4
-      - name: 安装 Python
-        uses: actions/setup-python@v5
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      - name: 安装 Meson & Ninja
-        run: python -m pip install meson ninja
-      - name: 准备编译信息
-        id: prepare
+      - run: python -m pip install meson ninja
+      - id: prepare
         run: python ./.github/prepare.py
         env:
           PUBLISH_HOSTPORT: ${{ vars.STARCATCHER_PUBLISH_HOSTPORT }}
-          INPUT_VERSION: ${{ inputs.version }}
-      - name: 发布到 StarCatcher (预验证)
-        if: steps.prepare.outputs.do_publish == 'yes'
+          GITHUB_REF: ${{ github.ref }}
+      - if: steps.prepare.outputs.do_publish == 'yes'
         run: bash -c './.github/starcatcher-publish.sh'
         env:
           PUBLISH_HOSTPORT: ${{ vars.STARCATCHER_PUBLISH_HOSTPORT }}
           PUBLISH_USERNAME: ${{ vars.STARCATCHER_PUBLISH_USERNAME }}
           PUBLISH_PASSWORD: ${{ secrets.STARCATCHER_PUBLISH_PASSWORD }}
           PUBLISH_ACCESSCHECK: yes
-      - name: 打 Git Tag (非 Tag 分支时)
-        if: steps.prepare.outputs.do_release == 'yes' && !startsWith(github.ref, 'refs/tags/')
+      - if: steps.prepare.outputs.do_release == 'yes' && !startsWith(github.ref, 'refs/tags/')
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
@@ -64,14 +58,12 @@ jobs:
           git push origin "v${{ steps.prepare.outputs.version }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: 创建 GitHub Release
-        if: steps.prepare.outputs.do_release == 'yes'
+      - if: steps.prepare.outputs.do_release == 'yes'
         id: create_release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_NAME: ${{ steps.prepare.outputs.release_name }}
         run: bash -c './.github/create-release.sh'
-
   build:
     runs-on: ${{ matrix.runs_on }}
     name: ${{ matrix.job_name }}
@@ -83,11 +75,8 @@ jobs:
       run:
         shell: ${{ matrix.shell }}
     steps:
-      - if: matrix.runs_on == 'ubuntu-22.04-arm'
-        run: |
-          for var in HOME PATH XDG_CONFIG_HOME; do
-            sed -Ee "s/^/${var}=/" -e 's/(runner)admin/\1/g' <<< "${!var}" | tee -a "$GITHUB_ENV"
-          done
+      - if: matrix.runs_on == 'ubuntu-22.04-arm' # TODO: undo; see https://github.com/orgs/community/discussions/148648#discussioncomment-11858098
+        run: for var in HOME PATH XDG_CONFIG_HOME; do sed -Ee "s/^/${var}=/" -e 's/(runner)admin/\1/g' <<< "${!var}"; done | tee -a "$GITHUB_ENV"
       - if: matrix.force_msys2_bash == 'yes'
         uses: msys2/setup-msys2@v2
         with:
@@ -95,15 +84,27 @@ jobs:
           update: true
           path-type: strict
           cache: true
+          # this list doesn't have to mirror the one in build.sh perfectly
+          # but the packages listed here get cached properly and take less time to install
           install: >-
-            git curl mingw-w64-ucrt-x86_64-gcc
-            mingw-w64-ucrt-x86_64-pkgconf mingw-w64-ucrt-x86_64-bzip2
-            mingw-w64-ucrt-x86_64-luajit mingw-w64-ucrt-x86_64-jsoncpp
-            mingw-w64-ucrt-x86_64-curl mingw-w64-ucrt-x86_64-SDL2
-            mingw-w64-ucrt-x86_64-libpng mingw-w64-ucrt-x86_64-meson
-            mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-python-pip
-            mingw-w64-ucrt-x86_64-fftw mingw-w64-ucrt-x86_64-cmake
-            mingw-w64-ucrt-x86_64-7zip mingw-w64-ucrt-x86_64-jq patch
+            git
+            curl
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-bzip2
+            mingw-w64-ucrt-x86_64-luajit
+            mingw-w64-ucrt-x86_64-jsoncpp
+            mingw-w64-ucrt-x86_64-curl
+            mingw-w64-ucrt-x86_64-SDL2
+            mingw-w64-ucrt-x86_64-libpng
+            mingw-w64-ucrt-x86_64-meson
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-python-pip
+            mingw-w64-ucrt-x86_64-fftw
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-7zip
+            mingw-w64-ucrt-x86_64-jq
+            patch
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
       - if: matrix.force_msys2_bash != 'yes'
@@ -136,7 +137,7 @@ jobs:
           PACKAGE_MODE: ${{ matrix.package_mode }}
           ASSET_PATH: ${{ matrix.asset_path }}
           DEBUG_ASSET_PATH: ${{ matrix.debug_asset_path }}
-      - if: needs.prepare.outputs.do_release == 'yes' && matrix.publish == 'yes'
+      - if: needs.prepare.outputs.do_release == 'yes' && matrix.publish == 'yes' # TODO-NTL: ship licenses
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ASSET_PATH: build/${{ matrix.asset_path }}
@@ -158,14 +159,13 @@ jobs:
         with:
           path: build/${{ matrix.debug_asset_path }}
           name: ${{ matrix.debug_asset_name }}
-
   publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [build, prepare]
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.prepare.outputs.publish_matrix) }}
-    if: needs.prepare.outputs.do_publish == 'yes'
+
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
@@ -180,11 +180,10 @@ jobs:
           PUBLISH_PASSWORD: ${{ secrets.STARCATCHER_PUBLISH_PASSWORD }}
           PUBLISH_DIRECTORY: ${{ vars.STARCATCHER_PUBLISH_DIRECTORY }}
           PUBLISH_FILENAME: ${{ matrix.starcatcher_name }}
-
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [build, publish, prepare]
-    if: needs.prepare.outputs.do_publish == 'yes'
+
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
